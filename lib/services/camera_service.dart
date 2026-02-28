@@ -45,7 +45,7 @@ class CameraService {
 
     _controller = CameraController(
       camera,
-      ResolutionPreset.medium,
+      ResolutionPreset.low,
       enableAudio: false, // no mic needed
       imageFormatGroup: ImageFormatGroup.nv21, // best for Android ML Kit
     );
