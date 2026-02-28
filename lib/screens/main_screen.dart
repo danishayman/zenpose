@@ -28,8 +28,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   // ── State ─────────────────────────────────────────────────────────────────
 
-  /// Most recently detected poses (updated every frame).
-  List<Pose> _detectedPoses = [];
+  /// Use ValueNotifier so only the skeleton overlay repaints, not the whole tree.
+  final ValueNotifier<List<Pose>> _posesNotifier = ValueNotifier([]);
 
   /// Whether the camera has finished initialising.
   bool _isCameraReady = false;
@@ -37,9 +37,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   /// Error message to show if initialisation fails.
   String? _errorMessage;
 
+  /// Whether a camera switch is currently in progress.
+  bool _isSwitching = false;
+
   /// Simple FPS counter for debug overlay.
+  final ValueNotifier<double> _fpsNotifier = ValueNotifier(0);
   int _frameCount = 0;
-  double _fps = 0;
   DateTime _lastFpsUpdate = DateTime.now();
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -54,6 +57,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _posesNotifier.dispose();
+    _fpsNotifier.dispose();
     _cameraService.dispose();
     _poseDetectionService.dispose();
     super.dispose();
@@ -102,21 +107,37 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       final now = DateTime.now();
       final elapsed = now.difference(_lastFpsUpdate).inMilliseconds;
       if (elapsed >= 1000) {
-        _fps = _frameCount / (elapsed / 1000.0);
+        _fpsNotifier.value = _frameCount / (elapsed / 1000.0);
         _frameCount = 0;
         _lastFpsUpdate = now;
       }
 
-      // Update the overlay.
+      // Update the overlay via ValueNotifier (no setState needed).
       if (mounted) {
-        setState(() {
-          _detectedPoses = poses;
-        });
+        _posesNotifier.value = poses;
       }
 
       // Release the busy-guard so the next frame can be processed.
       _cameraService.isProcessing = false;
     });
+  }
+
+  /// Switch between front and back camera.
+  Future<void> _switchCamera() async {
+    if (_isSwitching) return;
+    setState(() => _isSwitching = true);
+
+    try {
+      await _cameraService.stopImageStream();
+      await _cameraService.switchCamera();
+      if (!mounted) return;
+      _startDetection();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMessage = e.toString());
+    } finally {
+      if (mounted) setState(() => _isSwitching = false);
+    }
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -166,38 +187,28 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Camera preview (full-screen) ──────────────────────────────────
-          _buildCameraPreview(),
-
-          // ── Skeleton overlay ──────────────────────────────────────────────
-          if (_detectedPoses.isNotEmpty)
-            CustomPaint(
-              painter: SkeletonPainter(
-                poses: _detectedPoses,
-                imageSize: _cameraImageSize,
-                lensDirection:
-                    _cameraService.cameraDescription?.lensDirection ??
-                    CameraLensDirection.back,
-                rotation: _sensorRotation,
-              ),
-            ),
+          // ── Camera preview + skeleton overlay (same size) ────────────────
+          _buildCameraWithOverlay(),
 
           // ── FPS debug overlay ─────────────────────────────────────────────
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                'FPS: ${_fps.toStringAsFixed(1)}',
-                style: const TextStyle(
-                  color: Colors.greenAccent,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+            child: ValueListenableBuilder<double>(
+              valueListenable: _fpsNotifier,
+              builder: (context, fps, _) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'FPS: ${fps.toStringAsFixed(1)}',
+                  style: const TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -207,18 +218,41 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             right: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(6),
+            child: ValueListenableBuilder<List<Pose>>(
+              valueListenable: _posesNotifier,
+              builder: (context, poses, _) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Landmarks: ${poses.isNotEmpty ? poses.first.landmarks.length : 0}',
+                  style: const TextStyle(
+                    color: Colors.cyanAccent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-              child: Text(
-                'Landmarks: ${_detectedPoses.isNotEmpty ? _detectedPoses.first.landmarks.length : 0}',
-                style: const TextStyle(
-                  color: Colors.cyanAccent,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          // ── Camera switch button ──────────────────────────────────────────
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 24,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: FloatingActionButton(
+                onPressed: _isSwitching ? null : _switchCamera,
+                backgroundColor: Colors.black54,
+                child: Icon(
+                  _cameraService.currentLensDirection ==
+                          CameraLensDirection.back
+                      ? Icons.camera_front
+                      : Icons.camera_rear,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -228,20 +262,48 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
-  /// Build the camera preview widget, scaled to fill the screen.
-  Widget _buildCameraPreview() {
+  /// Build the camera preview AND skeleton overlay inside the same sized
+  /// container so coordinates match perfectly.
+  Widget _buildCameraWithOverlay() {
     final controller = _cameraService.controller!;
-    final previewAspectRatio = controller.value.aspectRatio;
+    final previewAspectRatio = controller.value.aspectRatio; // w/h in landscape
 
     return Center(
       child: AspectRatio(
-        aspectRatio: 1 / previewAspectRatio, // portrait
-        child: CameraPreview(controller),
+        aspectRatio: 1 / previewAspectRatio, // portrait aspect ratio
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Camera preview – wrapped in RepaintBoundary so it doesn't
+            // repaint when the skeleton overlay updates.
+            RepaintBoundary(child: CameraPreview(controller)),
+
+            // Skeleton overlay – exactly the same size as the preview.
+            ValueListenableBuilder<List<Pose>>(
+              valueListenable: _posesNotifier,
+              builder: (context, poses, _) {
+                if (poses.isEmpty) return const SizedBox.shrink();
+                return CustomPaint(
+                  painter: SkeletonPainter(
+                    poses: poses,
+                    imageSize: _cameraImageSize,
+                    lensDirection:
+                        _cameraService.cameraDescription?.lensDirection ??
+                        CameraLensDirection.back,
+                    rotation: _sensorRotation,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
   /// The image size reported by the camera (width × height in sensor coords).
+  /// previewSize is reported in landscape (width > height), so we swap for
+  /// portrait orientation.
   Size get _cameraImageSize {
     final controller = _cameraService.controller!;
     return Size(

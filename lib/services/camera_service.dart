@@ -21,19 +21,25 @@ class CameraService {
   /// Guard flag – true while the pose detector is processing a frame.
   bool isProcessing = false;
 
+  /// The current lens direction.
+  CameraLensDirection get currentLensDirection =>
+      _controller?.description.lensDirection ?? CameraLensDirection.back;
+
   /// Initialise the camera.
   ///
-  /// Selects the first back-facing camera and opens it at medium resolution
+  /// Selects a camera matching [direction] and opens it at medium resolution
   /// (good balance between quality and inference speed).
-  Future<void> initialise() async {
+  Future<void> initialise([
+    CameraLensDirection direction = CameraLensDirection.back,
+  ]) async {
     _cameras = await availableCameras();
     if (_cameras.isEmpty) {
       throw Exception('No cameras available on this device.');
     }
 
-    // Prefer back camera; fall back to first available.
+    // Prefer the requested direction; fall back to first available.
     final camera = _cameras.firstWhere(
-      (c) => c.lensDirection == CameraLensDirection.back,
+      (c) => c.lensDirection == direction,
       orElse: () => _cameras.first,
     );
 
@@ -45,6 +51,19 @@ class CameraService {
     );
 
     await _controller!.initialize();
+  }
+
+  /// Switch between front and back camera.
+  ///
+  /// Disposes the current controller and re-initialises with the opposite
+  /// lens direction.
+  Future<void> switchCamera() async {
+    final newDirection = currentLensDirection == CameraLensDirection.back
+        ? CameraLensDirection.front
+        : CameraLensDirection.back;
+
+    await dispose();
+    await initialise(newDirection);
   }
 
   /// Start streaming camera frames.

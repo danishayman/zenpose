@@ -12,7 +12,8 @@ class SkeletonPainter extends CustomPainter {
   /// Detected poses (usually one for single-person detection).
   final List<Pose> poses;
 
-  /// Size of the camera image fed to ML Kit.
+  /// Size of the camera image fed to ML Kit (in portrait orientation,
+  /// i.e. width < height).
   final Size imageSize;
 
   /// The camera lens direction (used for optional mirroring).
@@ -20,6 +21,9 @@ class SkeletonPainter extends CustomPainter {
 
   /// Rotation value from the camera sensor.
   final InputImageRotation rotation;
+
+  /// Minimum landmark confidence to draw (0.0 – 1.0).
+  static const double _minConfidence = 0.5;
 
   SkeletonPainter({
     required this.poses,
@@ -69,26 +73,16 @@ class SkeletonPainter extends CustomPainter {
 
   /// Translate a landmark's (x,y) from image-space to canvas (screen) space.
   ///
-  /// The camera image and the preview widget typically have different sizes.
-  /// We compute scale factors for both axes and apply them. For a front camera
-  /// the x-axis is mirrored.
+  /// Because the CustomPaint overlay is now constrained to the exact same
+  /// AspectRatio as the camera preview, we can use a simple uniform scale.
+  /// The image aspect ratio matches the canvas aspect ratio, so scaleX ≈ scaleY
+  /// and no center-crop offset is needed.
   Offset _translatePoint(double x, double y, Size canvasSize) {
-    // The image dimensions might be rotated (landscape sensor → portrait display).
-    // After rotation adjustment, imageSize already matches the portrait orientation
-    // because we pass width/height from CameraImage which reports the raw sensor dims.
-    // ML Kit returns coordinates already rotated, so we just need to scale.
     final double scaleX = canvasSize.width / imageSize.width;
     final double scaleY = canvasSize.height / imageSize.height;
 
-    // Use the larger scale to fill the preview (center-crop style).
-    final double scale = scaleX > scaleY ? scaleX : scaleY;
-
-    // Offset to center the scaled image in the canvas.
-    final double offsetX = (canvasSize.width - imageSize.width * scale) / 2;
-    final double offsetY = (canvasSize.height - imageSize.height * scale) / 2;
-
-    double translatedX = x * scale + offsetX;
-    double translatedY = y * scale + offsetY;
+    double translatedX = x * scaleX;
+    double translatedY = y * scaleY;
 
     // Mirror for front camera.
     if (lensDirection == CameraLensDirection.front) {
@@ -107,7 +101,10 @@ class SkeletonPainter extends CustomPainter {
       for (final connection in _boneConnections) {
         final from = pose.landmarks[connection.$1];
         final to = pose.landmarks[connection.$2];
-        if (from != null && to != null) {
+        if (from != null &&
+            to != null &&
+            from.likelihood >= _minConfidence &&
+            to.likelihood >= _minConfidence) {
           canvas.drawLine(
             _translatePoint(from.x, from.y, size),
             _translatePoint(to.x, to.y, size),
@@ -116,15 +113,18 @@ class SkeletonPainter extends CustomPainter {
         }
       }
 
-      // Draw joints on top.
+      // Draw joints on top (only high-confidence ones).
       for (final landmark in pose.landmarks.values) {
-        final point = _translatePoint(landmark.x, landmark.y, size);
-        canvas.drawCircle(point, 6.0, _jointPaint);
+        if (landmark.likelihood >= _minConfidence) {
+          final point = _translatePoint(landmark.x, landmark.y, size);
+          canvas.drawCircle(point, 4.0, _jointPaint);
+        }
       }
     }
   }
 
-  /// Always repaint – we receive new pose data every frame.
+  /// Repaint when pose data changes.
   @override
-  bool shouldRepaint(covariant SkeletonPainter oldDelegate) => true;
+  bool shouldRepaint(covariant SkeletonPainter oldDelegate) =>
+      !identical(oldDelegate.poses, poses);
 }
