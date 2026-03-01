@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
+import '../models/pose_frame.dart';
+import '../services/angle_calculation_service.dart';
 import '../services/camera_service.dart';
+import '../services/landmark_smoothing_service.dart';
 import '../services/pose_detection_service.dart';
 import '../painters/skeleton_painter.dart';
 
@@ -25,11 +28,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   final CameraService _cameraService = CameraService();
   final PoseDetectionService _poseDetectionService = PoseDetectionService();
+  final AngleCalculationService _angleService = AngleCalculationService();
+  final LandmarkSmoothingService _smoothingService = LandmarkSmoothingService();
 
   // ── State ─────────────────────────────────────────────────────────────────
 
   /// Use ValueNotifier so only the skeleton overlay repaints, not the whole tree.
   final ValueNotifier<List<Pose>> _posesNotifier = ValueNotifier([]);
+
+  /// Computed joint angles for the current frame.
+  final ValueNotifier<Map<String, double>> _anglesNotifier = ValueNotifier({});
 
   /// Whether the camera has finished initialising.
   bool _isCameraReady = false;
@@ -58,6 +66,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _posesNotifier.dispose();
+    _anglesNotifier.dispose();
     _fpsNotifier.dispose();
     _cameraService.dispose();
     _poseDetectionService.dispose();
@@ -102,6 +111,48 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       // Run pose detection (async, off the UI thread).
       final poses = await _poseDetectionService.detectPose(inputImage);
 
+      // ── Smooth landmarks & compute joint angles ──────────────────────
+      if (poses.isNotEmpty) {
+        final poseFrame = PoseFrame.fromMLKitPose(poses.first);
+
+        // Apply One Euro Filter smoothing to reduce jitter.
+        final smoothedLandmarks = _smoothingService.smooth(poseFrame.landmarks);
+
+        // Compute angles from the smoothed landmarks.
+        final angles = _angleService.calculateAngles(smoothedLandmarks);
+        _anglesNotifier.value = angles;
+
+        // Build a smoothed Pose so the skeleton painter also uses
+        // smoothed coordinates (eliminates visual jitter).
+        final rawPose = poses.first;
+        final smoothedPoseLandmarks = <PoseLandmarkType, PoseLandmark>{};
+        for (final entry in rawPose.landmarks.entries) {
+          final idx = entry.key.index;
+          if (idx < smoothedLandmarks.length) {
+            final sl = smoothedLandmarks[idx];
+            smoothedPoseLandmarks[entry.key] = PoseLandmark(
+              type: entry.key,
+              x: sl.x,
+              y: sl.y,
+              z: sl.z,
+              likelihood: entry.value.likelihood,
+            );
+          } else {
+            smoothedPoseLandmarks[entry.key] = entry.value;
+          }
+        }
+        final smoothedPose = Pose(landmarks: smoothedPoseLandmarks);
+
+        if (mounted) {
+          _posesNotifier.value = [smoothedPose];
+        }
+      } else {
+        _anglesNotifier.value = {};
+        if (mounted) {
+          _posesNotifier.value = poses;
+        }
+      }
+
       // Update FPS counter.
       _frameCount++;
       final now = DateTime.now();
@@ -110,11 +161,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         _fpsNotifier.value = _frameCount / (elapsed / 1000.0);
         _frameCount = 0;
         _lastFpsUpdate = now;
-      }
-
-      // Update the overlay via ValueNotifier (no setState needed).
-      if (mounted) {
-        _posesNotifier.value = poses;
       }
 
       // Release the busy-guard so the next frame can be processed.
@@ -130,6 +176,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     try {
       await _cameraService.stopImageStream();
       await _cameraService.switchCamera();
+      _smoothingService.reset(); // Clear stale filter state.
       if (!mounted) return;
       _startDetection();
     } catch (e) {
@@ -235,6 +282,42 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
+            ),
+          ),
+
+          // ── Joint angles debug overlay ─────────────────────────────────────
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 90,
+            left: 12,
+            child: ValueListenableBuilder<Map<String, double>>(
+              valueListenable: _anglesNotifier,
+              builder: (context, angles, _) {
+                if (angles.isEmpty) return const SizedBox.shrink();
+                return Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: angles.entries.map((e) {
+                      final label =
+                          AngleCalculationService.jointLabels[e.key] ?? e.key;
+                      return Text(
+                        '$label: ${e.value.toStringAsFixed(0)}°',
+                        style: const TextStyle(
+                          color: Colors.yellowAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'monospace',
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
             ),
           ),
 
