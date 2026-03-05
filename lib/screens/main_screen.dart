@@ -6,6 +6,7 @@ import '../models/pose_frame.dart';
 import '../services/angle_calculation_service.dart';
 import '../services/camera_service.dart';
 import '../services/landmark_smoothing_service.dart';
+import '../services/pose_normalization_service.dart';
 import '../services/pose_detection_service.dart';
 import '../painters/skeleton_painter.dart';
 
@@ -30,6 +31,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final PoseDetectionService _poseDetectionService = PoseDetectionService();
   final AngleCalculationService _angleService = AngleCalculationService();
   final LandmarkSmoothingService _smoothingService = LandmarkSmoothingService();
+  final PoseNormalizationService _normalizationService =
+      PoseNormalizationService();
 
   // ── State ─────────────────────────────────────────────────────────────────
 
@@ -38,6 +41,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   /// Computed joint angles for the current frame.
   final ValueNotifier<Map<String, double>> _anglesNotifier = ValueNotifier({});
+
+  /// Normalized pose vector (24 elements) for the current frame, or null.
+  final ValueNotifier<List<double>?> _normalizedVectorNotifier = ValueNotifier(
+    null,
+  );
 
   /// Whether the camera has finished initialising.
   bool _isCameraReady = false;
@@ -67,6 +75,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _posesNotifier.dispose();
     _anglesNotifier.dispose();
+    _normalizedVectorNotifier.dispose();
     _fpsNotifier.dispose();
     _cameraService.dispose();
     _poseDetectionService.dispose();
@@ -122,6 +131,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         final angles = _angleService.calculateAngles(smoothedLandmarks);
         _anglesNotifier.value = angles;
 
+        // ── Normalize pose vector (translation + scale invariant) ────
+        final normalized = _normalizationService.normalize(smoothedLandmarks);
+        _normalizedVectorNotifier.value = normalized;
+
+        // Debug: print the normalized vector to console.
+        if (normalized != null) {
+          debugPrint(
+            '[PoseNorm] vector(${normalized.length}): '
+            '${normalized.map((v) => v.toStringAsFixed(3)).join(", ")}',
+          );
+        }
+
         // Build a smoothed Pose so the skeleton painter also uses
         // smoothed coordinates (eliminates visual jitter).
         final rawPose = poses.first;
@@ -148,6 +169,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         }
       } else {
         _anglesNotifier.value = {};
+        _normalizedVectorNotifier.value = null;
         if (mounted) {
           _posesNotifier.value = poses;
         }
@@ -277,6 +299,30 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   'Landmarks: ${poses.isNotEmpty ? poses.first.landmarks.length : 0}',
                   style: const TextStyle(
                     color: Colors.cyanAccent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Normalized vector length debug overlay ─────────────────────
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 32,
+            right: 12,
+            child: ValueListenableBuilder<List<double>?>(
+              valueListenable: _normalizedVectorNotifier,
+              builder: (context, vector, _) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Vector: ${vector != null ? vector.length.toString() : '—'}',
+                  style: const TextStyle(
+                    color: Colors.orangeAccent,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
