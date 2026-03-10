@@ -11,6 +11,7 @@ import '../services/landmark_smoothing_service.dart';
 import '../services/pose_normalization_service.dart';
 import '../services/cosine_similarity_service.dart';
 import '../services/limb_similarity_service.dart';
+import '../services/pose_correction_service.dart';
 import '../services/pose_detection_service.dart';
 import '../painters/skeleton_painter.dart';
 
@@ -45,6 +46,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final LandmarkSmoothingService _smoothingService = LandmarkSmoothingService();
   final PoseNormalizationService _normalizationService =
       PoseNormalizationService();
+  final PoseCorrectionService _poseCorrectionService = PoseCorrectionService();
 
   // CosineSimilarityService and LimbSimilarityService are initialised
   // lazily in initState() so we can inject the selected pose's meanVector.
@@ -74,6 +76,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   /// Corrective feedback messages for the current frame.
   final ValueNotifier<List<String>> _feedbackNotifier = ValueNotifier([]);
+
+  /// Angle-based corrective feedback from [PoseCorrectionService].
+  final ValueNotifier<List<String>> _angleFeedbackNotifier = ValueNotifier([]);
 
   /// Whether the camera has finished initialising.
   bool _isCameraReady = false;
@@ -106,6 +111,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       cosineSimilarityService: _similarityService,
     );
 
+    // Pre-compute reference joint angles from the template's mean vector.
+    _poseCorrectionService.computeReferenceAngles(
+      widget.poseTemplate.meanVector,
+    );
+
     _initCamera();
   }
 
@@ -120,6 +130,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _similarityNotifier.dispose();
     _limbScoresNotifier.dispose();
     _feedbackNotifier.dispose();
+    _angleFeedbackNotifier.dispose();
     _fpsNotifier.dispose();
     _cameraService.dispose();
     _poseDetectionService.dispose();
@@ -189,9 +200,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         final limbScores = _limbSimilarityService.computeLimbScores(normalized);
         _limbScoresNotifier.value = limbScores;
 
-        // ── Corrective feedback ─────────────────────────────────────
+        // ── Corrective feedback (limb similarity) ──────────────────
         final feedback = _limbSimilarityService.generateFeedback(limbScores);
         _feedbackNotifier.value = feedback;
+
+        // ── Angle-based corrective feedback ─────────────────────────
+        final angleCorrections = _poseCorrectionService.generateCorrections(
+          angles,
+        );
+        _angleFeedbackNotifier.value = angleCorrections;
 
         // Debug: print the normalized vector to console.
         if (normalized != null) {
@@ -234,6 +251,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         _similarityNotifier.value = 0.0;
         _limbScoresNotifier.value = {};
         _feedbackNotifier.value = [];
+        _angleFeedbackNotifier.value = [];
         if (mounted) {
           _posesNotifier.value = poses;
         }
@@ -541,6 +559,92 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       );
                     }).toList(),
                   ),
+                );
+              },
+            ),
+          ),
+
+          // ── Angle-based correction feedback overlay ───────────────────────
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 24,
+            left: 12,
+            right: 80,
+            child: ValueListenableBuilder<double>(
+              valueListenable: _similarityNotifier,
+              builder: (context, score, _) {
+                return ValueListenableBuilder<List<String>>(
+                  valueListenable: _angleFeedbackNotifier,
+                  builder: (context, corrections, _) {
+                    if (score == 0.0 && corrections.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Pose score
+                          Text(
+                            'Pose Score: ${score.toStringAsFixed(0)}%',
+                            style: TextStyle(
+                              color: score >= 70
+                                  ? Colors.greenAccent
+                                  : Colors.orangeAccent,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          // Correction messages
+                          if (corrections.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Feedback:',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            ...corrections.map(
+                              (msg) => Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      '• ',
+                                      style: TextStyle(
+                                        color: Colors.orangeAccent,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    Flexible(
+                                      child: Text(
+                                        msg,
+                                        style: const TextStyle(
+                                          color: Colors.orangeAccent,
+                                          fontSize: 13,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
                 );
               },
             ),

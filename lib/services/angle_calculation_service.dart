@@ -74,6 +74,20 @@ class AngleCalculationService {
       12, // B  – right shoulder (mlkit.PoseLandmarkType.rightShoulder)
       24, // C  – right hip      (mlkit.PoseLandmarkType.rightHip)
     ),
+
+    // ── Hips ────────────────────────────────────────────────────────────────
+    // Left Hip: angle between torso and thigh
+    'leftHip': (
+      11, // A  – left shoulder (mlkit.PoseLandmarkType.leftShoulder)
+      23, // B  – left hip      (mlkit.PoseLandmarkType.leftHip)
+      25, // C  – left knee     (mlkit.PoseLandmarkType.leftKnee)
+    ),
+    // Right Hip: angle between torso and thigh
+    'rightHip': (
+      12, // A  – right shoulder (mlkit.PoseLandmarkType.rightShoulder)
+      24, // B  – right hip      (mlkit.PoseLandmarkType.rightHip)
+      26, // C  – right knee     (mlkit.PoseLandmarkType.rightKnee)
+    ),
   };
 
   /// Compute all available joint angles from a frame's landmarks.
@@ -176,5 +190,7 @@ class AngleCalculationService {
     'rightKnee': 'R Knee',
     'leftShoulder': 'L Shoulder',
     'rightShoulder': 'R Shoulder',
+    'leftHip': 'L Hip',
+    'rightHip': 'R Hip',
   };
 }
