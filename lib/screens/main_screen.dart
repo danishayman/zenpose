@@ -9,6 +9,7 @@ import '../services/camera_service.dart';
 import '../services/landmark_smoothing_service.dart';
 import '../services/pose_normalization_service.dart';
 import '../services/cosine_similarity_service.dart';
+import '../services/limb_similarity_service.dart';
 import '../services/pose_detection_service.dart';
 import '../painters/skeleton_painter.dart';
 
@@ -36,6 +37,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final PoseNormalizationService _normalizationService =
       PoseNormalizationService();
   final CosineSimilarityService _similarityService = CosineSimilarityService();
+  final LimbSimilarityService _limbSimilarityService = LimbSimilarityService();
 
   // ── State ─────────────────────────────────────────────────────────────────
 
@@ -52,6 +54,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   /// Cosine similarity score (0–100 %) for the current frame.
   final ValueNotifier<double> _similarityNotifier = ValueNotifier(0.0);
+
+  /// Per-limb similarity scores (0–100 %) for the current frame.
+  final ValueNotifier<Map<String, double>> _limbScoresNotifier = ValueNotifier(
+    {},
+  );
+
+  /// Corrective feedback messages for the current frame.
+  final ValueNotifier<List<String>> _feedbackNotifier = ValueNotifier([]);
 
   /// Whether the camera has finished initialising.
   bool _isCameraReady = false;
@@ -85,6 +95,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _anglesNotifier.dispose();
     _normalizedVectorNotifier.dispose();
     _similarityNotifier.dispose();
+    _limbScoresNotifier.dispose();
+    _feedbackNotifier.dispose();
     _fpsNotifier.dispose();
     _cameraService.dispose();
     _poseDetectionService.dispose();
@@ -150,6 +162,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         final similarity = _similarityService.compareToPose(normalized);
         _similarityNotifier.value = similarity;
 
+        // ── Per-limb similarity scores ──────────────────────────────
+        final limbScores = _limbSimilarityService.computeLimbScores(normalized);
+        _limbScoresNotifier.value = limbScores;
+
+        // ── Corrective feedback ─────────────────────────────────────
+        final feedback = _limbSimilarityService.generateFeedback(limbScores);
+        _feedbackNotifier.value = feedback;
+
         // Debug: print the normalized vector to console.
         if (normalized != null) {
           debugPrint(
@@ -189,6 +209,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         _anglesNotifier.value = {};
         _normalizedVectorNotifier.value = null;
         _similarityNotifier.value = 0.0;
+        _limbScoresNotifier.value = {};
+        _feedbackNotifier.value = [];
         if (mounted) {
           _posesNotifier.value = poses;
         }
@@ -371,6 +393,69 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
+            ),
+          ),
+
+          // ── Limb scores + feedback overlay ────────────────────────────────
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 90,
+            right: 12,
+            child: ValueListenableBuilder<Map<String, double>>(
+              valueListenable: _limbScoresNotifier,
+              builder: (context, limbScores, _) {
+                if (limbScores.isEmpty) return const SizedBox.shrink();
+                return ValueListenableBuilder<List<String>>(
+                  valueListenable: _feedbackNotifier,
+                  builder: (context, feedback, _) {
+                    return Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // ── Per-limb scores ──
+                          ...limbScores.entries.map((e) {
+                            final score = e.value;
+                            // Green when ≥ 70, orange-red when below.
+                            final color =
+                                score >= LimbSimilarityService.feedbackThreshold
+                                ? Colors.greenAccent
+                                : Colors.redAccent;
+                            return Text(
+                              '${e.key}: ${score.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'monospace',
+                              ),
+                            );
+                          }),
+
+                          // ── Feedback messages ──
+                          if (feedback.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            ...feedback.map(
+                              (msg) => Text(
+                                msg,
+                                style: const TextStyle(
+                                  color: Colors.orangeAccent,
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
 
