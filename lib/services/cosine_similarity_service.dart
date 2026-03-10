@@ -24,63 +24,62 @@ import 'dart:math' as math;
 /// score = ((cosine + 1) / 2) × 100
 /// ```
 class CosineSimilarityService {
-  // ── Hardcoded reference vector ──────────────────────────────────────────
+  // ── Reference vector ──────────────────────────────────────────────────────
   //
-  // This represents a **neutral standing pose** with arms relaxed slightly
-  // away from the body.  It was captured from a normalised pose vector
-  // (24 elements = 12 joints × [x, y]) produced by PoseNormalizationService.
+  // The reference vector is now **dynamic** — it is set at runtime from the
+  // selected PoseTemplate rather than being hardcoded.  This allows the same
+  // service to score the user's pose against any target pose in the library.
   //
-  // Joint order (same as PoseNormalizationService._keyJointIndices):
-  //   L Shoulder, R Shoulder, L Elbow, R Elbow, L Wrist, R Wrist,
-  //   L Hip, R Hip, L Knee, R Knee, L Ankle, R Ankle.
-  //
-  // The values are approximate for a front-facing person standing upright:
-  //   • Shoulders are ~1 torso-length above the hip center, spread apart.
-  //   • Elbows sit roughly at hip height, slightly outward.
-  //   • Wrists hang just below the hips.
-  //   • Hips are near the origin (hip center is the translation origin).
-  //   • Knees are ~1 torso-length below hips.
-  //   • Ankles are ~2 torso-lengths below hips.
+  // Fallback: a neutral standing pose is kept as the default so existing
+  // callers continue to work without changes.
 
-  static const List<double> referenceVector = [
-    // L Shoulder  (x, y)  — slightly left, one torso-length above origin
-    -0.50, -1.00,
-    // R Shoulder  (x, y)  — slightly right, one torso-length above origin
-    0.50, -1.00,
-    // L Elbow     (x, y)  — left of body, roughly at hip height
-    -0.55, -0.45,
-    // R Elbow     (x, y)  — right of body, roughly at hip height
-    0.55, -0.45,
-    // L Wrist     (x, y)  — left, slightly below hips
-    -0.55, 0.10,
-    // R Wrist     (x, y)  — right, slightly below hips
-    0.55, 0.10,
-    // L Hip       (x, y)  — near origin, slightly left
-    -0.20, 0.00,
-    // R Hip       (x, y)  — near origin, slightly right
-    0.20, 0.00,
-    // L Knee      (x, y)  — slightly left, one torso-length below origin
-    -0.22, 1.00,
-    // R Knee      (x, y)  — slightly right, one torso-length below origin
-    0.22, 1.00,
-    // L Ankle     (x, y)  — slightly left, two torso-lengths below origin
-    -0.24, 2.00,
-    // R Ankle     (x, y)  — slightly right, two torso-lengths below origin
-    0.24, 2.00,
+  /// Default reference: neutral standing pose (24 elements = 12 joints × [x, y]).
+  static const List<double> defaultReferenceVector = [
+    -0.50, -1.00, // L Shoulder
+    0.50, -1.00, // R Shoulder
+    -0.55, -0.45, // L Elbow
+    0.55, -0.45, // R Elbow
+    -0.55, 0.10, // L Wrist
+    0.55, 0.10, // R Wrist
+    -0.20, 0.00, // L Hip
+    0.20, 0.00, // R Hip
+    -0.22, 1.00, // L Knee
+    0.22, 1.00, // R Knee
+    -0.24, 2.00, // L Ankle
+    0.24, 2.00, // R Ankle
   ];
+
+  /// The active reference vector used for pose comparison.
+  ///
+  /// Can be updated at runtime via [setReferenceVector] when the user
+  /// selects a different pose from the Pose Library.
+  List<double> _referenceVector;
+
+  /// Backward-compatible getter so existing code referencing
+  /// `referenceVector` continues to compile.
+  List<double> get referenceVector => _referenceVector;
+
+  /// Create the service, optionally injecting a custom reference vector.
+  CosineSimilarityService({List<double>? referenceVector})
+    : _referenceVector = referenceVector ?? defaultReferenceVector;
+
+  /// Replace the reference vector at runtime (e.g. when the user picks a pose).
+  void setReferenceVector(List<double> vector) {
+    _referenceVector = vector;
+  }
 
   // ── Public API ────────────────────────────────────────────────────────────
 
-  /// Compare [userVector] against the built-in [referenceVector].
+  /// Compare [userVector] against the current [referenceVector].
   ///
   /// Returns a **percentage** (0–100) indicating how closely the user's
   /// current pose matches the reference.  Returns `0.0` when the input is
   /// null, empty, or has a mismatched length.
   double compareToPose(List<double>? userVector) {
-    if (userVector == null || userVector.length != referenceVector.length) {
+    if (userVector == null || userVector.length != _referenceVector.length) {
       return 0.0;
     }
-    return computeSimilarity(userVector, referenceVector);
+    return computeSimilarity(userVector, _referenceVector);
   }
 
   /// Compute the cosine similarity between two vectors and return it as a

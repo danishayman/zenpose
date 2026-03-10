@@ -4,6 +4,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 import '../models/pose_frame.dart';
+import '../models/pose_template.dart';
 import '../services/angle_calculation_service.dart';
 import '../services/camera_service.dart';
 import '../services/landmark_smoothing_service.dart';
@@ -20,8 +21,16 @@ import '../painters/skeleton_painter.dart';
 ///  2. Pose detection on each frame via [PoseDetectionService].
 ///  3. Overlay rendering via [SkeletonPainter] on a [CustomPaint].
 ///  4. Lifecycle management (pause / resume camera on app state changes).
+///
+/// Receives a [PoseTemplate] from the Pose Selection Screen.  The template's
+/// [PoseTemplate.meanVector] is used as the reference vector for cosine
+/// similarity scoring — replacing the old hardcoded reference.
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  /// The yoga pose the user selected from the Pose Library.
+  /// Its [meanVector] is fed to [CosineSimilarityService] as the target.
+  final PoseTemplate poseTemplate;
+
+  const MainScreen({super.key, required this.poseTemplate});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -36,8 +45,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final LandmarkSmoothingService _smoothingService = LandmarkSmoothingService();
   final PoseNormalizationService _normalizationService =
       PoseNormalizationService();
-  final CosineSimilarityService _similarityService = CosineSimilarityService();
-  final LimbSimilarityService _limbSimilarityService = LimbSimilarityService();
+
+  // CosineSimilarityService and LimbSimilarityService are initialised
+  // lazily in initState() so we can inject the selected pose's meanVector.
+  late final CosineSimilarityService _similarityService;
+  late final LimbSimilarityService _limbSimilarityService;
 
   // ── State ─────────────────────────────────────────────────────────────────
 
@@ -83,6 +95,17 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Inject the selected pose template's meanVector as the reference
+    // for cosine similarity scoring.  This is the core link between the
+    // Pose Library and the real-time evaluation pipeline.
+    _similarityService = CosineSimilarityService(
+      referenceVector: widget.poseTemplate.meanVector,
+    );
+    _limbSimilarityService = LimbSimilarityService(
+      cosineSimilarityService: _similarityService,
+    );
+
     _initCamera();
   }
 
@@ -299,6 +322,34 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         children: [
           // ── Camera preview + skeleton overlay (same size) ────────────────
           _buildCameraWithOverlay(),
+
+          // ── Pose name overlay (top center) ────────────────────────────────
+          // Shows which pose the user is being evaluated against.
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  widget.poseTemplate.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
 
           // ── FPS debug overlay ─────────────────────────────────────────────
           Positioned(

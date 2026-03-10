@@ -93,17 +93,16 @@ class LimbSimilarityService {
   // ── Public API ────────────────────────────────────────────────────────────
 
   /// Compute per-segment similarity scores between [userVector] and the
-  /// hardcoded [CosineSimilarityService.referenceVector].
+  /// active reference vector from [CosineSimilarityService].
   ///
   /// Returns a `Map<String, double>` keyed by segment name (see [segmentNames])
   /// with values in the range 0–100, or an empty map if the input is invalid.
   Map<String, double> computeLimbScores(List<double>? userVector) {
-    if (userVector == null ||
-        userVector.length != CosineSimilarityService.referenceVector.length) {
+    // Use the dynamic reference vector from the injected similarity service.
+    final reference = _cosineSimilarityService.referenceVector;
+    if (userVector == null || userVector.length != reference.length) {
       return {};
     }
-
-    final reference = CosineSimilarityService.referenceVector;
     final scores = <String, double>{};
 
     for (int i = 0; i < segmentNames.length; i++) {
