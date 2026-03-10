@@ -8,6 +8,7 @@ import '../services/angle_calculation_service.dart';
 import '../services/camera_service.dart';
 import '../services/landmark_smoothing_service.dart';
 import '../services/pose_normalization_service.dart';
+import '../services/cosine_similarity_service.dart';
 import '../services/pose_detection_service.dart';
 import '../painters/skeleton_painter.dart';
 
@@ -34,6 +35,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final LandmarkSmoothingService _smoothingService = LandmarkSmoothingService();
   final PoseNormalizationService _normalizationService =
       PoseNormalizationService();
+  final CosineSimilarityService _similarityService = CosineSimilarityService();
 
   // ── State ─────────────────────────────────────────────────────────────────
 
@@ -47,6 +49,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final ValueNotifier<List<double>?> _normalizedVectorNotifier = ValueNotifier(
     null,
   );
+
+  /// Cosine similarity score (0–100 %) for the current frame.
+  final ValueNotifier<double> _similarityNotifier = ValueNotifier(0.0);
 
   /// Whether the camera has finished initialising.
   bool _isCameraReady = false;
@@ -79,6 +84,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _posesNotifier.dispose();
     _anglesNotifier.dispose();
     _normalizedVectorNotifier.dispose();
+    _similarityNotifier.dispose();
     _fpsNotifier.dispose();
     _cameraService.dispose();
     _poseDetectionService.dispose();
@@ -140,11 +146,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         final normalized = _normalizationService.normalize(smoothedLandmarks);
         _normalizedVectorNotifier.value = normalized;
 
+        // ── Cosine similarity against reference pose ────────────────
+        final similarity = _similarityService.compareToPose(normalized);
+        _similarityNotifier.value = similarity;
+
         // Debug: print the normalized vector to console.
         if (normalized != null) {
           debugPrint(
             '[PoseNorm] vector(${normalized.length}): '
             '${normalized.map((v) => v.toStringAsFixed(3)).join(", ")}',
+          );
+          debugPrint(
+            '[CosineSim] Pose Match: ${similarity.toStringAsFixed(1)}%',
           );
         }
 
@@ -175,6 +188,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       } else {
         _anglesNotifier.value = {};
         _normalizedVectorNotifier.value = null;
+        _similarityNotifier.value = 0.0;
         if (mounted) {
           _posesNotifier.value = poses;
         }
@@ -328,6 +342,30 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   'Vector: ${vector != null ? vector.length.toString() : '—'}',
                   style: const TextStyle(
                     color: Colors.orangeAccent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Pose Match (cosine similarity) overlay ─────────────────────────
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 56,
+            right: 12,
+            child: ValueListenableBuilder<double>(
+              valueListenable: _similarityNotifier,
+              builder: (context, score, _) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Pose Match: ${score.toStringAsFixed(1)}%',
+                  style: const TextStyle(
+                    color: Colors.greenAccent,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
