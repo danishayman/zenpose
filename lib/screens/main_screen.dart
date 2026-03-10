@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 import '../models/pose_frame.dart';
@@ -72,6 +73,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    // Allow the screen to turn off again.
+    WakelockPlus.disable();
     WidgetsBinding.instance.removeObserver(this);
     _posesNotifier.dispose();
     _anglesNotifier.dispose();
@@ -105,6 +108,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Future<void> _initCamera() async {
     try {
       await _cameraService.initialise();
+      // Keep the screen awake while the camera is in use.
+      WakelockPlus.enable();
       if (!mounted) return;
       setState(() => _isCameraReady = true);
       _startDetection();
