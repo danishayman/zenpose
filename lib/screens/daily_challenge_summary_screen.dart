@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/unlocked_badge.dart';
 import '../theme/zen_theme.dart';
+import '../widgets/zen_section_header.dart';
 
 class DailyChallengeSummaryScreen extends StatelessWidget {
   final int completedSteps;
@@ -25,109 +26,260 @@ class DailyChallengeSummaryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final minutes = elapsed.inMinutes;
     final seconds = elapsed.inSeconds % 60;
-    final durationLabel = '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
+    final durationLabel =
+        '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
+    final completionRate = totalSteps == 0
+        ? 0
+        : (completedSteps / totalSteps * 100).round();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Challenge Summary'),
-        backgroundColor: Colors.transparent,
-      ),
       body: Container(
         decoration: ZenDecor.gradientBackdrop(),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          children: [
-            Container(
-              decoration: ZenDecor.softCard(),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Text(
-                    'Great Flow',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'You completed today\'s challenge.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 18),
-                  _row(
-                    context,
-                    'Completed poses',
-                    '$completedSteps / $totalSteps',
-                  ),
-                  _row(context, 'Skipped poses', '$skippedSteps'),
-                  _row(context, 'Session time', durationLabel),
-                  _row(context, 'XP gained', '+$xpEarned'),
-                ],
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            children: [
+              // Celebration header card
+              _buildHeroCard(context, completionRate),
+              const SizedBox(height: 16),
+              // Stats
+              _buildStatsCard(context, durationLabel),
+              const SizedBox(height: 16),
+              // Badges
+              _buildBadgesCard(context),
+              const SizedBox(height: 24),
+              // CTA
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.home_rounded),
+                  label: const Text('Back to Home'),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              decoration: ZenDecor.softCard(color: Colors.white),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Unlocked badges',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  if (unlockedBadges.isEmpty)
-                    Text(
-                      'No new badges this session.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    )
-                  else
-                    ...unlockedBadges.map(
-                      (badge) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.workspace_premium,
-                              color: ZenColors.forest,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                badge.name,
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Back to Home'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _row(BuildContext context, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildHeroCard(BuildContext context, int completionRate) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [ZenColors.forest, ZenColors.teal],
+        ),
+        borderRadius: ZenDecor.cardRadius,
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.emoji_events_rounded,
+              color: Colors.white,
+              size: 38,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Great Flow!',
+            style: TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "You completed today's challenge.",
+            style: TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.80),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Completion ring
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '$completionRate%',
+                style: const TextStyle(
+                  fontFamily: 'Manrope',
+                  fontSize: 48,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Challenge',
+                    style: TextStyle(
+                      fontFamily: 'Manrope',
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  Text(
+                    'Completed',
+                    style: TextStyle(
+                      fontFamily: 'Manrope',
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsCard(BuildContext context, String durationLabel) {
+    return Container(
+      decoration: ZenDecor.elevatedCard(),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ZenSectionHeader(title: 'Session Summary'),
+          const SizedBox(height: 14),
+          _row(
+            context,
+            icon: Icons.check_circle_rounded,
+            color: ZenColors.success,
+            label: 'Poses completed',
+            value: '$completedSteps / $totalSteps',
+          ),
+          _row(
+            context,
+            icon: Icons.skip_next_rounded,
+            color: ZenColors.warning,
+            label: 'Poses skipped',
+            value: '$skippedSteps',
+          ),
+          _row(
+            context,
+            icon: Icons.timer_rounded,
+            color: ZenColors.teal,
+            label: 'Session time',
+            value: durationLabel,
+          ),
+          _row(
+            context,
+            icon: Icons.star_rounded,
+            color: const Color(0xFFC49A1B),
+            label: 'XP gained',
+            value: '+$xpEarned',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBadgesCard(BuildContext context) {
+    return Container(
+      decoration: ZenDecor.elevatedCard(),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ZenSectionHeader(
+            title: 'Unlocked Badges',
+            subtitle: 'Earned this session',
+          ),
+          const SizedBox(height: 12),
+          if (unlockedBadges.isEmpty)
+            Text(
+              'No new badges this session. Keep going!',
+              style: Theme.of(context).textTheme.bodyMedium,
+            )
+          else
+            ...unlockedBadges.map(
+              (badge) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: ZenColors.sage100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.workspace_premium_rounded,
+                        color: ZenColors.forest,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        badge.name,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String value,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: ZenDecor.chipRadius,
+            ),
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          ),
           Text(
             value,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            style: TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: ZenColors.forest,
+              color: color,
             ),
           ),
         ],

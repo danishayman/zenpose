@@ -5,6 +5,9 @@ import '../models/unlocked_badge.dart';
 import '../models/user_stats.dart';
 import '../services/database_service.dart';
 import '../theme/zen_theme.dart';
+import '../widgets/zen_loading_shimmer.dart';
+import '../widgets/zen_section_header.dart';
+import '../widgets/zen_stat_card.dart';
 
 class ProgressDashboardScreen extends StatefulWidget {
   const ProgressDashboardScreen({super.key});
@@ -46,9 +49,8 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
     final recentAttempts = results.take(8).toList();
     final userStats = await _databaseService.getUserStats();
     final unlockedBadgeCount = await _databaseService.getUnlockedBadgeCount();
-    final latestUnlockedBadges = await _databaseService.getLatestUnlockedBadges(
-      limit: 5,
-    );
+    final latestUnlockedBadges =
+        await _databaseService.getLatestUnlockedBadges(limit: 5);
 
     return _ProgressData(
       bestScores: bestScores,
@@ -70,38 +72,39 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
+      bottom: false,
       child: FutureBuilder<_ProgressData>(
         future: _progressFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const ZenPageLoadingShimmer();
           }
           if (snapshot.hasError || snapshot.data == null) {
             return Center(
-              child: Text(
-                'Failed to load progress: ${snapshot.error}',
-                textAlign: TextAlign.center,
-              ),
+              child: Text('Failed to load progress: ${snapshot.error}'),
             );
           }
           final data = snapshot.data!;
           return RefreshIndicator(
+            color: ZenColors.teal,
             onRefresh: _refresh,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
               children: [
                 _header(context),
-                const SizedBox(height: 12),
-                _statsOverview(context, data),
-                const SizedBox(height: 12),
-                _gamification(context, data),
-                const SizedBox(height: 12),
-                _badges(context, data),
-                const SizedBox(height: 12),
-                _bestScores(context, data),
-                const SizedBox(height: 12),
-                _attempts(context, data),
+                const SizedBox(height: 20),
+                _statsOverview(data),
+                const SizedBox(height: 20),
+                _weeklyChart(data),
+                const SizedBox(height: 20),
+                _gamification(data),
+                const SizedBox(height: 20),
+                _bestScores(data),
+                const SizedBox(height: 20),
+                _badges(data),
+                const SizedBox(height: 20),
+                _attempts(data),
               ],
             ),
           );
@@ -111,217 +114,407 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
   }
 
   Widget _header(BuildContext context) {
-    return Container(
-      decoration: ZenDecor.softCard(),
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Progress', style: Theme.of(context).textTheme.headlineMedium),
-          Text(
-            'Your mindful consistency and alignment trend',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: ZenColors.earth),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Progress', style: Theme.of(context).textTheme.headlineLarge),
+        const SizedBox(height: 4),
+        Text(
+          'Your mindful consistency and alignment trend.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ],
     );
   }
 
-  Widget _statsOverview(BuildContext context, _ProgressData data) {
+  Widget _statsOverview(_ProgressData data) {
     final average = data.averageScore == null
         ? 'N/A'
-        : '${data.averageScore!.toStringAsFixed(1)}%';
-    return _sectionCard(
-      context: context,
-      title: 'Overall',
-      child: Row(
-        children: [
-          Expanded(child: _miniStat('Sessions', '${data.totalSessions}')),
-          const SizedBox(width: 8),
-          Expanded(child: _miniStat('Completed', '${data.totalCompleted}')),
-          const SizedBox(width: 8),
-          Expanded(child: _miniStat('Avg', average)),
-        ],
-      ),
-    );
-  }
-
-  Widget _gamification(BuildContext context, _ProgressData data) {
-    return _sectionCard(
-      context: context,
-      title: 'Gamification',
-      child: Row(
-        children: [
-          Expanded(
-            child: _miniStat('Streak', '${data.userStats.currentStreak}'),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _miniStat('Longest', '${data.userStats.longestStreak}'),
-          ),
-          const SizedBox(width: 8),
-          Expanded(child: _miniStat('XP', '${data.userStats.totalXp}')),
-          const SizedBox(width: 8),
-          Expanded(child: _miniStat('Badges', '${data.unlockedBadgeCount}')),
-        ],
-      ),
-    );
-  }
-
-  Widget _badges(BuildContext context, _ProgressData data) {
-    return _sectionCard(
-      context: context,
-      title: 'Latest Badges',
-      child: data.latestUnlockedBadges.isEmpty
-          ? _empty('No badges unlocked yet.')
-          : Column(
-              children: data.latestUnlockedBadges.map((badge) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.workspace_premium,
-                        color: ZenColors.forest,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          badge.name,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
+        : '${data.averageScore!.toStringAsFixed(0)}%';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ZenSectionHeader(title: 'Overview'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ZenStatCard(
+                label: 'Sessions',
+                value: '${data.totalSessions}',
+                icon: Icons.fitness_center_rounded,
+                accentColor: ZenColors.teal,
+              ),
             ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ZenStatCard(
+                label: 'Completed',
+                value: '${data.totalCompleted}',
+                icon: Icons.check_circle_outline_rounded,
+                accentColor: ZenColors.success,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ZenStatCard(
+                label: 'Avg Score',
+                value: average,
+                icon: Icons.analytics_rounded,
+                accentColor: ZenColors.forest,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _bestScores(BuildContext context, _ProgressData data) {
-    if (data.bestScores.isEmpty) {
-      return _sectionCard(
-        context: context,
-        title: 'Best Scores',
-        child: _empty('Complete sessions to populate best scores.'),
-      );
-    }
-    final entries = data.bestScores.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+  Widget _weeklyChart(_ProgressData data) {
+    // Build a 7-day bar chart using CustomPainter — no extra dependency.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ZenSectionHeader(
+          title: 'Weekly Activity',
+          subtitle: 'Sessions per day',
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: ZenDecor.elevatedCard(),
+          padding: const EdgeInsets.all(16),
+          child: _WeeklyBarChart(results: data.recentAttempts),
+        ),
+      ],
+    );
+  }
 
-    return _sectionCard(
-      context: context,
-      title: 'Best Scores',
-      child: Column(
-        children: entries.map((entry) {
-          final score = entry.value ?? 0;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: Text(entry.key)),
-                    Text('${score.toStringAsFixed(0)}%'),
-                  ],
+  Widget _gamification(_ProgressData data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ZenSectionHeader(title: 'Achievements'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ZenStatCard(
+                label: 'Streak',
+                value: '${data.userStats.currentStreak}d',
+                icon: Icons.local_fire_department_rounded,
+                accentColor: ZenColors.warning,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ZenStatCard(
+                label: 'Best Streak',
+                value: '${data.userStats.longestStreak}d',
+                icon: Icons.emoji_events_rounded,
+                accentColor: const Color(0xFFC49A1B),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ZenStatCard(
+                label: 'Total XP',
+                value: '${data.userStats.totalXp}',
+                icon: Icons.star_rounded,
+                accentColor: ZenColors.teal,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ZenStatCard(
+                label: 'Badges',
+                value: '${data.unlockedBadgeCount}',
+                icon: Icons.workspace_premium_rounded,
+                accentColor: ZenColors.forest,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _bestScores(_ProgressData data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ZenSectionHeader(
+          title: 'Best Scores',
+          subtitle: 'Per pose — all time',
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: ZenDecor.elevatedCard(),
+          padding: const EdgeInsets.all(16),
+          child: data.bestScores.isEmpty
+              ? _empty(context, 'Complete sessions to populate best scores.')
+              : Column(
+                  children: (data.bestScores.entries.toList()
+                        ..sort((a, b) => a.key.compareTo(b.key)))
+                      .map((entry) {
+                    final score = entry.value ?? 0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  entry.key,
+                                  style: Theme.of(context).textTheme.bodyLarge,
+                                ),
+                              ),
+                              Text(
+                                '${score.toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  fontFamily: 'Manrope',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: ZenColors.teal,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: ZenDecor.pillRadius,
+                            child: LinearProgressIndicator(
+                              value: (score / 100).clamp(0.0, 1.0),
+                              minHeight: 7,
+                              backgroundColor: ZenColors.surface2,
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                  ZenColors.teal),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
                 ),
-                const SizedBox(height: 4),
-                LinearProgressIndicator(
-                  value: (score / 100).clamp(0.0, 1.0),
-                  minHeight: 7,
-                  borderRadius: BorderRadius.circular(99),
-                  backgroundColor: ZenColors.clay.withValues(alpha: 0.35),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    ZenColors.sage,
-                  ),
+        ),
+      ],
+    );
+  }
+
+  Widget _badges(_ProgressData data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ZenSectionHeader(
+          title: 'Recent Badges',
+          subtitle: 'Latest unlocked',
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: ZenDecor.elevatedCard(),
+          padding: const EdgeInsets.all(16),
+          child: data.latestUnlockedBadges.isEmpty
+              ? _empty(context, 'No badges unlocked yet.')
+              : Column(
+                  children: data.latestUnlockedBadges.map((badge) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: const BoxDecoration(
+                              color: ZenColors.sage100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.workspace_premium_rounded,
+                              color: ZenColors.forest,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              badge.name,
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _attempts(_ProgressData data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ZenSectionHeader(
+          title: 'Recent Attempts',
+          subtitle: 'Last 8 sessions',
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: ZenDecor.elevatedCard(),
+          padding: const EdgeInsets.all(16),
+          child: data.recentAttempts.isEmpty
+              ? _empty(context, 'No attempts yet. Start a session!')
+              : Column(
+                  children: data.recentAttempts
+                      .map((result) => _attemptRow(context, result))
+                      .toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _attemptRow(BuildContext context, PoseResult result) {
+    final score = result.bestScore;
+    final color = score >= 80
+        ? ZenColors.success
+        : score >= 60
+            ? ZenColors.warning
+            : ZenColors.error;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: ZenDecor.chipRadius,
+            ),
+            child: Icon(
+              result.completed
+                  ? Icons.check_rounded
+                  : Icons.timer_outlined,
+              size: 18,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  result.poseName,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-          );
-        }).toList(),
+          ),
+          Text(
+            '${score.toStringAsFixed(0)}%',
+            style: TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _attempts(BuildContext context, _ProgressData data) {
-    return _sectionCard(
-      context: context,
-      title: 'Recent Attempts',
-      child: data.recentAttempts.isEmpty
-          ? _empty('No attempts yet.')
-          : Column(
-              children: data.recentAttempts.map((result) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          result.poseName,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
+  Widget _empty(BuildContext context, String message) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+      );
+}
+
+// ── Custom weekly bar chart ─────────────────────────────────────────────────
+
+class _WeeklyBarChart extends StatelessWidget {
+  final List<PoseResult> results;
+
+  const _WeeklyBarChart({required this.results});
+
+  @override
+  Widget build(BuildContext context) {
+    // Count sessions per weekday (Mon=0 … Sun=6)
+    final counts = List<int>.filled(7, 0);
+    final now = DateTime.now();
+    for (final r in results) {
+      final ts = r.timestamp ?? now;
+      final diff = now.difference(ts).inDays;
+      if (diff < 7) {
+        final dayIndex = (ts.weekday - 1) % 7; // Mon=0
+        counts[dayIndex]++;
+      }
+    }
+    final maxCount = counts.reduce((a, b) => a > b ? a : b);
+
+    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    return SizedBox(
+      height: 110,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(7, (i) {
+          final isToday = (DateTime.now().weekday - 1) % 7 == i;
+          final fraction =
+              maxCount == 0 ? 0.0 : counts[i] / maxCount;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (counts[i] > 0)
+                    Text(
+                      '${counts[i]}',
+                      style: const TextStyle(
+                        fontFamily: 'Manrope',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: ZenColors.teal,
                       ),
-                      Text('${result.bestScore.toStringAsFixed(0)}%'),
-                    ],
+                    ),
+                  const SizedBox(height: 2),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeOutCubic,
+                    height: fraction == 0 ? 4 : 70 * fraction,
+                    decoration: BoxDecoration(
+                      color: isToday ? ZenColors.teal : ZenColors.sage,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(6),
+                      ),
+                    ),
                   ),
-                );
-              }).toList(),
+                  const SizedBox(height: 6),
+                  Text(
+                    labels[i],
+                    style: TextStyle(
+                      fontFamily: 'Manrope',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isToday
+                          ? ZenColors.teal
+                          : ZenColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
             ),
-    );
-  }
-
-  Widget _sectionCard({
-    required BuildContext context,
-    required String title,
-    required Widget child,
-  }) {
-    return Container(
-      decoration: ZenDecor.softCard(color: Colors.white),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          child,
-        ],
+          );
+        }),
       ),
     );
   }
-
-  Widget _miniStat(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: ZenColors.sand,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: ZenColors.earth,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _empty(String message) =>
-      Text(message, style: const TextStyle(color: ZenColors.earth));
 }
 
 class _ProgressData {

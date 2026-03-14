@@ -477,6 +477,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+
     // Error state.
     if (_errorMessage != null) {
       return Scaffold(
@@ -484,10 +486,26 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(
-              'Camera error:\n$_errorMessage',
-              style: const TextStyle(color: Colors.redAccent, fontSize: 16),
-              textAlign: TextAlign.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.videocam_off_rounded,
+                    color: Colors.redAccent, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  'Camera error',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$_errorMessage',
+                  style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
         ),
@@ -496,17 +514,27 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
     // Loading state.
     if (!_isCameraReady) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Colors.black,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: Colors.white),
-              SizedBox(height: 16),
-              Text(
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: CircularProgressIndicator(
+                  color: const Color(0xFF4A9B8E),
+                  strokeWidth: 3,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
                 'Initialising camera…',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+                style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -520,73 +548,108 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Camera preview + skeleton overlay (same size) ────────────────
+          // ── Camera preview + skeleton overlay ──────────────────────────
           _buildCameraWithOverlay(),
 
-          // ── Pose name overlay (top center) ────────────────────────────────
-          // Shows which pose the user is being evaluated against.
+          // ── Top bar: back button + pose name ────────────────────────────
           Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  widget.poseTemplate.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+            top: topPad + 8,
+            left: 12,
+            right: 12,
+            child: Row(
+              children: [
+                // Back button
+                GestureDetector(
+                  onTap: () => Navigator.of(context).maybePop(),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Text(
+                      widget.poseTemplate.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Manrope',
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Wide lens toggle
+                GestureDetector(
+                  onTap: _toggleWideLens,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _isWideLens
+                          ? const Color(0xFF4A9B8E).withValues(alpha: 0.55)
+                          : Colors.black.withValues(alpha: 0.45),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Icon(
+                      _isWideLens ? Icons.zoom_in_map : Icons.zoom_out_map,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
-          // ── Status HUD (score + hold) ────────────────────────────────────
+          // ── Status HUD (score + hold) ─────────────────────────────────
           _buildStatusHud(),
 
-          // ── Feedback card ────────────────────────────────────────────────
+          // ── Feedback pills ────────────────────────────────────────────
           _buildFeedbackCard(),
 
-          // ── Wide lens toggle button ─────────────────────────────────────
-          Positioned(
-            bottom: MediaQuery.of(context).padding.bottom + 20,
-            right: 16,
-            child: FloatingActionButton(
-              onPressed: _toggleWideLens,
-              backgroundColor: _isWideLens ? Colors.white24 : Colors.black54,
-              child: Icon(
-                _isWideLens ? Icons.zoom_in_map : Icons.zoom_out_map,
-                color: _isWideLens ? Colors.greenAccent : Colors.white,
-              ),
-            ),
-          ),
-
-          // ── Completion card overlay ────────────────────────────────────────
+          // ── Completion card overlay ───────────────────────────────────
           ValueListenableBuilder<PoseResult?>(
             valueListenable: _poseResultNotifier,
             builder: (context, result, _) {
               if (result == null) return const SizedBox.shrink();
               return Positioned.fill(
                 child: Container(
-                  color: Colors.black54,
+                  color: Colors.black.withValues(alpha: 0.60),
                   child: Center(
                     child: TweenAnimationBuilder<double>(
-                      tween: Tween<double>(begin: 0.92, end: 1.0),
-                      duration: const Duration(milliseconds: 300),
+                      tween: Tween<double>(begin: 0.88, end: 1.0),
+                      duration: const Duration(milliseconds: 380),
                       curve: Curves.easeOutBack,
-                      builder: (context, scale, child) {
-                        return Transform.scale(scale: scale, child: child);
-                      },
+                      builder: (context, scale, child) =>
+                          Transform.scale(scale: scale, child: child),
                       child: _buildCompletionCard(result),
                     ),
                   ),
@@ -600,8 +663,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildStatusHud() {
+    final topPad = MediaQuery.of(context).padding.top;
     return Positioned(
-      top: MediaQuery.of(context).padding.top + 52,
+      top: topPad + 64,
       left: 12,
       right: 12,
       child: AnimatedBuilder(
@@ -613,27 +677,33 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         ]),
         builder: (context, _) {
           final score = _smoothedSimilarityNotifier.value;
-          final progress = _holdProgressNotifier.value
-              .clamp(0.0, 1.0)
-              .toDouble();
+          final progress =
+              _holdProgressNotifier.value.clamp(0.0, 1.0).toDouble();
           final seconds = _holdSecondsNotifier.value;
           final durationSeconds =
               _poseSessionService.holdDuration.inMilliseconds / 1000.0;
           final threshold = _poseSessionService.scoreThreshold;
           final isStable = _poseStableNotifier.value;
           final holdActive = score >= threshold && isStable;
-          final scoreColor = score >= threshold
-              ? Colors.greenAccent
-              : Colors.orangeAccent;
-          final progressColor = holdActive
-              ? Colors.greenAccent
-              : Colors.cyanAccent;
+
+          // Score colour tiers
+          final Color scoreColor = score >= 80
+              ? const Color(0xFF4ADBA8)
+              : score >= threshold
+                  ? const Color(0xFFFFD166)
+                  : const Color(0xFFFF8C66);
+          final Color barColor =
+              holdActive ? const Color(0xFF4ADBA8) : const Color(0xFF4A9B8E);
 
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.black54,
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.black.withValues(alpha: 0.50),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.10),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -641,72 +711,108 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text(
-                      'Pose Score',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'POSE MATCH',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.0,
+                            fontFamily: 'Manrope',
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${score.toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            color: scoreColor,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            fontFamily: 'Manrope',
+                            height: 1.0,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '${score.toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        color: scoreColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: isStable
+                            ? const Color(0xFF4ADBA8).withValues(alpha: 0.18)
+                            : Colors.white.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isStable
+                                ? Icons.check_circle_rounded
+                                : Icons.radio_button_unchecked,
+                            color: isStable
+                                ? const Color(0xFF4ADBA8)
+                                : Colors.white54,
+                            size: 13,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            isStable ? 'Stable' : 'Hold still',
+                            style: TextStyle(
+                              color: isStable
+                                  ? const Color(0xFF4ADBA8)
+                                  : Colors.white60,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Manrope',
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 12),
+                // Hold progress bar
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(99),
                   child: LinearProgressIndicator(
                     value: progress,
-                    minHeight: 6,
-                    backgroundColor: Colors.white24,
-                    valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                    minHeight: 7,
+                    backgroundColor: Colors.white.withValues(alpha: 0.15),
+                    valueColor: AlwaysStoppedAnimation<Color>(barColor),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Hold ${seconds.toStringAsFixed(1)}s / '
+                      'Hold  ${seconds.toStringAsFixed(1)}s / '
                       '${durationSeconds.toStringAsFixed(0)}s',
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: Colors.white70,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        fontFamily: 'monospace',
+                        fontFamily: 'Manrope',
                       ),
                     ),
-                    Text(
-                      isStable ? 'Stable' : 'Hold still',
-                      style: TextStyle(
-                        color: isStable
-                            ? Colors.greenAccent
-                            : Colors.orangeAccent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                    if (!holdActive)
+                      Text(
+                        'Needs ≥${threshold.toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontFamily: 'Manrope',
+                        ),
                       ),
-                    ),
                   ],
                 ),
-                if (!holdActive) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    'Hold starts at ${threshold.toStringAsFixed(0)}%',
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
               ],
             ),
           );
@@ -716,10 +822,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildFeedbackCard() {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
     return Positioned(
-      bottom: MediaQuery.of(context).padding.bottom + 20,
+      bottom: bottomPad + 24,
       left: 12,
-      right: 72,
+      right: 12,
       child: AnimatedBuilder(
         animation: Listenable.merge([
           _angleFeedbackNotifier,
@@ -736,37 +843,61 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           ];
           if (combined.isEmpty) return const SizedBox.shrink();
           final shown = combined.take(2).toList();
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.black87,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Feedback',
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(left: 4, bottom: 6),
+                child: Text(
+                  'FEEDBACK',
                   style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    color: Colors.white54,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.0,
+                    fontFamily: 'Manrope',
                   ),
                 ),
-                const SizedBox(height: 4),
-                ...shown.map(
-                  (msg) => Text(
-                    '• $msg',
-                    style: const TextStyle(
-                      color: Colors.orangeAccent,
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
+              ),
+              ...shown.map(
+                (msg) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFFFFD166).withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.tips_and_updates_rounded,
+                          color: Color(0xFFFFD166),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            msg,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Manrope',
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
@@ -779,79 +910,178 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final buttonText =
         widget.completionActionLabel ??
         (widget.returnResultOnCompletion ? 'Continue' : 'Try Again');
+    final score = result.bestScore;
+    final Color scoreColor = score >= 80
+        ? const Color(0xFF3D8B68)
+        : score >= 60
+            ? const Color(0xFFD4872A)
+            : const Color(0xFFB33A3A);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      margin: const EdgeInsets.symmetric(horizontal: 24),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
           BoxShadow(
-            color: Colors.black38,
-            blurRadius: 16,
-            offset: Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 32,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Pose Completed!',
-            style: TextStyle(
-              color: Colors.green,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            result.poseName,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildResultRow('Best Score', bestScoreText),
-          const SizedBox(height: 6),
-          _buildResultRow('Hold Time', holdTimeText),
-          const SizedBox(height: 18),
-          SizedBox(
+          // Gradient header
+          Container(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                if (widget.returnResultOnCompletion) {
-                  Navigator.of(context).pop(
-                    ChallengeStepResult(
-                      poseName: result.poseName,
-                      bestScore: result.bestScore,
-                      holdDuration: result.holdDuration,
-                      passed: result.bestScore >= _sessionConfig.scoreThreshold,
-                      completedAt: result.timestamp ?? DateTime.now(),
+            padding: const EdgeInsets.symmetric(vertical: 22),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF3F5A45), Color(0xFF4A9B8E)],
+              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Pose Completed!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'Manrope',
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  result.poseName,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.80),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Manrope',
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              children: [
+                // Score highlight
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      bestScoreText,
+                      style: TextStyle(
+                        color: scoreColor,
+                        fontSize: 44,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: 'Manrope',
+                        height: 1.0,
+                      ),
                     ),
-                  );
-                  return;
-                }
-                _resetSession();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Best',
+                          style: TextStyle(
+                            color: Color(0xFF5C6E5F),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Manrope',
+                          ),
+                        ),
+                        Text(
+                          'Score',
+                          style: TextStyle(
+                            color: Color(0xFF5C6E5F),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Manrope',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-              child: Text(
-                buttonText,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6F1E7),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.timer_outlined,
+                        size: 16,
+                        color: Color(0xFF5C6E5F),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Hold time: $holdTimeText',
+                        style: const TextStyle(
+                          color: Color(0xFF2D3A2E),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Manrope',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (widget.returnResultOnCompletion) {
+                        Navigator.of(context).pop(
+                          ChallengeStepResult(
+                            poseName: result.poseName,
+                            bestScore: result.bestScore,
+                            holdDuration: result.holdDuration,
+                            passed: result.bestScore >=
+                                _sessionConfig.scoreThreshold,
+                            completedAt: result.timestamp ?? DateTime.now(),
+                          ),
+                        );
+                        return;
+                      }
+                      _resetSession();
+                    },
+                    child: Text(buttonText),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -859,29 +1089,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildResultRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.black54,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
+
 
   /// Build the camera preview AND skeleton overlay inside the same sized
   /// container so coordinates match perfectly.
