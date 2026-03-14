@@ -27,17 +27,17 @@ class ZenSectionHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: Theme.of(context).textTheme.titleMedium),
-              if (subtitle != null) ...[
+              if (subtitle case final subtitleText?) ...[
                 const SizedBox(height: 2),
                 Text(
-                  subtitle!,
+                  subtitleText,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ],
           ),
         ),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     );
   }
@@ -85,10 +85,7 @@ class ZenChip extends StatelessWidget {
         horizontal: icon != null ? 8 : 10,
         vertical: 4,
       ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: ZenDecor.pillRadius,
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: ZenDecor.pillRadius),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

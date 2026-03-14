@@ -14,23 +14,29 @@ void main() {
         home: AppShellScreen(
           tabsOverride: const <Widget>[
             Center(child: Text('HOME_TAB')),
-            Center(child: Text('LIBRARY_TAB')),
+            Center(child: Text('PRACTICE_TAB')),
             Center(child: Text('PROGRESS_TAB')),
+            Center(child: Text('PROFILE_TAB')),
           ],
         ),
       ),
     );
 
     expect(find.text('HOME_TAB'), findsOneWidget);
-    expect(find.text('LIBRARY_TAB'), findsNothing);
+    expect(find.text('PRACTICE_TAB'), findsNothing);
     expect(find.text('PROGRESS_TAB'), findsNothing);
+    expect(find.text('PROFILE_TAB'), findsNothing);
 
-    await tester.tap(find.text('Library'));
+    await tester.tap(find.text('Practice'));
     await tester.pumpAndSettle();
-    expect(find.text('LIBRARY_TAB'), findsOneWidget);
+    expect(find.text('PRACTICE_TAB'), findsOneWidget);
 
     await tester.tap(find.text('Progress'));
     await tester.pumpAndSettle();
     expect(find.text('PROGRESS_TAB'), findsOneWidget);
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+    expect(find.text('PROFILE_TAB'), findsOneWidget);
   });
 }

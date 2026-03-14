@@ -208,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 trailing: Switch(
                   value: true,
                   onChanged: (_) {},
-                  activeColor: ZenColors.teal,
+                  activeThumbColor: ZenColors.teal,
                 ),
               ),
               Divider(height: 1, color: ZenColors.surface2),
@@ -248,8 +248,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     return ListTile(
       onTap: onTap,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       leading: Container(
         width: 36,
         height: 36,
@@ -260,10 +259,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Icon(icon, color: ZenColors.forest, size: 18),
       ),
       title: Text(label, style: Theme.of(context).textTheme.bodyLarge),
-      trailing: trailing ??
+      trailing:
+          trailing ??
           (onTap != null
-              ? const Icon(Icons.chevron_right_rounded,
-                  color: ZenColors.textMuted, size: 20)
+              ? const Icon(
+                  Icons.chevron_right_rounded,
+                  color: ZenColors.textMuted,
+                  size: 20,
+                )
               : null),
     );
   }
@@ -272,9 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('ZenPose'),
         content: const Text(
           'A real-time yoga pose detection app powered by Google ML Kit. '

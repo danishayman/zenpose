@@ -206,13 +206,15 @@ class _DailyChallengeRunnerScreenState
   Widget build(BuildContext context) {
     final bundle = _bundle;
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: ZenColors.surface0,
       appBar: AppBar(
         title: Text(
           "Today's Challenge",
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: ZenColors.surface0,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.of(context).pop(),
@@ -274,8 +276,7 @@ class _DailyChallengeRunnerScreenState
               value: progress,
               minHeight: 8,
               backgroundColor: ZenColors.surface2,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(ZenColors.teal),
+              valueColor: const AlwaysStoppedAnimation<Color>(ZenColors.teal),
             ),
           ),
           const SizedBox(height: 10),
@@ -303,11 +304,7 @@ class _DailyChallengeRunnerScreenState
     );
   }
 
-  Widget _pill({
-    required String label,
-    required Color color,
-    IconData? icon,
-  }) {
+  Widget _pill({required String label, required Color color, IconData? icon}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -357,18 +354,21 @@ class _DailyChallengeRunnerScreenState
           Text(
             'Step ${step.stepIndex + 1} of ${bundle.steps.length}',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: ZenColors.teal,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
+              color: ZenColors.teal,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
           ),
           const SizedBox(height: 6),
           Text(step.poseName, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.timer_outlined,
-                  size: 14, color: ZenColors.textMuted),
+              const Icon(
+                Icons.timer_outlined,
+                size: 14,
+                color: ZenColors.textMuted,
+              ),
               const SizedBox(width: 4),
               Text(
                 'Hold 45s at ≥70% pose match',
@@ -449,10 +449,7 @@ class _DailyChallengeRunnerScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ZenSectionHeader(
-            title: 'Sequence',
-            subtitle: 'All 5 steps',
-          ),
+          const ZenSectionHeader(title: 'Sequence', subtitle: 'All 5 steps'),
           const SizedBox(height: 12),
           ...bundle.steps.map((step) {
             final isActive = step.stepIndex == _currentStepIndex;
@@ -472,8 +469,7 @@ class _DailyChallengeRunnerScreenState
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               margin: const EdgeInsets.only(bottom: 8),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: isActive
                     ? ZenColors.teal.withValues(alpha: 0.08)
@@ -493,12 +489,11 @@ class _DailyChallengeRunnerScreenState
                     child: Text(
                       '${step.stepIndex + 1}. ${step.poseName}',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: status ==
-                                    DailyChallengeStepStatus.completed
-                                ? ZenColors.textMuted
-                                : ZenColors.textPrimary,
-                            fontWeight: isActive ? FontWeight.w700 : null,
-                          ),
+                        color: status == DailyChallengeStepStatus.completed
+                            ? ZenColors.textMuted
+                            : ZenColors.textPrimary,
+                        fontWeight: isActive ? FontWeight.w700 : null,
+                      ),
                     ),
                   ),
                   if (status != DailyChallengeStepStatus.pending)
