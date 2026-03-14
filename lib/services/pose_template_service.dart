@@ -34,12 +34,18 @@ class PoseTemplateService {
     // Read the raw JSON string from the asset bundle.
     final jsonString = await rootBundle.loadString(_assetPath);
 
-    // Decode the top-level JSON array.
-    final List<dynamic> jsonList = json.decode(jsonString) as List<dynamic>;
+    // Decode the top-level JSON object (dictionary keyed by pose name).
+    final Map<String, dynamic> jsonMap =
+        json.decode(jsonString) as Map<String, dynamic>;
 
-    // Map each JSON object to a PoseTemplate and cache the result.
-    _cache = jsonList
-        .map((item) => PoseTemplate.fromJson(item as Map<String, dynamic>))
+    // Map each dictionary entry to a PoseTemplate and cache the result.
+    _cache = jsonMap.entries
+        .map(
+          (entry) => PoseTemplate.fromEntry(
+            entry.key,
+            entry.value as Map<String, dynamic>,
+          ),
+        )
         .toList();
 
     return _cache!;

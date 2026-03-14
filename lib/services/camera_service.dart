@@ -4,7 +4,7 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 /// CameraService manages the device camera lifecycle and image streaming.
 ///
-/// It initialises the back-facing camera, starts an image stream, and converts
+/// It initialises the front-facing camera, starts an image stream, and converts
 /// each [CameraImage] into an [InputImage] suitable for ML Kit processing.
 /// A "skip-if-busy" flag prevents frame backpressure when the pose detector
 /// is still processing the previous frame.
@@ -21,17 +21,16 @@ class CameraService {
   /// Guard flag – true while the pose detector is processing a frame.
   bool isProcessing = false;
 
-  /// The current lens direction.
-  CameraLensDirection get currentLensDirection =>
-      _controller?.description.lensDirection ?? CameraLensDirection.back;
+  /// Whether wide lens (minimum zoom) is currently active.
+  bool _isWideLens = false;
+  bool get isWideLens => _isWideLens;
 
   /// Initialise the camera.
   ///
-  /// Selects a camera matching [direction] and opens it at medium resolution
+  /// Always selects the front-facing camera and opens it at low resolution
   /// (good balance between quality and inference speed).
-  Future<void> initialise([
-    CameraLensDirection direction = CameraLensDirection.back,
-  ]) async {
+  Future<void> initialise() async {
+    const direction = CameraLensDirection.front;
     _cameras = await availableCameras();
     if (_cameras.isEmpty) {
       throw Exception('No cameras available on this device.');
@@ -53,17 +52,31 @@ class CameraService {
     await _controller!.initialize();
   }
 
-  /// Switch between front and back camera.
-  ///
-  /// Disposes the current controller and re-initialises with the opposite
-  /// lens direction.
-  Future<void> switchCamera() async {
-    final newDirection = currentLensDirection == CameraLensDirection.back
-        ? CameraLensDirection.front
-        : CameraLensDirection.back;
+  /// Get the minimum zoom level supported by the camera.
+  Future<double> getMinZoomLevel() async {
+    if (_controller == null || !_controller!.value.isInitialized) return 1.0;
+    return _controller!.getMinZoomLevel();
+  }
 
-    await dispose();
-    await initialise(newDirection);
+  /// Set the camera zoom level.
+  Future<void> setZoomLevel(double level) async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    await _controller!.setZoomLevel(level);
+  }
+
+  /// Toggle wide lens mode.
+  ///
+  /// When enabled, sets zoom to the camera's minimum level for the widest
+  /// possible field of view.  When disabled, resets to the default 1.0× zoom.
+  Future<void> setWideLens(bool enabled) async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    _isWideLens = enabled;
+    if (enabled) {
+      final minZoom = await _controller!.getMinZoomLevel();
+      await _controller!.setZoomLevel(minZoom);
+    } else {
+      await _controller!.setZoomLevel(1.0);
+    }
   }
 
   /// Start streaming camera frames.

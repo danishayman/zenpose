@@ -1,12 +1,36 @@
-// Minimal smoke test – verifies the app widget tree can be constructed.
-// Full testing of camera + pose detection requires a physical device.
-
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:zenpose/screens/app_shell_screen.dart';
+import 'package:zenpose/theme/zen_theme.dart';
+
 void main() {
-  testWidgets('ZenPose app placeholder test', (WidgetTester tester) async {
-    // This is a placeholder. Camera and ML Kit cannot be tested in a
-    // standard widget test environment. Manual on-device testing is required.
-    expect(1 + 1, equals(2));
+  testWidgets('bottom tab navigation switches tabs', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ZenTheme.build(),
+        home: AppShellScreen(
+          tabsOverride: const <Widget>[
+            Center(child: Text('HOME_TAB')),
+            Center(child: Text('LIBRARY_TAB')),
+            Center(child: Text('PROGRESS_TAB')),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.text('HOME_TAB'), findsOneWidget);
+    expect(find.text('LIBRARY_TAB'), findsNothing);
+    expect(find.text('PROGRESS_TAB'), findsNothing);
+
+    await tester.tap(find.text('Library'));
+    await tester.pumpAndSettle();
+    expect(find.text('LIBRARY_TAB'), findsOneWidget);
+
+    await tester.tap(find.text('Progress'));
+    await tester.pumpAndSettle();
+    expect(find.text('PROGRESS_TAB'), findsOneWidget);
   });
 }

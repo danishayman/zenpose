@@ -20,6 +20,12 @@ class PoseCorrectionService {
   /// Angle difference (degrees) above which corrective feedback is triggered.
   static const double errorThreshold = 20.0;
 
+  /// Maximum average angle error (degrees) before the score bottoms out at 0.
+  static const double maxAngleErrorForScore = 60.0;
+
+  /// Minimum number of joints required to compute a reliable score.
+  static const int minJointsForScore = 4;
+
   /// Maximum number of feedback messages returned per frame (keeps the UI
   /// clean and avoids overwhelming the user).
   static const int maxFeedbackMessages = 3;
@@ -169,6 +175,29 @@ class PoseCorrectionService {
     }
 
     return messages;
+  }
+
+  /// Compute an angle-based similarity score (0-100).
+  ///
+  /// Returns `null` when there are too few reliable joints to score.
+  double? computeAngleScore(Map<String, double> userAngles) {
+    if (_referenceAngles.isEmpty || userAngles.isEmpty) return null;
+
+    final errors = <double>[];
+    for (final joint in _referenceAngles.keys) {
+      final refAngle = _referenceAngles[joint];
+      final userAngle = userAngles[joint];
+      if (refAngle == null || userAngle == null) continue;
+      errors.add((userAngle - refAngle).abs());
+    }
+
+    if (errors.length < minJointsForScore) return null;
+
+    final total = errors.reduce((a, b) => a + b);
+    final avgError = total / errors.length;
+    final normalized =
+        (1.0 - (avgError / maxAngleErrorForScore)).clamp(0.0, 1.0);
+    return normalized * 100.0;
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────

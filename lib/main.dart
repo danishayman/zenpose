@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/pose_selection_screen.dart';
+import 'screens/app_shell_screen.dart';
+import 'theme/zen_theme.dart';
 
 /// Entry point for the ZenPose Prototype app.
 ///
@@ -13,17 +14,13 @@ void main() async {
   // Lock to portrait-up only (requirement: portrait mode).
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // Hide the status bar for a full-screen camera experience.
-  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  // Keep a standard app shell look with edge-to-edge content.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   runApp(const ZenPoseApp());
 }
 
-/// Root widget – minimal Material shell.
-///
-/// The app now starts at [PoseSelectionScreen] (the Pose Library),
-/// where the user picks a yoga pose.  On selection the app navigates
-/// to [MainScreen] (camera) with the chosen [PoseTemplate].
+/// Root widget for ZenPose with global yoga-themed styling.
 class ZenPoseApp extends StatelessWidget {
   const ZenPoseApp({super.key});
 
@@ -32,8 +29,8 @@ class ZenPoseApp extends StatelessWidget {
     return MaterialApp(
       title: 'ZenPose',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
-      home: const PoseSelectionScreen(),
+      theme: ZenTheme.build(),
+      home: const AppShellScreen(),
     );
   }
 }
