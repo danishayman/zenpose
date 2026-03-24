@@ -8,8 +8,10 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import '../models/pose_frame.dart';
 import '../models/pose_result.dart';
 import '../models/challenge_step_result.dart';
+import '../models/unlocked_badge.dart';
 import '../models/pose_session_config.dart';
 import '../models/pose_template.dart';
+import '../models/workout_guidance_snapshot.dart';
 import '../services/angle_calculation_service.dart';
 import '../services/camera_service.dart';
 import '../services/landmark_smoothing_service.dart';
@@ -23,10 +25,13 @@ import '../services/pose_mirror_service.dart';
 import '../services/pose_session_service.dart';
 import '../services/pose_stability_service.dart';
 import '../services/score_smoothing_service.dart';
+import '../services/workout_guidance_service.dart';
+import '../services/voice_cue_service.dart';
 import '../models/landmark.dart';
 import '../painters/skeleton_overlay_painter.dart';
 import '../services/database_service.dart';
 import '../services/gamification_service.dart';
+import '../widgets/workout_session_widgets.dart';
 
 /// MainScreen composes the camera preview and skeleton overlay.
 ///
@@ -72,11 +77,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final PoseDistanceSimilarityService _distanceSimilarityService =
       PoseDistanceSimilarityService();
   final PoseStabilityService _poseStabilityService = PoseStabilityService();
+  final WorkoutGuidanceService _guidanceService = WorkoutGuidanceService();
   final ScoreSmoothingService _scoreSmoothingService = ScoreSmoothingService(
     windowSize: 5,
   );
   final DatabaseService _databaseService = DatabaseService.instance;
   final GamificationService _gamificationService = GamificationService();
+  late final VoiceCueService _voiceCueService;
 
   // CosineSimilarityService and LimbSimilarityService are initialised
   // lazily in initState() so we can inject the selected pose's meanVector.
@@ -139,6 +146,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   /// Angle-based corrective feedback from [PoseCorrectionService].
   final ValueNotifier<List<String>> _angleFeedbackNotifier = ValueNotifier([]);
 
+  /// Single source of truth for workout guidance UI.
+  final ValueNotifier<WorkoutGuidanceSnapshot> _guidanceNotifier =
+      ValueNotifier(const WorkoutGuidanceSnapshot.initializing());
+
+  /// Session rewards displayed on completion card.
+  final ValueNotifier<int> _lastXpGainedNotifier = ValueNotifier(0);
+  final ValueNotifier<List<UnlockedBadge>> _lastUnlockedBadgesNotifier =
+      ValueNotifier(const <UnlockedBadge>[]);
+
   /// Whether the camera has finished initialising.
   bool _isCameraReady = false;
 
@@ -160,6 +176,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _voiceCueService = VoiceCueService(speaker: FlutterTtsVoiceSpeaker());
 
     // Inject the selected pose template's meanVector as the reference
     // for cosine similarity scoring.  This is the core link between the
@@ -215,7 +232,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _limbScoresNotifier.dispose();
     _feedbackNotifier.dispose();
     _angleFeedbackNotifier.dispose();
+    _guidanceNotifier.dispose();
+    _lastXpGainedNotifier.dispose();
+    _lastUnlockedBadgesNotifier.dispose();
     _fpsNotifier.dispose();
+    unawaited(_voiceCueService.dispose());
     _cameraService.dispose();
     _poseDetectionService.dispose();
     super.dispose();
@@ -248,6 +269,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       WakelockPlus.enable();
       if (!mounted) return;
       setState(() => _isCameraReady = true);
+      _guidanceNotifier.value = _guidanceService.evaluate(
+        cameraReady: true,
+        hasPose: false,
+        poseStable: false,
+        poseCompleted: false,
+        score: 0,
+        holdProgress: 0,
+        scoreThreshold: _sessionConfig.scoreThreshold,
+        feedbackMessages: const <String>[],
+      );
       _startDetection();
     } catch (e) {
       if (!mounted) return;
@@ -260,6 +291,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _cameraService.startImageStream((InputImage inputImage) async {
       // Run pose detection (async, off the UI thread).
       final poses = await _poseDetectionService.detectPose(inputImage);
+      final now = DateTime.now();
 
       // ── Smooth landmarks & compute joint angles ──────────────────────
       if (poses.isNotEmpty) {
@@ -343,6 +375,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             ? _mirroredPoseCorrectionService.generateCorrections(angles)
             : _poseCorrectionService.generateCorrections(angles);
         _angleFeedbackNotifier.value = angleCorrections;
+        final guidanceFeedback = <String>[...angleCorrections, ...feedback];
+
+        final guidance = _guidanceService.evaluate(
+          cameraReady: _isCameraReady,
+          hasPose: true,
+          poseStable: stabilityResult.poseStable,
+          poseCompleted: _poseSessionService.poseCompleted,
+          score: smoothedScore,
+          holdProgress: _poseSessionService.holdProgress,
+          scoreThreshold: _poseSessionService.scoreThreshold,
+          feedbackMessages: guidanceFeedback,
+          now: now,
+        );
+        _guidanceNotifier.value = guidance;
+        _speakPrimaryCue(guidance);
 
         // Debug: print the normalized vector to console.
         if (normalized != null) {
@@ -386,7 +433,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           _posesNotifier.value = [smoothedPose];
         }
       } else {
-        if (_poseResultNotifier.value == null) {
+        _feedbackNotifier.value = [];
+        _angleFeedbackNotifier.value = [];
+        final guidance = _guidanceService.evaluate(
+          cameraReady: _isCameraReady,
+          hasPose: false,
+          poseStable: false,
+          poseCompleted: _poseSessionService.poseCompleted,
+          score: _smoothedSimilarityNotifier.value,
+          holdProgress: _holdProgressNotifier.value,
+          scoreThreshold: _poseSessionService.scoreThreshold,
+          feedbackMessages: const <String>[],
+          now: now,
+        );
+        _guidanceNotifier.value = guidance;
+        if (guidance.shouldResetSession && _poseResultNotifier.value == null) {
           _anglesNotifier.value = {};
           _normalizedVectorNotifier.value = null;
           _rawSimilarityNotifier.value = 0.0;
@@ -401,8 +462,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           _poseStableNotifier.value = false;
           _movementScoreNotifier.value = 0.0;
           _limbScoresNotifier.value = {};
-          _feedbackNotifier.value = [];
-          _angleFeedbackNotifier.value = [];
         }
         if (mounted) {
           _posesNotifier.value = poses;
@@ -411,12 +470,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
       // Update FPS counter.
       _frameCount++;
-      final now = DateTime.now();
-      final elapsed = now.difference(_lastFpsUpdate).inMilliseconds;
+      final frameNow = DateTime.now();
+      final elapsed = frameNow.difference(_lastFpsUpdate).inMilliseconds;
       if (elapsed >= 1000) {
         _fpsNotifier.value = _frameCount / (elapsed / 1000.0);
         _frameCount = 0;
-        _lastFpsUpdate = now;
+        _lastFpsUpdate = frameNow;
       }
 
       // Release the busy-guard so the next frame can be processed.
@@ -424,10 +483,17 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     });
   }
 
+  void _speakPrimaryCue(WorkoutGuidanceSnapshot snapshot) {
+    final cue = snapshot.primaryCue;
+    if (cue == null || cue.isEmpty) return;
+    unawaited(_voiceCueService.speakIfAllowed(cue, snapshot.state));
+  }
+
   void _resetSession() {
     _scoreSmoothingService.reset();
     _poseSessionService.reset();
     _poseStabilityService.reset();
+    _guidanceService.reset();
     _rawSimilarityNotifier.value = 0.0;
     _smoothedSimilarityNotifier.value = 0.0;
     _holdProgressNotifier.value = 0.0;
@@ -439,6 +505,19 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _limbScoresNotifier.value = {};
     _feedbackNotifier.value = [];
     _angleFeedbackNotifier.value = [];
+    _lastXpGainedNotifier.value = 0;
+    _lastUnlockedBadgesNotifier.value = const <UnlockedBadge>[];
+    _guidanceNotifier.value = _guidanceService.evaluate(
+      cameraReady: _isCameraReady,
+      hasPose: false,
+      poseStable: false,
+      poseCompleted: false,
+      score: 0,
+      holdProgress: 0,
+      scoreThreshold: _poseSessionService.scoreThreshold,
+      feedbackMessages: const <String>[],
+    );
+    unawaited(_voiceCueService.reset());
   }
 
   Future<void> _persistPoseResult(PoseResult result) async {
@@ -449,6 +528,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       final persistedResult = result.copyWith(id: insertedId);
       final gamificationResult = await _gamificationService
           .processCompletedSession(persistedResult);
+      _lastXpGainedNotifier.value = gamificationResult.xpGained;
+      _lastUnlockedBadgesNotifier.value = gamificationResult.unlockedBadges;
       debugPrint(
         '[DB] Saved pose result: ${result.poseName} '
         '(score=${result.bestScore.toStringAsFixed(1)}%) '
@@ -456,6 +537,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         'badges=${gamificationResult.unlockedBadges.length}',
       );
     } catch (e) {
+      _lastXpGainedNotifier.value = 0;
+      _lastUnlockedBadgesNotifier.value = const <UnlockedBadge>[];
       debugPrint('[DB] Failed to save pose result: $e');
     } finally {
       _isSavingResult = false;
@@ -489,15 +572,19 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.videocam_off_rounded,
-                    color: Colors.redAccent, size: 48),
+                const Icon(
+                  Icons.videocam_off_rounded,
+                  color: Colors.redAccent,
+                  size: 48,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Camera error',
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold),
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -532,9 +619,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               const Text(
                 'Initialising camera…',
                 style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500),
+                  color: Colors.white70,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -582,7 +670,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.45),
                       borderRadius: BorderRadius.circular(20),
@@ -636,9 +726,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           _buildFeedbackCard(),
 
           // ── Completion card overlay ───────────────────────────────────
-          ValueListenableBuilder<PoseResult?>(
-            valueListenable: _poseResultNotifier,
-            builder: (context, result, _) {
+          AnimatedBuilder(
+            animation: Listenable.merge([
+              _poseResultNotifier,
+              _lastXpGainedNotifier,
+              _lastUnlockedBadgesNotifier,
+            ]),
+            builder: (context, _) {
+              final result = _poseResultNotifier.value;
               if (result == null) return const SizedBox.shrink();
               return Positioned.fill(
                 child: Container(
@@ -650,7 +745,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       curve: Curves.easeOutBack,
                       builder: (context, scale, child) =>
                           Transform.scale(scale: scale, child: child),
-                      child: _buildCompletionCard(result),
+                      child: _buildCompletionCard(
+                        result,
+                        xpGained: _lastXpGainedNotifier.value,
+                        unlockedBadges: _lastUnlockedBadgesNotifier.value,
+                      ),
                     ),
                   ),
                 ),
@@ -669,152 +768,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       left: 12,
       right: 12,
       child: AnimatedBuilder(
-        animation: Listenable.merge([
-          _smoothedSimilarityNotifier,
-          _holdProgressNotifier,
-          _holdSecondsNotifier,
-          _poseStableNotifier,
-        ]),
+        animation: Listenable.merge([_guidanceNotifier, _holdSecondsNotifier]),
         builder: (context, _) {
-          final score = _smoothedSimilarityNotifier.value;
-          final progress =
-              _holdProgressNotifier.value.clamp(0.0, 1.0).toDouble();
-          final seconds = _holdSecondsNotifier.value;
-          final durationSeconds =
-              _poseSessionService.holdDuration.inMilliseconds / 1000.0;
-          final threshold = _poseSessionService.scoreThreshold;
-          final isStable = _poseStableNotifier.value;
-          final holdActive = score >= threshold && isStable;
-
-          // Score colour tiers
-          final Color scoreColor = score >= 80
-              ? const Color(0xFF4ADBA8)
-              : score >= threshold
-                  ? const Color(0xFFFFD166)
-                  : const Color(0xFFFF8C66);
-          final Color barColor =
-              holdActive ? const Color(0xFF4ADBA8) : const Color(0xFF4A9B8E);
-
-          return Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.50),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.10),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'POSE MATCH',
-                          style: TextStyle(
-                            color: Colors.white54,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.0,
-                            fontFamily: 'Manrope',
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${score.toStringAsFixed(0)}%',
-                          style: TextStyle(
-                            color: scoreColor,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w800,
-                            fontFamily: 'Manrope',
-                            height: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: isStable
-                            ? const Color(0xFF4ADBA8).withValues(alpha: 0.18)
-                            : Colors.white.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isStable
-                                ? Icons.check_circle_rounded
-                                : Icons.radio_button_unchecked,
-                            color: isStable
-                                ? const Color(0xFF4ADBA8)
-                                : Colors.white54,
-                            size: 13,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            isStable ? 'Stable' : 'Hold still',
-                            style: TextStyle(
-                              color: isStable
-                                  ? const Color(0xFF4ADBA8)
-                                  : Colors.white60,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              fontFamily: 'Manrope',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Hold progress bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(99),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 7,
-                    backgroundColor: Colors.white.withValues(alpha: 0.15),
-                    valueColor: AlwaysStoppedAnimation<Color>(barColor),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Hold  ${seconds.toStringAsFixed(1)}s / '
-                      '${durationSeconds.toStringAsFixed(0)}s',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Manrope',
-                      ),
-                    ),
-                    if (!holdActive)
-                      Text(
-                        'Needs ≥${threshold.toStringAsFixed(0)}%',
-                        style: const TextStyle(
-                          color: Colors.white38,
-                          fontSize: 11,
-                          fontFamily: 'Manrope',
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
+          return WorkoutStatusHud(
+            snapshot: _guidanceNotifier.value,
+            holdSeconds: _holdSecondsNotifier.value,
+            durationSeconds:
+                _poseSessionService.holdDuration.inMilliseconds / 1000.0,
+            scoreThreshold: _poseSessionService.scoreThreshold,
           );
         },
       ),
@@ -828,83 +789,22 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       left: 12,
       right: 12,
       child: AnimatedBuilder(
-        animation: Listenable.merge([
-          _angleFeedbackNotifier,
-          _feedbackNotifier,
-          _poseResultNotifier,
-        ]),
+        animation: Listenable.merge([_guidanceNotifier, _poseResultNotifier]),
         builder: (context, _) {
-          if (_poseResultNotifier.value != null) {
-            return const SizedBox.shrink();
-          }
-          final combined = <String>[
-            ..._angleFeedbackNotifier.value,
-            ..._feedbackNotifier.value,
-          ];
-          if (combined.isEmpty) return const SizedBox.shrink();
-          final shown = combined.take(2).toList();
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(left: 4, bottom: 6),
-                child: Text(
-                  'FEEDBACK',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    fontFamily: 'Manrope',
-                  ),
-                ),
-              ),
-              ...shown.map(
-                (msg) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 9),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(0xFFFFD166).withValues(alpha: 0.35),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.tips_and_updates_rounded,
-                          color: Color(0xFFFFD166),
-                          size: 14,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            msg,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              fontFamily: 'Manrope',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          return WorkoutFeedbackPanel(
+            snapshot: _guidanceNotifier.value,
+            visible: _poseResultNotifier.value == null,
           );
         },
       ),
     );
   }
 
-  Widget _buildCompletionCard(PoseResult result) {
+  Widget _buildCompletionCard(
+    PoseResult result, {
+    required int xpGained,
+    required List<UnlockedBadge> unlockedBadges,
+  }) {
     final bestScoreText = '${result.bestScore.toStringAsFixed(0)}%';
     final holdTimeText = '${result.holdDuration.toStringAsFixed(1)}s';
     final buttonText =
@@ -914,8 +814,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final Color scoreColor = score >= 80
         ? const Color(0xFF3D8B68)
         : score >= 60
-            ? const Color(0xFFD4872A)
-            : const Color(0xFFB33A3A);
+        ? const Color(0xFFD4872A)
+        : const Color(0xFFB33A3A);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -1031,7 +931,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF6F1E7),
                     borderRadius: BorderRadius.circular(14),
@@ -1057,6 +959,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     ],
                   ),
                 ),
+                if (xpGained > 0 || unlockedBadges.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  WorkoutRewardSummary(
+                    xpGained: xpGained,
+                    unlockedBadges: unlockedBadges,
+                  ),
+                ],
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
@@ -1069,7 +978,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                             poseName: result.poseName,
                             bestScore: result.bestScore,
                             holdDuration: result.holdDuration,
-                            passed: result.bestScore >=
+                            passed:
+                                result.bestScore >=
                                 _sessionConfig.scoreThreshold,
                             completedAt: result.timestamp ?? DateTime.now(),
                           ),
@@ -1088,8 +998,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       ),
     );
   }
-
-
 
   /// Build the camera preview AND skeleton overlay inside the same sized
   /// container so coordinates match perfectly.
@@ -1116,7 +1024,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 return CustomPaint(
                   painter: SkeletonOverlayPainter(
                     landmarks: normalizedLandmarks,
-                    similarityScore: _smoothedSimilarityNotifier.value,
+                    similarityScore: _guidanceNotifier.value.score,
                     mirror:
                         _cameraService.cameraDescription?.lensDirection ==
                         CameraLensDirection.front,

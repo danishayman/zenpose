@@ -23,7 +23,7 @@ void main() {
     await deleteDatabase(path);
   });
 
-  test('migrates v1 database to v3 while preserving pose_results', () async {
+  test('migrates v1 database to v4 while preserving pose_results', () async {
     final path = await dbPathForTest();
 
     final legacyDb = await openDatabase(
@@ -60,6 +60,10 @@ void main() {
       poseRows.first[DatabaseService.columnGamificationProcessed],
       equals(0),
     );
+    expect(poseRows.first[DatabaseService.columnRecordId], isNotNull);
+    expect(poseRows.first[DatabaseService.columnUserId], isNotNull);
+    expect(poseRows.first[DatabaseService.columnUpdatedAt], isNotNull);
+    expect(poseRows.first[DatabaseService.columnIsSynced], equals(0));
 
     final statsRows = await db.query(DatabaseService.tableUserStats);
     expect(statsRows.length, 1);
@@ -77,7 +81,7 @@ void main() {
   });
 
   test(
-    'initializes v3 tables and default gamification rows on fresh database',
+    'initializes v4 tables and default gamification rows on fresh database',
     () async {
       final db = await DatabaseService.instance.database;
 
@@ -85,6 +89,9 @@ void main() {
       expect(statsRows.length, 1);
       expect(statsRows.first[DatabaseService.columnCurrentStreak], equals(0));
       expect(statsRows.first[DatabaseService.columnTotalXp], equals(0));
+      expect(statsRows.first[DatabaseService.columnUserId], isNotNull);
+      expect(statsRows.first[DatabaseService.columnUpdatedAt], isNotNull);
+      expect(statsRows.first[DatabaseService.columnIsSynced], equals(0));
 
       final badgeRows = await db.query(DatabaseService.tableBadges);
       expect(badgeRows.length, greaterThanOrEqualTo(3));

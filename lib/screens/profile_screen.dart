@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/user_stats.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../theme/zen_theme.dart';
 import '../widgets/zen_loading_shimmer.dart';
@@ -16,6 +17,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final DatabaseService _databaseService = DatabaseService.instance;
+  final AuthService _authService = AuthService.instance;
   late Future<_ProfileData> _future;
 
   @override
@@ -214,6 +216,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Divider(height: 1, color: ZenColors.surface2),
               _settingsRow(
                 context,
+                icon: Icons.logout_rounded,
+                label: 'Sign Out',
+                onTap: _signOut,
+              ),
+              Divider(height: 1, color: ZenColors.surface2),
+              _settingsRow(
+                context,
                 icon: Icons.info_outline_rounded,
                 label: 'About ZenPose',
                 onTap: () => _showAbout(context),
@@ -237,6 +246,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await _authService.signOut();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Sign out failed: $e')));
+    }
   }
 
   Widget _settingsRow(

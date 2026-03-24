@@ -1,34 +1,38 @@
+import 'dart:async';
 import 'dart:developer';
+import 'dart:math' as math;
 
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../models/pose_result.dart';
 import '../models/daily_challenge.dart';
 import '../models/daily_challenge_step.dart';
+import '../models/pose_result.dart';
 import '../models/unlocked_badge.dart';
 import '../models/user_stats.dart';
+import 'auth_context.dart';
 import 'badge_catalog.dart';
 
-/// Local SQLite persistence for pose sessions and offline gamification data.
 class DatabaseService {
   DatabaseService._internal();
-
   static final DatabaseService instance = DatabaseService._internal();
-
   factory DatabaseService() => instance;
 
   static const String databaseName = 'yoga_trainer.db';
-  static const int databaseVersion = 3;
+  static const int databaseVersion = 4;
 
   static const String tablePoseResults = 'pose_results';
   static const String columnId = 'id';
+  static const String columnRecordId = 'record_id';
+  static const String columnUserId = 'user_id';
   static const String columnPoseName = 'pose_name';
   static const String columnBestScore = 'best_score';
   static const String columnHoldDuration = 'hold_duration';
   static const String columnCompleted = 'completed';
   static const String columnTimestamp = 'timestamp';
   static const String columnGamificationProcessed = 'gamification_processed';
+  static const String columnUpdatedAt = 'updated_at';
+  static const String columnIsSynced = 'is_synced';
 
   static const String tableUserStats = 'user_stats';
   static const String columnUserStatsId = 'id';
@@ -56,14 +60,18 @@ class DatabaseService {
   static const String columnTotalSteps = 'total_steps';
   static const String columnStartedAt = 'started_at';
   static const String columnCompletedAt = 'completed_at';
-  static const String columnUpdatedAt = 'updated_at';
   static const String columnSequenceJson = 'sequence_json';
   static const String columnStepIndex = 'step_index';
-
   static const int singleUserStatsRowId = 1;
 
   Database? _database;
   Future<Database>? _databaseInit;
+  final StreamController<void> _mutationController =
+      StreamController<void>.broadcast();
+  final math.Random _rng = math.Random();
+
+  Stream<void> get mutationStream => _mutationController.stream;
+  String get _activeUserId => AuthContext.activeUserId;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -73,84 +81,149 @@ class DatabaseService {
   }
 
   Future<Database> _initDatabase() async {
-    try {
-      final dbPath = await getDatabasesPath();
-      final path = join(dbPath, databaseName);
-      return openDatabase(
-        path,
-        version: databaseVersion,
-        onCreate: _onCreate,
-        onUpgrade: _onUpgrade,
-      );
-    } catch (e, stackTrace) {
-      _logError('Failed to open database.', e, stackTrace);
-      throw Exception('Failed to open database: $e');
-    }
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, databaseName);
+    return openDatabase(
+      path,
+      version: databaseVersion,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    try {
-      await db.execute('''
-        CREATE TABLE $tablePoseResults (
-          $columnId INTEGER PRIMARY KEY AUTOINCREMENT,
-          $columnPoseName TEXT,
-          $columnBestScore REAL,
-          $columnHoldDuration REAL,
-          $columnCompleted INTEGER,
-          $columnTimestamp TEXT,
-          $columnGamificationProcessed INTEGER NOT NULL DEFAULT 0
-        )
-        ''');
-
-      await _createGamificationTables(db);
-      await _createDailyChallengeTables(db);
-      await _ensureUserStatsRow(db);
-      await _seedBadges(db);
-    } catch (e, stackTrace) {
-      _logError('Failed to create database schema.', e, stackTrace);
-      rethrow;
-    }
+    await db.execute('''
+      CREATE TABLE $tablePoseResults (
+        $columnId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $columnRecordId TEXT NOT NULL UNIQUE,
+        $columnUserId TEXT NOT NULL,
+        $columnPoseName TEXT,
+        $columnBestScore REAL,
+        $columnHoldDuration REAL,
+        $columnCompleted INTEGER,
+        $columnTimestamp TEXT,
+        $columnGamificationProcessed INTEGER NOT NULL DEFAULT 0,
+        $columnUpdatedAt TEXT NOT NULL,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await _createGamificationTables(db);
+    await _createDailyChallengeTables(db);
+    await _ensureUserStatsRow(db);
+    await _seedBadges(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    try {
-      if (oldVersion < 2) {
-        final hasProcessedColumn = await _columnExists(
+    if (oldVersion < 2 &&
+        !await _columnExists(
           db: db,
           tableName: tablePoseResults,
           columnName: columnGamificationProcessed,
-        );
-        if (!hasProcessedColumn) {
-          await db.execute('''
-            ALTER TABLE $tablePoseResults
-            ADD COLUMN $columnGamificationProcessed INTEGER NOT NULL DEFAULT 0
-            ''');
-        }
-
-        await _createGamificationTables(db);
-        await _ensureUserStatsRow(db);
-        await _seedBadges(db);
-      }
-      if (oldVersion < 3) {
-        await _createDailyChallengeTables(db);
-      }
-    } catch (e, stackTrace) {
-      _logError('Failed during database migration.', e, stackTrace);
-      rethrow;
+        )) {
+      await db.execute('''
+        ALTER TABLE $tablePoseResults
+        ADD COLUMN $columnGamificationProcessed INTEGER NOT NULL DEFAULT 0
+      ''');
     }
+    if (oldVersion < 4) {
+      await _migrateToV4(db);
+    }
+    await _createGamificationTables(db);
+    await _createDailyChallengeTables(db);
+    await _ensureUserStatsRow(db);
+    await _seedBadges(db);
+  }
+
+  Future<void> _migrateToV4(Database db) async {
+    final nowIso = _nowIso();
+    if (!await _columnExists(
+      db: db,
+      tableName: tablePoseResults,
+      columnName: columnRecordId,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tablePoseResults ADD COLUMN $columnRecordId TEXT',
+      );
+    }
+    if (!await _columnExists(
+      db: db,
+      tableName: tablePoseResults,
+      columnName: columnUserId,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tablePoseResults ADD COLUMN $columnUserId TEXT',
+      );
+    }
+    if (!await _columnExists(
+      db: db,
+      tableName: tablePoseResults,
+      columnName: columnUpdatedAt,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tablePoseResults ADD COLUMN $columnUpdatedAt TEXT',
+      );
+    }
+    if (!await _columnExists(
+      db: db,
+      tableName: tablePoseResults,
+      columnName: columnIsSynced,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tablePoseResults ADD COLUMN $columnIsSynced INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+    final poseRows = await db.query(
+      tablePoseResults,
+      columns: <String>[
+        columnId,
+        columnRecordId,
+        columnTimestamp,
+        columnUpdatedAt,
+      ],
+    );
+    for (final row in poseRows) {
+      final id = row[columnId] as int?;
+      if (id == null) continue;
+      await db.update(
+        tablePoseResults,
+        <String, Object?>{
+          columnRecordId: (row[columnRecordId]?.toString().isNotEmpty ?? false)
+              ? row[columnRecordId]
+              : _generateRecordId(),
+          columnUserId: AuthContext.localUserId,
+          columnUpdatedAt:
+              (row[columnUpdatedAt]?.toString().isNotEmpty ?? false)
+              ? row[columnUpdatedAt]
+              : (row[columnTimestamp] ?? nowIso),
+          columnIsSynced: 0,
+        },
+        where: '$columnId = ?',
+        whereArgs: <Object?>[id],
+      );
+    }
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_pose_record ON $tablePoseResults($columnRecordId)',
+    );
+
+    await _rebuildUserBadgesToScoped(db, nowIso);
+    await _rebuildDailyChallengesToScoped(db, nowIso);
+    await _rebuildDailyChallengeStepsToScoped(db, nowIso);
+    await _ensureUserStatsColumns(db, nowIso);
   }
 
   Future<void> _createGamificationTables(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $tableUserStats (
         $columnUserStatsId INTEGER PRIMARY KEY,
+        $columnUserId TEXT NOT NULL UNIQUE,
         $columnCurrentStreak INTEGER NOT NULL DEFAULT 0,
         $columnLongestStreak INTEGER NOT NULL DEFAULT 0,
         $columnTotalXp INTEGER NOT NULL DEFAULT 0,
-        $columnLastActiveDate TEXT
+        $columnLastActiveDate TEXT,
+        $columnUpdatedAt TEXT NOT NULL,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0
       )
-      ''');
-
+    ''');
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $tableBadges (
         $columnBadgeId TEXT PRIMARY KEY,
@@ -159,35 +232,41 @@ class DatabaseService {
         $columnBadgeCriteriaType TEXT NOT NULL,
         $columnBadgeCriteriaValue REAL NOT NULL
       )
-      ''');
-
+    ''');
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $tableUserBadges (
-        $columnBadgeId TEXT PRIMARY KEY,
+        $columnUserId TEXT NOT NULL,
+        $columnBadgeId TEXT NOT NULL,
         $columnUnlockedAt TEXT NOT NULL,
         $columnSourcePoseResultId INTEGER,
+        $columnUpdatedAt TEXT NOT NULL,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY($columnUserId, $columnBadgeId),
         FOREIGN KEY($columnBadgeId) REFERENCES $tableBadges($columnBadgeId),
         FOREIGN KEY($columnSourcePoseResultId) REFERENCES $tablePoseResults($columnId)
       )
-      ''');
+    ''');
   }
 
   Future<void> _createDailyChallengeTables(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $tableDailyChallenges (
-        $columnDateKey TEXT PRIMARY KEY,
+        $columnUserId TEXT NOT NULL,
+        $columnDateKey TEXT NOT NULL,
         $columnStatus TEXT NOT NULL DEFAULT 'in_progress',
         $columnSkipCount INTEGER NOT NULL DEFAULT 0,
         $columnTotalSteps INTEGER NOT NULL,
         $columnStartedAt TEXT,
         $columnCompletedAt TEXT,
         $columnUpdatedAt TEXT NOT NULL,
-        $columnSequenceJson TEXT NOT NULL
+        $columnSequenceJson TEXT NOT NULL,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY($columnUserId, $columnDateKey)
       )
-      ''');
-
+    ''');
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $tableDailyChallengeSteps (
+        $columnUserId TEXT NOT NULL,
         $columnDateKey TEXT NOT NULL,
         $columnStepIndex INTEGER NOT NULL,
         $columnPoseName TEXT NOT NULL,
@@ -195,19 +274,28 @@ class DatabaseService {
         $columnBestScore REAL,
         $columnHoldDuration REAL,
         $columnUpdatedAt TEXT,
-        PRIMARY KEY ($columnDateKey, $columnStepIndex),
-        FOREIGN KEY($columnDateKey) REFERENCES $tableDailyChallenges($columnDateKey)
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY($columnUserId, $columnDateKey, $columnStepIndex)
       )
-      ''');
+    ''');
   }
 
   Future<void> _ensureUserStatsRow(DatabaseExecutor db) async {
+    final rows = await db.query(
+      tableUserStats,
+      where: '$columnUserId = ?',
+      whereArgs: <Object?>[_activeUserId],
+      limit: 1,
+    );
+    if (rows.isNotEmpty) return;
     await db.insert(tableUserStats, <String, Object?>{
-      columnUserStatsId: singleUserStatsRowId,
+      columnUserId: _activeUserId,
       columnCurrentStreak: 0,
       columnLongestStreak: 0,
       columnTotalXp: 0,
       columnLastActiveDate: null,
+      columnUpdatedAt: _nowIso(),
+      columnIsSynced: 0,
     }, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
@@ -230,127 +318,310 @@ class DatabaseService {
     return rows.any((row) => row['name']?.toString() == columnName);
   }
 
-  Future<int> insertPoseResult(PoseResult result) async {
-    try {
-      final db = await database;
-      final values = result.toMap();
-      values[columnTimestamp] ??= DateTime.now().toIso8601String();
-      values[columnGamificationProcessed] = 0;
-      return await db.insert(tablePoseResults, values);
-    } catch (e, stackTrace) {
-      _logError('Failed to insert pose result.', e, stackTrace);
-      throw Exception('Failed to insert pose result: $e');
+  Future<bool> _tableExists(DatabaseExecutor db, String tableName) async {
+    final rows = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+      <Object?>[tableName],
+    );
+    return rows.isNotEmpty;
+  }
+
+  Future<void> _ensureUserStatsColumns(Database db, String nowIso) async {
+    if (!await _columnExists(
+      db: db,
+      tableName: tableUserStats,
+      columnName: columnUserId,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tableUserStats ADD COLUMN $columnUserId TEXT',
+      );
     }
+    if (!await _columnExists(
+      db: db,
+      tableName: tableUserStats,
+      columnName: columnUpdatedAt,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tableUserStats ADD COLUMN $columnUpdatedAt TEXT',
+      );
+    }
+    if (!await _columnExists(
+      db: db,
+      tableName: tableUserStats,
+      columnName: columnIsSynced,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tableUserStats ADD COLUMN $columnIsSynced INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+    await db.rawUpdate(
+      '''
+      UPDATE $tableUserStats
+      SET $columnUserId = COALESCE(NULLIF($columnUserId,''), ?),
+          $columnUpdatedAt = COALESCE(NULLIF($columnUpdatedAt,''), ?),
+          $columnIsSynced = 0
+      ''',
+      <Object?>[AuthContext.localUserId, nowIso],
+    );
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_user_stats_user_id ON $tableUserStats($columnUserId)',
+    );
+  }
+
+  Future<void> _rebuildUserBadgesToScoped(Database db, String nowIso) async {
+    if (!await _tableExists(db, tableUserBadges)) {
+      await _createGamificationTables(db);
+      return;
+    }
+    final hasUserId = await _columnExists(
+      db: db,
+      tableName: tableUserBadges,
+      columnName: columnUserId,
+    );
+    if (hasUserId) return;
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${tableUserBadges}_v4 (
+        $columnUserId TEXT NOT NULL,
+        $columnBadgeId TEXT NOT NULL,
+        $columnUnlockedAt TEXT NOT NULL,
+        $columnSourcePoseResultId INTEGER,
+        $columnUpdatedAt TEXT NOT NULL,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY($columnUserId, $columnBadgeId),
+        FOREIGN KEY($columnBadgeId) REFERENCES $tableBadges($columnBadgeId),
+        FOREIGN KEY($columnSourcePoseResultId) REFERENCES $tablePoseResults($columnId)
+      )
+    ''');
+    await db.execute(
+      '''
+      INSERT INTO ${tableUserBadges}_v4 (
+        $columnUserId, $columnBadgeId, $columnUnlockedAt,
+        $columnSourcePoseResultId, $columnUpdatedAt, $columnIsSynced
+      )
+      SELECT ?, $columnBadgeId, $columnUnlockedAt, $columnSourcePoseResultId,
+             COALESCE($columnUnlockedAt, ?), 0
+      FROM $tableUserBadges
+    ''',
+      <Object?>[AuthContext.localUserId, nowIso],
+    );
+    await db.execute('DROP TABLE $tableUserBadges');
+    await db.execute(
+      'ALTER TABLE ${tableUserBadges}_v4 RENAME TO $tableUserBadges',
+    );
+  }
+
+  Future<void> _rebuildDailyChallengesToScoped(
+    Database db,
+    String nowIso,
+  ) async {
+    if (!await _tableExists(db, tableDailyChallenges)) {
+      await _createDailyChallengeTables(db);
+      return;
+    }
+    final hasUserId = await _columnExists(
+      db: db,
+      tableName: tableDailyChallenges,
+      columnName: columnUserId,
+    );
+    if (hasUserId) {
+      if (!await _columnExists(
+        db: db,
+        tableName: tableDailyChallenges,
+        columnName: columnIsSynced,
+      )) {
+        await db.execute(
+          'ALTER TABLE $tableDailyChallenges ADD COLUMN $columnIsSynced INTEGER NOT NULL DEFAULT 0',
+        );
+      }
+      await db.rawUpdate(
+        'UPDATE $tableDailyChallenges SET $columnUserId = COALESCE(NULLIF($columnUserId,\'\'),?), $columnUpdatedAt = COALESCE(NULLIF($columnUpdatedAt,\'\'),?), $columnIsSynced = 0',
+        <Object?>[AuthContext.localUserId, nowIso],
+      );
+      return;
+    }
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${tableDailyChallenges}_v4 (
+        $columnUserId TEXT NOT NULL,
+        $columnDateKey TEXT NOT NULL,
+        $columnStatus TEXT NOT NULL DEFAULT 'in_progress',
+        $columnSkipCount INTEGER NOT NULL DEFAULT 0,
+        $columnTotalSteps INTEGER NOT NULL,
+        $columnStartedAt TEXT,
+        $columnCompletedAt TEXT,
+        $columnUpdatedAt TEXT NOT NULL,
+        $columnSequenceJson TEXT NOT NULL,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY($columnUserId, $columnDateKey)
+      )
+    ''');
+    await db.execute(
+      '''
+      INSERT INTO ${tableDailyChallenges}_v4 (
+        $columnUserId, $columnDateKey, $columnStatus, $columnSkipCount, $columnTotalSteps,
+        $columnStartedAt, $columnCompletedAt, $columnUpdatedAt, $columnSequenceJson, $columnIsSynced
+      )
+      SELECT ?, $columnDateKey, $columnStatus, $columnSkipCount, $columnTotalSteps,
+             $columnStartedAt, $columnCompletedAt, COALESCE($columnUpdatedAt, ?), $columnSequenceJson, 0
+      FROM $tableDailyChallenges
+    ''',
+      <Object?>[AuthContext.localUserId, nowIso],
+    );
+    await db.execute('DROP TABLE $tableDailyChallenges');
+    await db.execute(
+      'ALTER TABLE ${tableDailyChallenges}_v4 RENAME TO $tableDailyChallenges',
+    );
+  }
+
+  Future<void> _rebuildDailyChallengeStepsToScoped(
+    Database db,
+    String nowIso,
+  ) async {
+    if (!await _tableExists(db, tableDailyChallengeSteps)) {
+      await _createDailyChallengeTables(db);
+      return;
+    }
+    final hasUserId = await _columnExists(
+      db: db,
+      tableName: tableDailyChallengeSteps,
+      columnName: columnUserId,
+    );
+    if (hasUserId) {
+      if (!await _columnExists(
+        db: db,
+        tableName: tableDailyChallengeSteps,
+        columnName: columnIsSynced,
+      )) {
+        await db.execute(
+          'ALTER TABLE $tableDailyChallengeSteps ADD COLUMN $columnIsSynced INTEGER NOT NULL DEFAULT 0',
+        );
+      }
+      await db.rawUpdate(
+        'UPDATE $tableDailyChallengeSteps SET $columnUserId = COALESCE(NULLIF($columnUserId,\'\'),?), $columnUpdatedAt = COALESCE(NULLIF($columnUpdatedAt,\'\'),?), $columnIsSynced = 0',
+        <Object?>[AuthContext.localUserId, nowIso],
+      );
+      return;
+    }
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${tableDailyChallengeSteps}_v4 (
+        $columnUserId TEXT NOT NULL,
+        $columnDateKey TEXT NOT NULL,
+        $columnStepIndex INTEGER NOT NULL,
+        $columnPoseName TEXT NOT NULL,
+        $columnStatus TEXT NOT NULL DEFAULT 'pending',
+        $columnBestScore REAL,
+        $columnHoldDuration REAL,
+        $columnUpdatedAt TEXT,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY($columnUserId, $columnDateKey, $columnStepIndex)
+      )
+    ''');
+    await db.execute(
+      '''
+      INSERT INTO ${tableDailyChallengeSteps}_v4 (
+        $columnUserId, $columnDateKey, $columnStepIndex, $columnPoseName,
+        $columnStatus, $columnBestScore, $columnHoldDuration, $columnUpdatedAt, $columnIsSynced
+      )
+      SELECT ?, $columnDateKey, $columnStepIndex, $columnPoseName,
+             $columnStatus, $columnBestScore, $columnHoldDuration, COALESCE($columnUpdatedAt, ?), 0
+      FROM $tableDailyChallengeSteps
+    ''',
+      <Object?>[AuthContext.localUserId, nowIso],
+    );
+    await db.execute('DROP TABLE $tableDailyChallengeSteps');
+    await db.execute(
+      'ALTER TABLE ${tableDailyChallengeSteps}_v4 RENAME TO $tableDailyChallengeSteps',
+    );
+  }
+
+  Future<int> insertPoseResult(PoseResult result) async {
+    final db = await database;
+    final nowIso = _nowIso();
+    final values = result.toMap();
+    values[columnRecordId] = _generateRecordId();
+    values[columnUserId] = _activeUserId;
+    values[columnTimestamp] ??= nowIso;
+    values[columnUpdatedAt] = nowIso;
+    values[columnIsSynced] = 0;
+    values[columnGamificationProcessed] = 0;
+    final id = await db.insert(tablePoseResults, values);
+    notifyLocalMutation();
+    return id;
   }
 
   Future<List<PoseResult>> getAllResults() async {
-    try {
-      final db = await database;
-      final rows = await db.query(
-        tablePoseResults,
-        orderBy: '$columnTimestamp DESC',
-      );
-      return rows.map(PoseResult.fromMap).toList();
-    } catch (e, stackTrace) {
-      _logError('Failed to fetch pose results.', e, stackTrace);
-      throw Exception('Failed to fetch pose results: $e');
-    }
+    final db = await database;
+    final rows = await db.query(
+      tablePoseResults,
+      where: '$columnUserId = ?',
+      whereArgs: <Object?>[_activeUserId],
+      orderBy: '$columnTimestamp DESC',
+    );
+    return rows.map(PoseResult.fromMap).toList();
   }
 
   Future<PoseResult?> getPoseResultById(int id) async {
-    try {
-      final db = await database;
-      final rows = await db.query(
-        tablePoseResults,
-        where: '$columnId = ?',
-        whereArgs: <Object?>[id],
-        limit: 1,
-      );
-      if (rows.isEmpty) return null;
-      return PoseResult.fromMap(rows.first);
-    } catch (e, stackTrace) {
-      _logError('Failed to fetch pose result id=$id.', e, stackTrace);
-      throw Exception('Failed to fetch pose result: $e');
-    }
+    final db = await database;
+    final rows = await db.query(
+      tablePoseResults,
+      where: '$columnUserId = ? AND $columnId = ?',
+      whereArgs: <Object?>[_activeUserId, id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return PoseResult.fromMap(rows.first);
   }
 
   Future<double?> getBestScoreForPose(String poseName) async {
-    try {
-      final db = await database;
-      final rows = await db.rawQuery(
-        'SELECT MAX($columnBestScore) as max_score '
-        'FROM $tablePoseResults '
-        'WHERE $columnPoseName = ?',
-        <Object?>[poseName],
-      );
-      if (rows.isEmpty) return null;
-      final value = rows.first['max_score'];
-      if (value == null) return null;
-      if (value is num) return value.toDouble();
-      return double.tryParse(value.toString());
-    } catch (e, stackTrace) {
-      _logError('Failed to fetch best score for $poseName.', e, stackTrace);
-      throw Exception('Failed to fetch best score: $e');
-    }
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT MAX($columnBestScore) as max_score FROM $tablePoseResults WHERE $columnPoseName = ? AND $columnUserId = ?',
+      <Object?>[poseName, _activeUserId],
+    );
+    final value = rows.first['max_score'];
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
   }
 
   Future<UserStats> getUserStats() async {
-    try {
-      final db = await database;
-      await _ensureUserStatsRow(db);
-      final rows = await db.query(
-        tableUserStats,
-        where: '$columnUserStatsId = ?',
-        whereArgs: <Object?>[singleUserStatsRowId],
-        limit: 1,
-      );
-      if (rows.isEmpty) return const UserStats.initial();
-      return UserStats.fromMap(rows.first);
-    } catch (e, stackTrace) {
-      _logError('Failed to fetch user stats.', e, stackTrace);
-      throw Exception('Failed to fetch user stats: $e');
-    }
+    final db = await database;
+    await _ensureUserStatsRow(db);
+    final rows = await db.query(
+      tableUserStats,
+      where: '$columnUserId = ?',
+      whereArgs: <Object?>[_activeUserId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return const UserStats.initial();
+    return UserStats.fromMap(rows.first);
   }
 
   Future<int> getUnlockedBadgeCount() async {
-    try {
-      final db = await database;
-      final rows = await db.rawQuery(
-        'SELECT COUNT(*) as count FROM $tableUserBadges',
-      );
-      if (rows.isEmpty) return 0;
-      final value = rows.first['count'];
-      if (value is int) return value;
-      if (value is num) return value.toInt();
-      return int.tryParse(value?.toString() ?? '') ?? 0;
-    } catch (e, stackTrace) {
-      _logError('Failed to fetch unlocked badge count.', e, stackTrace);
-      throw Exception('Failed to fetch unlocked badge count: $e');
-    }
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM $tableUserBadges WHERE $columnUserId = ?',
+      <Object?>[_activeUserId],
+    );
+    final value = rows.first['count'];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   Future<List<UnlockedBadge>> getLatestUnlockedBadges({int limit = 5}) async {
-    try {
-      final db = await database;
-      final rows = await db.rawQuery(
-        '''
-        SELECT ub.$columnBadgeId,
-               b.$columnBadgeName,
-               b.$columnBadgeDescription,
-               ub.$columnUnlockedAt
-        FROM $tableUserBadges ub
-        INNER JOIN $tableBadges b
-          ON b.$columnBadgeId = ub.$columnBadgeId
-        ORDER BY ub.$columnUnlockedAt DESC
-        LIMIT ?
-        ''',
-        <Object?>[limit],
-      );
-      return rows.map(UnlockedBadge.fromMap).toList();
-    } catch (e, stackTrace) {
-      _logError('Failed to fetch latest unlocked badges.', e, stackTrace);
-      throw Exception('Failed to fetch latest unlocked badges: $e');
-    }
+    final db = await database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT ub.$columnBadgeId, b.$columnBadgeName, b.$columnBadgeDescription, ub.$columnUnlockedAt
+      FROM $tableUserBadges ub
+      INNER JOIN $tableBadges b ON b.$columnBadgeId = ub.$columnBadgeId
+      WHERE ub.$columnUserId = ?
+      ORDER BY ub.$columnUnlockedAt DESC
+      LIMIT ?
+      ''',
+      <Object?>[_activeUserId, limit],
+    );
+    return rows.map(UnlockedBadge.fromMap).toList();
   }
 
   Future<void> insertDailyChallenge({
@@ -358,28 +629,38 @@ class DatabaseService {
     required List<DailyChallengeStep> steps,
   }) async {
     final db = await database;
+    final nowIso = _nowIso();
     await db.transaction((tx) async {
+      final challengeMap = challenge.toMap();
+      challengeMap[columnUserId] = _activeUserId;
+      challengeMap[columnUpdatedAt] ??= nowIso;
+      challengeMap[columnIsSynced] = 0;
       await tx.insert(
         tableDailyChallenges,
-        challenge.toMap(),
+        challengeMap,
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
       for (final step in steps) {
+        final stepMap = step.toMap();
+        stepMap[columnUserId] = _activeUserId;
+        stepMap[columnUpdatedAt] ??= nowIso;
+        stepMap[columnIsSynced] = 0;
         await tx.insert(
           tableDailyChallengeSteps,
-          step.toMap(),
+          stepMap,
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
     });
+    notifyLocalMutation();
   }
 
   Future<DailyChallenge?> getDailyChallengeByDateKey(String dateKey) async {
     final db = await database;
     final rows = await db.query(
       tableDailyChallenges,
-      where: '$columnDateKey = ?',
-      whereArgs: <Object?>[dateKey],
+      where: '$columnUserId = ? AND $columnDateKey = ?',
+      whereArgs: <Object?>[_activeUserId, dateKey],
       limit: 1,
     );
     if (rows.isEmpty) return null;
@@ -392,8 +673,8 @@ class DatabaseService {
     final db = await database;
     final rows = await db.query(
       tableDailyChallengeSteps,
-      where: '$columnDateKey = ?',
-      whereArgs: <Object?>[dateKey],
+      where: '$columnUserId = ? AND $columnDateKey = ?',
+      whereArgs: <Object?>[_activeUserId, dateKey],
       orderBy: '$columnStepIndex ASC',
     );
     return rows.map(DailyChallengeStep.fromMap).toList();
@@ -401,22 +682,125 @@ class DatabaseService {
 
   Future<void> updateDailyChallenge(DailyChallenge challenge) async {
     final db = await database;
+    final map = challenge.toMap();
+    map[columnUserId] = _activeUserId;
+    map[columnUpdatedAt] = _nowIso();
+    map[columnIsSynced] = 0;
     await db.update(
       tableDailyChallenges,
-      challenge.toMap(),
-      where: '$columnDateKey = ?',
-      whereArgs: <Object?>[challenge.dateKey],
+      map,
+      where: '$columnUserId = ? AND $columnDateKey = ?',
+      whereArgs: <Object?>[_activeUserId, challenge.dateKey],
     );
+    notifyLocalMutation();
   }
 
   Future<void> updateDailyChallengeStep(DailyChallengeStep step) async {
     final db = await database;
+    final map = step.toMap();
+    map[columnUserId] = _activeUserId;
+    map[columnUpdatedAt] = _nowIso();
+    map[columnIsSynced] = 0;
     await db.update(
       tableDailyChallengeSteps,
-      step.toMap(),
-      where: '$columnDateKey = ? AND $columnStepIndex = ?',
-      whereArgs: <Object?>[step.dateKey, step.stepIndex],
+      map,
+      where:
+          '$columnUserId = ? AND $columnDateKey = ? AND $columnStepIndex = ?',
+      whereArgs: <Object?>[_activeUserId, step.dateKey, step.stepIndex],
     );
+    notifyLocalMutation();
+  }
+
+  List<String> tableKeyColumns(String tableName) {
+    switch (tableName) {
+      case tablePoseResults:
+        return <String>[columnUserId, columnRecordId];
+      case tableUserStats:
+        return <String>[columnUserId];
+      case tableUserBadges:
+        return <String>[columnUserId, columnBadgeId];
+      case tableDailyChallenges:
+        return <String>[columnUserId, columnDateKey];
+      case tableDailyChallengeSteps:
+        return <String>[columnUserId, columnDateKey, columnStepIndex];
+      default:
+        throw ArgumentError('Unsupported sync table: $tableName');
+    }
+  }
+
+  Future<List<Map<String, Object?>>> getUnsyncedRows({
+    required String tableName,
+    int limit = 200,
+  }) async {
+    final db = await database;
+    return db.query(
+      tableName,
+      where: '$columnUserId = ? AND $columnIsSynced = 0',
+      whereArgs: <Object?>[_activeUserId],
+      orderBy: '$columnUpdatedAt ASC',
+      limit: limit,
+    );
+  }
+
+  Future<Map<String, Object?>?> getRowByKeys({
+    required String tableName,
+    required Map<String, Object?> keyValues,
+  }) async {
+    final db = await database;
+    final where = keyValues.keys.map((k) => '$k = ?').join(' AND ');
+    final args = keyValues.values.toList(growable: false);
+    final rows = await db.query(
+      tableName,
+      where: where,
+      whereArgs: args,
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<void> markRowSynced({
+    required String tableName,
+    required Map<String, Object?> keyValues,
+  }) async {
+    final db = await database;
+    final where = keyValues.keys.map((k) => '$k = ?').join(' AND ');
+    final args = keyValues.values.toList(growable: false);
+    await db.update(
+      tableName,
+      <String, Object?>{columnIsSynced: 1},
+      where: where,
+      whereArgs: args,
+    );
+  }
+
+  Future<void> upsertRowFromSync({
+    required String tableName,
+    required Map<String, Object?> row,
+  }) async {
+    final db = await database;
+    final keys = <String, Object?>{
+      for (final key in tableKeyColumns(tableName)) key: row[key],
+    };
+    final where = keys.keys.map((k) => '$k = ?').join(' AND ');
+    final args = keys.values.toList(growable: false);
+    final normalized = Map<String, Object?>.from(row)..[columnIsSynced] = 1;
+    final updated = await db.update(
+      tableName,
+      normalized,
+      where: where,
+      whereArgs: args,
+    );
+    if (updated == 0) {
+      await db.insert(
+        tableName,
+        normalized,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+  }
+
+  void notifyLocalMutation() {
+    if (!_mutationController.isClosed) _mutationController.add(null);
   }
 
   Future<void> close() async {
@@ -425,11 +809,22 @@ class DatabaseService {
       await _database!.close();
     } catch (e, stackTrace) {
       _logError('Failed to close database.', e, stackTrace);
-      throw Exception('Failed to close database: $e');
+      rethrow;
     } finally {
       _database = null;
       _databaseInit = null;
     }
+  }
+
+  String _nowIso() => DateTime.now().toUtc().toIso8601String();
+
+  String _generateRecordId() {
+    final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
+    final rand = List<int>.generate(
+      8,
+      (_) => _rng.nextInt(256),
+    ).map((e) => e.toRadixString(16).padLeft(2, '0')).join();
+    return '$ts$rand';
   }
 
   void _logError(String message, Object error, StackTrace stackTrace) {

@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 import '../models/pose_result.dart';
 import '../models/unlocked_badge.dart';
 import '../models/user_stats.dart';
+import 'auth_context.dart';
 import 'badge_catalog.dart';
 import 'database_service.dart';
 
@@ -67,8 +68,9 @@ class GamificationService {
       );
     }
 
+    final activeUserId = AuthContext.activeUserId;
     final db = await _databaseService.database;
-    return db.transaction((Transaction tx) async {
+    final outcome = await db.transaction((Transaction tx) async {
       final resultRows = await tx.query(
         DatabaseService.tablePoseResults,
         columns: <String>[
@@ -76,8 +78,9 @@ class GamificationService {
           DatabaseService.columnCompleted,
           DatabaseService.columnGamificationProcessed,
         ],
-        where: '${DatabaseService.columnId} = ?',
-        whereArgs: <Object?>[resultId],
+        where:
+            '${DatabaseService.columnId} = ? AND ${DatabaseService.columnUserId} = ?',
+        whereArgs: <Object?>[resultId, activeUserId],
         limit: 1,
       );
 
@@ -117,9 +120,13 @@ class GamificationService {
           DatabaseService.columnLongestStreak: streakUpdate.longestStreak,
           DatabaseService.columnTotalXp: totalXp,
           DatabaseService.columnLastActiveDate: _dateKey(activityDate),
+          DatabaseService.columnUpdatedAt: DateTime.now()
+              .toUtc()
+              .toIso8601String(),
+          DatabaseService.columnIsSynced: 0,
         },
-        where: '${DatabaseService.columnUserStatsId} = ?',
-        whereArgs: <Object?>[DatabaseService.singleUserStatsRowId],
+        where: '${DatabaseService.columnUserId} = ?',
+        whereArgs: <Object?>[activeUserId],
       );
 
       final completedCount = await _countCompletedSessions(tx);
@@ -136,9 +143,12 @@ class GamificationService {
         await tx.insert(
           DatabaseService.tableUserBadges,
           <String, Object?>{
+            DatabaseService.columnUserId: activeUserId,
             DatabaseService.columnBadgeId: badgeId,
             DatabaseService.columnUnlockedAt: unlockedAt,
             DatabaseService.columnSourcePoseResultId: resultId,
+            DatabaseService.columnUpdatedAt: unlockedAt,
+            DatabaseService.columnIsSynced: 0,
           },
           conflictAlgorithm: ConflictAlgorithm.ignore,
         );
@@ -146,12 +156,23 @@ class GamificationService {
 
       await tx.update(
         DatabaseService.tablePoseResults,
-        <String, Object?>{DatabaseService.columnGamificationProcessed: 1},
-        where: '${DatabaseService.columnId} = ?',
-        whereArgs: <Object?>[resultId],
+        <String, Object?>{
+          DatabaseService.columnGamificationProcessed: 1,
+          DatabaseService.columnUpdatedAt: DateTime.now()
+              .toUtc()
+              .toIso8601String(),
+          DatabaseService.columnIsSynced: 0,
+        },
+        where:
+            '${DatabaseService.columnId} = ? AND ${DatabaseService.columnUserId} = ?',
+        whereArgs: <Object?>[resultId, activeUserId],
       );
 
-      final unlockedBadges = await _loadBadgesByIds(tx, badgeIdsToUnlock);
+      final unlockedBadges = await _loadBadgesByIds(
+        tx,
+        badgeIdsToUnlock,
+        activeUserId,
+      );
       final updatedStats = UserStats(
         currentStreak: streakUpdate.currentStreak,
         longestStreak: streakUpdate.longestStreak,
@@ -166,6 +187,10 @@ class GamificationService {
         unlockedBadges: unlockedBadges,
       );
     });
+    if (!outcome.alreadyProcessed) {
+      _databaseService.notifyLocalMutation();
+    }
+    return outcome;
   }
 
   /// Compute streak changes based on date continuity.
@@ -228,18 +253,21 @@ class GamificationService {
   }
 
   Future<UserStats> _readUserStats(DatabaseExecutor db) async {
+    final activeUserId = AuthContext.activeUserId;
     await db.insert(DatabaseService.tableUserStats, <String, Object?>{
-      DatabaseService.columnUserStatsId: DatabaseService.singleUserStatsRowId,
+      DatabaseService.columnUserId: activeUserId,
       DatabaseService.columnCurrentStreak: 0,
       DatabaseService.columnLongestStreak: 0,
       DatabaseService.columnTotalXp: 0,
       DatabaseService.columnLastActiveDate: null,
+      DatabaseService.columnUpdatedAt: DateTime.now().toUtc().toIso8601String(),
+      DatabaseService.columnIsSynced: 0,
     }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
     final rows = await db.query(
       DatabaseService.tableUserStats,
-      where: '${DatabaseService.columnUserStatsId} = ?',
-      whereArgs: <Object?>[DatabaseService.singleUserStatsRowId],
+      where: '${DatabaseService.columnUserId} = ?',
+      whereArgs: <Object?>[activeUserId],
       limit: 1,
     );
     if (rows.isEmpty) return const UserStats.initial();
@@ -247,11 +275,16 @@ class GamificationService {
   }
 
   Future<int> _countCompletedSessions(DatabaseExecutor db) async {
-    final rows = await db.rawQuery('''
+    final activeUserId = AuthContext.activeUserId;
+    final rows = await db.rawQuery(
+      '''
       SELECT COUNT(*) as count
       FROM ${DatabaseService.tablePoseResults}
       WHERE ${DatabaseService.columnCompleted} = 1
-      ''');
+        AND ${DatabaseService.columnUserId} = ?
+      ''',
+      <Object?>[activeUserId],
+    );
     if (rows.isEmpty) return 0;
     final value = rows.first['count'];
     if (value is int) return value;
@@ -260,9 +293,12 @@ class GamificationService {
   }
 
   Future<Set<String>> _getUnlockedBadgeIdSet(DatabaseExecutor db) async {
+    final activeUserId = AuthContext.activeUserId;
     final rows = await db.query(
       DatabaseService.tableUserBadges,
       columns: <String>[DatabaseService.columnBadgeId],
+      where: '${DatabaseService.columnUserId} = ?',
+      whereArgs: <Object?>[activeUserId],
     );
     return rows
         .map((row) => row[DatabaseService.columnBadgeId]?.toString() ?? '')
@@ -273,11 +309,13 @@ class GamificationService {
   Future<List<UnlockedBadge>> _loadBadgesByIds(
     DatabaseExecutor db,
     List<String> badgeIds,
+    String activeUserId,
   ) async {
     if (badgeIds.isEmpty) return const <UnlockedBadge>[];
 
     final placeholders = List<String>.filled(badgeIds.length, '?').join(', ');
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       SELECT ub.${DatabaseService.columnBadgeId},
              b.${DatabaseService.columnBadgeName},
              b.${DatabaseService.columnBadgeDescription},
@@ -285,9 +323,12 @@ class GamificationService {
       FROM ${DatabaseService.tableUserBadges} ub
       INNER JOIN ${DatabaseService.tableBadges} b
         ON b.${DatabaseService.columnBadgeId} = ub.${DatabaseService.columnBadgeId}
-      WHERE ub.${DatabaseService.columnBadgeId} IN ($placeholders)
+      WHERE ub.${DatabaseService.columnUserId} = ?
+        AND ub.${DatabaseService.columnBadgeId} IN ($placeholders)
       ORDER BY ub.${DatabaseService.columnUnlockedAt} DESC
-      ''', badgeIds.cast<Object?>());
+      ''',
+      <Object?>[activeUserId, ...badgeIds.cast<Object?>()],
+    );
     return rows.map(UnlockedBadge.fromMap).toList();
   }
 

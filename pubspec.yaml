@@ -40,6 +40,8 @@ dependencies:
 
   # Keep screen awake while camera is active
   wakelock_plus: ^1.2.8
+  flutter_tts: ^4.2.3
+  supabase_flutter: ^2.9.1
 
   # Local persistence (SQLite)
   sqflite: ^2.3.2
