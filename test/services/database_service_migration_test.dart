@@ -23,7 +23,7 @@ void main() {
     await deleteDatabase(path);
   });
 
-  test('migrates v1 database to v4 while preserving pose_results', () async {
+  test('migrates v1 database to v5 while preserving pose_results', () async {
     final path = await dbPathForTest();
 
     final legacyDb = await openDatabase(
@@ -78,6 +78,18 @@ void main() {
       DatabaseService.tableDailyChallengeSteps,
     );
     expect(challengeStepRows, isEmpty);
+
+    final challengeColumns = await db.rawQuery(
+      'PRAGMA table_info(${DatabaseService.tableDailyChallenges})',
+    );
+    final names = challengeColumns
+        .map((row) => row['name']?.toString())
+        .whereType<String>()
+        .toSet();
+    expect(names.contains(DatabaseService.columnSessionAvgScore), isTrue);
+    expect(names.contains(DatabaseService.columnSessionCalories), isTrue);
+    expect(names.contains(DatabaseService.columnSessionFeedback), isTrue);
+    expect(names.contains(DatabaseService.columnSessionElapsedSeconds), isTrue);
   });
 
   test(
@@ -108,6 +120,18 @@ void main() {
         DatabaseService.tableDailyChallengeSteps,
       );
       expect(challengeStepRows, isEmpty);
+
+      final challengeColumns = await db.rawQuery(
+        'PRAGMA table_info(${DatabaseService.tableDailyChallenges})',
+      );
+      final names = challengeColumns
+          .map((row) => row['name']?.toString())
+          .whereType<String>()
+          .toSet();
+      expect(names.contains(DatabaseService.columnSessionAvgScore), isTrue);
+      expect(names.contains(DatabaseService.columnSessionCalories), isTrue);
+      expect(names.contains(DatabaseService.columnSessionFeedback), isTrue);
+      expect(names.contains(DatabaseService.columnSessionElapsedSeconds), isTrue);
     },
   );
 }

@@ -19,7 +19,7 @@ class DatabaseService {
   factory DatabaseService() => instance;
 
   static const String databaseName = 'yoga_trainer.db';
-  static const int databaseVersion = 4;
+  static const int databaseVersion = 5;
 
   static const String tablePoseResults = 'pose_results';
   static const String columnId = 'id';
@@ -61,6 +61,10 @@ class DatabaseService {
   static const String columnStartedAt = 'started_at';
   static const String columnCompletedAt = 'completed_at';
   static const String columnSequenceJson = 'sequence_json';
+  static const String columnSessionAvgScore = 'session_avg_score';
+  static const String columnSessionCalories = 'session_calories';
+  static const String columnSessionFeedback = 'session_feedback';
+  static const String columnSessionElapsedSeconds = 'session_elapsed_seconds';
   static const String columnStepIndex = 'step_index';
   static const int singleUserStatsRowId = 1;
 
@@ -128,10 +132,18 @@ class DatabaseService {
     if (oldVersion < 4) {
       await _migrateToV4(db);
     }
+    if (oldVersion < 5) {
+      await _migrateToV5(db);
+    }
     await _createGamificationTables(db);
     await _createDailyChallengeTables(db);
+    await _ensureDailyChallengeSummaryColumns(db);
     await _ensureUserStatsRow(db);
     await _seedBadges(db);
+  }
+
+  Future<void> _migrateToV5(Database db) async {
+    await _ensureDailyChallengeSummaryColumns(db);
   }
 
   Future<void> _migrateToV4(Database db) async {
@@ -258,6 +270,10 @@ class DatabaseService {
         $columnTotalSteps INTEGER NOT NULL,
         $columnStartedAt TEXT,
         $columnCompletedAt TEXT,
+        $columnSessionAvgScore REAL,
+        $columnSessionCalories REAL,
+        $columnSessionFeedback TEXT,
+        $columnSessionElapsedSeconds INTEGER,
         $columnUpdatedAt TEXT NOT NULL,
         $columnSequenceJson TEXT NOT NULL,
         $columnIsSynced INTEGER NOT NULL DEFAULT 0,
@@ -278,6 +294,45 @@ class DatabaseService {
         PRIMARY KEY($columnUserId, $columnDateKey, $columnStepIndex)
       )
     ''');
+  }
+
+  Future<void> _ensureDailyChallengeSummaryColumns(DatabaseExecutor db) async {
+    if (!await _columnExists(
+      db: db,
+      tableName: tableDailyChallenges,
+      columnName: columnSessionAvgScore,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tableDailyChallenges ADD COLUMN $columnSessionAvgScore REAL',
+      );
+    }
+    if (!await _columnExists(
+      db: db,
+      tableName: tableDailyChallenges,
+      columnName: columnSessionCalories,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tableDailyChallenges ADD COLUMN $columnSessionCalories REAL',
+      );
+    }
+    if (!await _columnExists(
+      db: db,
+      tableName: tableDailyChallenges,
+      columnName: columnSessionFeedback,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tableDailyChallenges ADD COLUMN $columnSessionFeedback TEXT',
+      );
+    }
+    if (!await _columnExists(
+      db: db,
+      tableName: tableDailyChallenges,
+      columnName: columnSessionElapsedSeconds,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tableDailyChallenges ADD COLUMN $columnSessionElapsedSeconds INTEGER',
+      );
+    }
   }
 
   Future<void> _ensureUserStatsRow(DatabaseExecutor db) async {

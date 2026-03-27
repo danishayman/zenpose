@@ -34,6 +34,10 @@ class DailyChallenge {
   final DateTime? completedAt;
   final DateTime? updatedAt;
   final List<String> sequence;
+  final double? sessionAvgScore;
+  final double? sessionCalories;
+  final String? sessionFeedback;
+  final int? sessionElapsedSeconds;
 
   const DailyChallenge({
     required this.dateKey,
@@ -44,6 +48,10 @@ class DailyChallenge {
     required this.completedAt,
     required this.updatedAt,
     required this.sequence,
+    this.sessionAvgScore,
+    this.sessionCalories,
+    this.sessionFeedback,
+    this.sessionElapsedSeconds,
   });
 
   bool get isCompleted => status == DailyChallengeStatus.completed;
@@ -60,6 +68,10 @@ class DailyChallenge {
       completedAt: _toDateTime(map['completed_at']),
       updatedAt: _toDateTime(map['updated_at']),
       sequence: _parseSequence(map['sequence_json']?.toString() ?? '[]'),
+      sessionAvgScore: _toDoubleOrNull(map['session_avg_score']),
+      sessionCalories: _toDoubleOrNull(map['session_calories']),
+      sessionFeedback: _toStringOrNull(map['session_feedback']),
+      sessionElapsedSeconds: _toIntOrNull(map['session_elapsed_seconds']),
     );
   }
 
@@ -73,6 +85,10 @@ class DailyChallenge {
       'completed_at': completedAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'sequence_json': _sequenceToJson(sequence),
+      'session_avg_score': sessionAvgScore,
+      'session_calories': sessionCalories,
+      'session_feedback': sessionFeedback,
+      'session_elapsed_seconds': sessionElapsedSeconds,
     };
   }
 
@@ -82,6 +98,10 @@ class DailyChallenge {
     DateTime? startedAt,
     DateTime? completedAt,
     DateTime? updatedAt,
+    double? sessionAvgScore,
+    double? sessionCalories,
+    String? sessionFeedback,
+    int? sessionElapsedSeconds,
   }) {
     return DailyChallenge(
       dateKey: dateKey,
@@ -92,6 +112,10 @@ class DailyChallenge {
       completedAt: completedAt ?? this.completedAt,
       updatedAt: updatedAt ?? this.updatedAt,
       sequence: sequence,
+      sessionAvgScore: sessionAvgScore ?? this.sessionAvgScore,
+      sessionCalories: sessionCalories ?? this.sessionCalories,
+      sessionFeedback: sessionFeedback ?? this.sessionFeedback,
+      sessionElapsedSeconds: sessionElapsedSeconds ?? this.sessionElapsedSeconds,
     );
   }
 
@@ -119,6 +143,25 @@ class DailyChallenge {
     if (value == null) return null;
     if (value is DateTime) return value;
     return DateTime.tryParse(value.toString());
+  }
+
+  static double? _toDoubleOrNull(Object? value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
+  }
+
+  static String? _toStringOrNull(Object? value) {
+    final parsed = value?.toString();
+    if (parsed == null || parsed.isEmpty) return null;
+    return parsed;
+  }
+
+  static int? _toIntOrNull(Object? value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 }
 

@@ -6,15 +6,21 @@ import '../widgets/zen_pose_card.dart';
 import '../widgets/zen_primary_button.dart';
 import '../widgets/zen_section_header.dart';
 import 'main_screen.dart';
+import 'pre_session_intro_screen.dart';
 
 /// Pose Detail screen — shown between the Practice grid and the live session.
 ///
 /// Shows the pose name, icon illustration, description, difficulty pill,
-/// and a "Start Practice" CTA that launches [MainScreen].
+/// and a "Start Practice" CTA that launches [PreSessionIntroScreen].
 class PoseDetailScreen extends StatelessWidget {
   final PoseTemplate template;
+  final Widget Function(PoseTemplate template)? sessionScreenBuilder;
 
-  const PoseDetailScreen({super.key, required this.template});
+  const PoseDetailScreen({
+    super.key,
+    required this.template,
+    this.sessionScreenBuilder,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +36,11 @@ class PoseDetailScreen extends StatelessWidget {
           child: CircleAvatar(
             backgroundColor: ZenColors.surface1,
             child: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded,
-                  color: ZenColors.textPrimary, size: 20),
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+                color: ZenColors.textPrimary,
+                size: 20,
+              ),
               onPressed: () => Navigator.of(context).pop(),
             ),
           ),
@@ -47,9 +56,7 @@ class PoseDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      height: MediaQuery.of(context).padding.top + 56,
-                    ),
+                    SizedBox(height: MediaQuery.of(context).padding.top + 56),
                     // Illustration hero
                     _buildIllustration(difficulty),
                     const SizedBox(height: 24),
@@ -59,7 +66,9 @@ class PoseDetailScreen extends StatelessWidget {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 5),
+                            horizontal: 12,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: difficulty.bgColor,
                             borderRadius: ZenDecor.pillRadius,
@@ -77,7 +86,9 @@ class PoseDetailScreen extends StatelessWidget {
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 5),
+                            horizontal: 12,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: ZenColors.sage100,
                             borderRadius: ZenDecor.pillRadius,
@@ -85,8 +96,11 @@ class PoseDetailScreen extends StatelessWidget {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.timer_outlined,
-                                  size: 12, color: ZenColors.forest),
+                              Icon(
+                                Icons.timer_outlined,
+                                size: 12,
+                                color: ZenColors.forest,
+                              ),
                               SizedBox(width: 4),
                               Text(
                                 '45s hold',
@@ -116,8 +130,8 @@ class PoseDetailScreen extends StatelessWidget {
                       template.description.isNotEmpty
                           ? template.description
                           : 'Hold this pose steadily while the AI evaluates '
-                              'your alignment in real time. Focus on breathing '
-                              'and maintaining a stable, balanced position.',
+                                'your alignment in real time. Focus on breathing '
+                                'and maintaining a stable, balanced position.',
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                     const SizedBox(height: 24),
@@ -153,7 +167,12 @@ class PoseDetailScreen extends StatelessWidget {
                 onPressed: () => Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => MainScreen(poseTemplate: template),
+                    builder: (_) => PreSessionIntroScreen(
+                      template: template,
+                      destinationBuilder: (_, poseTemplate) =>
+                          sessionScreenBuilder?.call(poseTemplate) ??
+                          MainScreen(poseTemplate: poseTemplate),
+                    ),
                   ),
                 ),
               ),
@@ -199,17 +218,23 @@ class PoseDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ZenSectionHeader(
-            title: 'Tips',
-            subtitle: 'For best results',
-          ),
+          const ZenSectionHeader(title: 'Tips', subtitle: 'For best results'),
           const SizedBox(height: 12),
-          _tip(context, Icons.space_bar_rounded,
-              'Make sure your full body is visible to the camera.'),
-          _tip(context, Icons.wb_sunny_outlined,
-              'Good lighting improves detection accuracy.'),
-          _tip(context, Icons.accessibility_new_rounded,
-              'Hold each pose steadily for the timer to count.'),
+          _tip(
+            context,
+            Icons.space_bar_rounded,
+            'Make sure your full body is visible to the camera.',
+          ),
+          _tip(
+            context,
+            Icons.wb_sunny_outlined,
+            'Good lighting improves detection accuracy.',
+          ),
+          _tip(
+            context,
+            Icons.accessibility_new_rounded,
+            'Hold each pose steadily for the timer to count.',
+          ),
         ],
       ),
     );

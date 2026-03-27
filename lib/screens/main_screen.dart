@@ -97,6 +97,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   PoseSessionConfig get _sessionConfig =>
       widget.sessionConfig ?? PoseSessionConfig.defaultPractice;
+  bool get _isTimedMode => _sessionConfig.mode == PoseSessionMode.timed;
 
   // ── State ─────────────────────────────────────────────────────────────────
 
@@ -169,6 +170,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _frameCount = 0;
   DateTime _lastFpsUpdate = DateTime.now();
   bool _isSavingResult = false;
+  bool _resultDelivered = false;
+  Timer? _timedUiTicker;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -209,6 +212,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       poseName: widget.poseTemplate.name,
       sessionConfig: _sessionConfig,
     );
+    if (_isTimedMode) {
+      _poseSessionService.startTimedSession();
+      _startTimedUiTicker();
+    }
 
     _initCamera();
   }
@@ -236,6 +243,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _lastXpGainedNotifier.dispose();
     _lastUnlockedBadgesNotifier.dispose();
     _fpsNotifier.dispose();
+    _timedUiTicker?.cancel();
     unawaited(_voiceCueService.dispose());
     _cameraService.dispose();
     _poseDetectionService.dispose();
@@ -349,13 +357,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           poseStable: stabilityResult.poseStable,
         );
         if (poseResult != null) {
-          _poseResultNotifier.value = poseResult;
-          if (_sessionConfig.persistResult) {
-            unawaited(_persistPoseResult(poseResult));
+          if (_isTimedMode) {
+            _handleTimedSessionResult(poseResult);
+          } else {
+            _poseResultNotifier.value = poseResult;
+            if (_sessionConfig.persistResult) {
+              unawaited(_persistPoseResult(poseResult));
+            }
           }
         }
-        _holdProgressNotifier.value = _poseSessionService.holdProgress;
-        _holdSecondsNotifier.value = _poseSessionService.holdTimeSeconds;
+        _holdProgressNotifier.value = _isTimedMode
+            ? _poseSessionService.timedProgress
+            : _poseSessionService.holdProgress;
+        _holdSecondsNotifier.value = _isTimedMode
+            ? _poseSessionService.timedElapsedSeconds
+            : _poseSessionService.holdTimeSeconds;
         _poseCompletedNotifier.value = _poseSessionService.poseCompleted;
 
         // ── Per-limb similarity scores ──────────────────────────────
@@ -383,7 +399,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           poseStable: stabilityResult.poseStable,
           poseCompleted: _poseSessionService.poseCompleted,
           score: smoothedScore,
-          holdProgress: _poseSessionService.holdProgress,
+          holdProgress: _isTimedMode
+              ? _poseSessionService.timedProgress
+              : _poseSessionService.holdProgress,
           scoreThreshold: _poseSessionService.scoreThreshold,
           feedbackMessages: guidanceFeedback,
           now: now,
@@ -435,6 +453,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       } else {
         _feedbackNotifier.value = [];
         _angleFeedbackNotifier.value = [];
+        if (_isTimedMode) {
+          final timedResult = _poseSessionService.update(
+            0.0,
+            poseStable: false,
+            timestamp: now,
+          );
+          if (timedResult != null) {
+            _handleTimedSessionResult(timedResult);
+          }
+          _holdProgressNotifier.value = _poseSessionService.timedProgress;
+          _holdSecondsNotifier.value = _poseSessionService.timedElapsedSeconds;
+        }
         final guidance = _guidanceService.evaluate(
           cameraReady: _isCameraReady,
           hasPose: false,
@@ -447,7 +477,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           now: now,
         );
         _guidanceNotifier.value = guidance;
-        if (guidance.shouldResetSession && _poseResultNotifier.value == null) {
+        if (guidance.shouldResetSession &&
+            _poseResultNotifier.value == null &&
+            !_isTimedMode) {
           _anglesNotifier.value = {};
           _normalizedVectorNotifier.value = null;
           _rawSimilarityNotifier.value = 0.0;
@@ -554,6 +586,101 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('[WideLens] Error toggling wide lens: $e');
     }
+  }
+
+  void _startTimedUiTicker() {
+    _timedUiTicker?.cancel();
+    if (!_isTimedMode) return;
+    _timedUiTicker = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (!mounted || !_isTimedMode || _poseResultNotifier.value != null) return;
+      _holdProgressNotifier.value = _poseSessionService.timedProgress;
+      _holdSecondsNotifier.value = _poseSessionService.timedElapsedSeconds;
+      if (_poseSessionService.timedRemainingSeconds <= 0) {
+        final timedResult = _poseSessionService.finalizeTimedSession();
+        if (timedResult != null) {
+          _handleTimedSessionResult(timedResult);
+        }
+      }
+    });
+  }
+
+  void _handleTimedSessionResult(PoseResult poseResult) {
+    if (_poseResultNotifier.value != null) return;
+    _poseResultNotifier.value = poseResult;
+    _holdProgressNotifier.value = _poseSessionService.timedProgress;
+    _holdSecondsNotifier.value = _poseSessionService.timedElapsedSeconds;
+    _poseCompletedNotifier.value = _poseSessionService.poseCompleted;
+    if (_sessionConfig.persistResult) {
+      unawaited(_persistPoseResult(poseResult));
+    }
+    if (widget.returnResultOnCompletion && !_resultDelivered && mounted) {
+      _resultDelivered = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pop(
+          ChallengeStepResult(
+            poseName: poseResult.poseName,
+            bestScore: poseResult.bestScore,
+            holdDuration: poseResult.holdDuration,
+            passed: true,
+            completedAt: poseResult.timestamp ?? DateTime.now(),
+          ),
+        );
+      });
+    }
+  }
+
+  void _toggleTimedPause() {
+    if (!_isTimedMode) return;
+    if (_poseSessionService.isTimedPaused) {
+      _poseSessionService.resumeTimedSession();
+    } else {
+      _poseSessionService.pauseTimedSession();
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _returnTimedNavigation(ChallengeStepNavigationAction action) {
+    if (!_isTimedMode || !widget.returnResultOnCompletion || _resultDelivered) {
+      return;
+    }
+    _resultDelivered = true;
+    if (action == ChallengeStepNavigationAction.previous) {
+      Navigator.of(context).pop(
+        ChallengeStepResult(
+          poseName: widget.poseTemplate.name,
+          bestScore: 0,
+          holdDuration: 0,
+          passed: false,
+          completedAt: DateTime.now(),
+          action: action,
+        ),
+      );
+      return;
+    }
+
+    final now = DateTime.now();
+    final finalized = _poseSessionService.finalizeTimedSession(timestamp: now);
+    final score = finalized?.bestScore ?? _poseSessionService.averageScore;
+    final elapsed = finalized?.holdDuration ??
+        _poseSessionService.timedElapsedSeconds.clamp(0, 9999).toDouble();
+    Navigator.of(context).pop(
+      ChallengeStepResult(
+        poseName: widget.poseTemplate.name,
+        bestScore: score,
+        holdDuration: elapsed,
+        passed: true,
+        completedAt: now,
+        action: action,
+      ),
+    );
+  }
+
+  String _formatClock(double seconds) {
+    final total = seconds.isFinite ? seconds.round().clamp(0, 5999) : 0;
+    final mins = total ~/ 60;
+    final secs = total % 60;
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -725,6 +852,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           // ── Feedback pills ────────────────────────────────────────────
           _buildFeedbackCard(),
 
+          if (_isTimedMode) _buildTimedBottomPanel(),
+
           // ── Completion card overlay ───────────────────────────────────
           AnimatedBuilder(
             animation: Listenable.merge([
@@ -733,6 +862,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               _lastUnlockedBadgesNotifier,
             ]),
             builder: (context, _) {
+              if (_isTimedMode) return const SizedBox.shrink();
               final result = _poseResultNotifier.value;
               if (result == null) return const SizedBox.shrink();
               return Positioned.fill(
@@ -773,8 +903,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           return WorkoutStatusHud(
             snapshot: _guidanceNotifier.value,
             holdSeconds: _holdSecondsNotifier.value,
-            durationSeconds:
-                _poseSessionService.holdDuration.inMilliseconds / 1000.0,
+            durationSeconds: _isTimedMode
+                ? _poseSessionService.timedDuration.inMilliseconds / 1000.0
+                : _poseSessionService.holdDuration.inMilliseconds / 1000.0,
             scoreThreshold: _poseSessionService.scoreThreshold,
           );
         },
@@ -785,7 +916,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Widget _buildFeedbackCard() {
     final bottomPad = MediaQuery.of(context).padding.bottom;
     return Positioned(
-      bottom: bottomPad + 24,
+      bottom: bottomPad + (_isTimedMode ? 160 : 24),
       left: 12,
       right: 12,
       child: AnimatedBuilder(
@@ -796,6 +927,113 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             visible: _poseResultNotifier.value == null,
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildTimedBottomPanel() {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: bottomPad + 16,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        ),
+        child: AnimatedBuilder(
+          animation: Listenable.merge([
+            _holdSecondsNotifier,
+            _smoothedSimilarityNotifier,
+          ]),
+          builder: (context, _) {
+            final remaining = _poseSessionService.timedRemainingSeconds;
+            final timer = _formatClock(remaining);
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  timer,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 46,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'Manrope',
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Avg score ${_poseSessionService.averageScore.toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Manrope',
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () =>
+                            _returnTimedNavigation(
+                              ChallengeStepNavigationAction.previous,
+                            ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.30),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                        ),
+                        child: const Icon(Icons.skip_previous_rounded),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: _toggleTimedPause,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4A9B8E),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                        ),
+                        child: Icon(
+                          _poseSessionService.isTimedPaused
+                              ? Icons.play_arrow_rounded
+                              : Icons.pause_rounded,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () =>
+                            _returnTimedNavigation(
+                              ChallengeStepNavigationAction.next,
+                            ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.30),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                        ),
+                        child: const Icon(Icons.skip_next_rounded),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

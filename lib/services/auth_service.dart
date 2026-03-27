@@ -46,9 +46,11 @@ class AuthService {
 
   StreamSubscription<supa.AuthState>? _authSub;
   bool _configured = false;
+  String? _unconfiguredReason;
 
-  void configure({required bool enabled}) {
+  void configure({required bool enabled, String? unconfiguredReason}) {
     _configured = enabled;
+    _unconfiguredReason = unconfiguredReason;
     if (!enabled) {
       AuthContext.setActiveUserId(null);
       authState.value = const AuthState.unconfigured();
@@ -120,7 +122,9 @@ class AuthService {
   void _ensureConfigured() {
     if (!_configured) {
       throw StateError(
-        'Supabase is not configured. Pass SUPABASE_URL and SUPABASE_ANON_KEY via --dart-define.',
+        _unconfiguredReason ??
+            'Supabase is not configured. Pass SUPABASE_URL and '
+                'SUPABASE_ANON_KEY via --dart-define-from-file=.env.',
       );
     }
   }

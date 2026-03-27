@@ -18,6 +18,14 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _loading = false;
   String? _error;
 
+  String _formatError(Object error) {
+    if (error is StateError) {
+      return error.message.toString();
+    }
+    final raw = error.toString();
+    return raw.startsWith('Exception: ') ? raw.substring(11) : raw;
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -43,7 +51,7 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       }
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = _formatError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -57,7 +65,7 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       await _authService.signInWithGoogle();
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = _formatError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

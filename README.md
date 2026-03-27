@@ -32,6 +32,12 @@ flutter pub get
 flutter run --dart-define-from-file=.env
 ```
 
+If you run from Android Studio/IntelliJ, add this in **Additional run args**:
+
+```bash
+--dart-define-from-file=.env
+```
+
 ## Build
 
 Use the same env file for builds:

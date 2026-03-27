@@ -41,7 +41,7 @@ void main() {
       expect(DailyChallengeService.canSkip(1), isFalse);
     });
 
-    test('challenge complete only when no pending steps and skip <= 1', () {
+    test('challenge completes whenever pending steps reach zero', () {
       expect(
         DailyChallengeService.shouldMarkCompleted(
           pendingStepsAfterUpdate: 0,
@@ -61,7 +61,7 @@ void main() {
           pendingStepsAfterUpdate: 0,
           skipCount: 2,
         ),
-        isFalse,
+        isTrue,
       );
     });
 

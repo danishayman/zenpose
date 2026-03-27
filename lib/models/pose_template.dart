@@ -10,6 +10,11 @@
 /// The [meanVector] is passed to [CosineSimilarityService] as the reference
 /// against which the user's live pose is scored.
 class PoseTemplate {
+  /// Stable key from the JSON dictionary (e.g. "downdog").
+  ///
+  /// Used for deterministic asset lookup (demo GIF, etc).
+  final String templateKey;
+
   /// Human-readable name shown in the Pose Library list.
   final String name;
 
@@ -23,6 +28,7 @@ class PoseTemplate {
   final String description;
 
   const PoseTemplate({
+    required this.templateKey,
     required this.name,
     required this.meanVector,
     this.description = '',
@@ -46,6 +52,7 @@ class PoseTemplate {
     final displayName = key[0].toUpperCase() + key.substring(1);
 
     return PoseTemplate(
+      templateKey: key,
       name: displayName,
       meanVector: (value['meanVector'] as List<dynamic>)
           .map((e) => (e as num).toDouble())
@@ -56,6 +63,7 @@ class PoseTemplate {
 
   /// Serialise back to a JSON-compatible map (useful for debugging/export).
   Map<String, dynamic> toJson() => {
+    'templateKey': templateKey,
     'name': name,
     'meanVector': meanVector,
     'description': description,
@@ -63,5 +71,6 @@ class PoseTemplate {
 
   @override
   String toString() =>
-      'PoseTemplate(name: $name, vector: ${meanVector.length} elements)';
+      'PoseTemplate(key: $templateKey, name: $name, '
+      'vector: ${meanVector.length} elements)';
 }
