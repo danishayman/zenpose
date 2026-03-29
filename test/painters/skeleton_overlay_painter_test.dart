@@ -166,8 +166,22 @@ Color _pixelColor(ByteData bytes, int width, int x, int y) {
 }
 
 void _expectColorClose(Color actual, Color expected, {int tolerance = 2}) {
-  expect((actual.alpha - expected.alpha).abs(), lessThanOrEqualTo(tolerance));
-  expect((actual.red - expected.red).abs(), lessThanOrEqualTo(tolerance));
-  expect((actual.green - expected.green).abs(), lessThanOrEqualTo(tolerance));
-  expect((actual.blue - expected.blue).abs(), lessThanOrEqualTo(tolerance));
+  expect(
+    (_channelByte(actual.a) - _channelByte(expected.a)).abs(),
+    lessThanOrEqualTo(tolerance),
+  );
+  expect(
+    (_channelByte(actual.r) - _channelByte(expected.r)).abs(),
+    lessThanOrEqualTo(tolerance),
+  );
+  expect(
+    (_channelByte(actual.g) - _channelByte(expected.g)).abs(),
+    lessThanOrEqualTo(tolerance),
+  );
+  expect(
+    (_channelByte(actual.b) - _channelByte(expected.b)).abs(),
+    lessThanOrEqualTo(tolerance),
+  );
 }
+
+int _channelByte(double channel) => (channel * 255.0).round().clamp(0, 255);
