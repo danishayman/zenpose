@@ -660,8 +660,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _timedUiTicker?.cancel();
     if (!_isTimedMode) return;
     _timedUiTicker = Timer.periodic(const Duration(milliseconds: 200), (_) {
-      if (!mounted || !_isTimedMode || _poseResultNotifier.value != null)
+      if (!mounted || !_isTimedMode || _poseResultNotifier.value != null) {
         return;
+      }
       _holdProgressNotifier.value = _poseSessionService.timedProgress;
       _holdSecondsNotifier.value = _poseSessionService.timedElapsedSeconds;
       if (_poseSessionService.timedRemainingSeconds <= 0) {

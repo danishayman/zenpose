@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zenpose/constants/session_launch_config.dart';
 import 'package:zenpose/models/pose_template.dart';
 import 'package:zenpose/screens/pre_session_intro_screen.dart';
+import 'package:zenpose/widgets/pose_thumbnail_image.dart';
 import 'package:zenpose/widgets/pre_session_countdown_widgets.dart';
 
 PoseTemplate _template({String key = 'downdog'}) {
@@ -64,6 +65,21 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: PoseDemoAnimation(template: _template(key: 'missing_pose')),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.self_improvement_rounded), findsOneWidget);
+  });
+
+  testWidgets('missing thumbnail falls back to placeholder without crashing', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PoseThumbnailImage(template: _template(key: 'missing_pose')),
         ),
       ),
     );

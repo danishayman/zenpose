@@ -5,7 +5,7 @@ import '../models/daily_challenge_step.dart';
 import '../models/pose_template.dart';
 import '../services/daily_challenge_service.dart';
 import '../theme/zen_theme.dart';
-import '../widgets/pre_session_countdown_widgets.dart';
+import '../widgets/pose_thumbnail_image.dart';
 import 'daily_challenge_workout_flow_screen.dart';
 
 class DailyChallengeRunnerScreen extends StatefulWidget {
@@ -25,7 +25,8 @@ class DailyChallengeRunnerScreen extends StatefulWidget {
       _DailyChallengeRunnerScreenState();
 }
 
-class _DailyChallengeRunnerScreenState extends State<DailyChallengeRunnerScreen> {
+class _DailyChallengeRunnerScreenState
+    extends State<DailyChallengeRunnerScreen> {
   late final DailyChallengeService _challengeService;
   DailyChallengeBundle? _bundle;
   Map<String, PoseTemplate> _templatesByName = <String, PoseTemplate>{};
@@ -90,7 +91,8 @@ class _DailyChallengeRunnerScreenState extends State<DailyChallengeRunnerScreen>
   Widget _buildOverview(DailyChallengeBundle bundle) {
     final exerciseCount = bundle.steps.length;
     final durationSecs =
-        (exerciseCount * DailyChallengeService.challengeHoldDuration.inSeconds) +
+        (exerciseCount *
+            DailyChallengeService.challengeHoldDuration.inSeconds) +
         ((exerciseCount - 1).clamp(0, 999) *
             DailyChallengeService.challengeRestDuration.inSeconds);
     final durationMins = (durationSecs / 60).ceil();
@@ -205,7 +207,7 @@ class _DailyChallengeRunnerScreenState extends State<DailyChallengeRunnerScreen>
               child: SizedBox(
                 width: 60,
                 height: 60,
-                child: PoseDemoAnimation(
+                child: PoseThumbnailImage(
                   template: template,
                   height: 60,
                   borderRadius: BorderRadius.circular(10),

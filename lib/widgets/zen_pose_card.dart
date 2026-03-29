@@ -2,28 +2,29 @@ import 'package:flutter/material.dart';
 
 import '../models/pose_template.dart';
 import '../theme/zen_theme.dart';
+import 'pose_thumbnail_image.dart';
 
 /// Difficulty level label for a yoga pose.
 enum PoseDifficulty { beginner, intermediate, advanced }
 
 extension PoseDifficultyX on PoseDifficulty {
   String get label => switch (this) {
-        PoseDifficulty.beginner => 'Beginner',
-        PoseDifficulty.intermediate => 'Intermediate',
-        PoseDifficulty.advanced => 'Advanced',
-      };
+    PoseDifficulty.beginner => 'Beginner',
+    PoseDifficulty.intermediate => 'Intermediate',
+    PoseDifficulty.advanced => 'Advanced',
+  };
 
   Color get color => switch (this) {
-        PoseDifficulty.beginner => ZenColors.success,
-        PoseDifficulty.intermediate => ZenColors.warning,
-        PoseDifficulty.advanced => ZenColors.error,
-      };
+    PoseDifficulty.beginner => ZenColors.success,
+    PoseDifficulty.intermediate => ZenColors.warning,
+    PoseDifficulty.advanced => ZenColors.error,
+  };
 
   Color get bgColor => switch (this) {
-        PoseDifficulty.beginner => ZenColors.successLight,
-        PoseDifficulty.intermediate => ZenColors.warningLight,
-        PoseDifficulty.advanced => ZenColors.errorLight,
-      };
+    PoseDifficulty.beginner => ZenColors.successLight,
+    PoseDifficulty.intermediate => ZenColors.warningLight,
+    PoseDifficulty.advanced => ZenColors.errorLight,
+  };
 }
 
 /// Infer difficulty from the pose name heuristically.
@@ -51,7 +52,7 @@ PoseDifficulty inferDifficulty(String poseName) {
 
 /// Yoga pose card used in the Practice grid/list.
 ///
-/// Shows pose name, an icon avatar, and a difficulty badge.
+/// Shows pose name, static thumbnail, and a difficulty badge.
 class ZenPoseCard extends StatelessWidget {
   final PoseTemplate template;
   final VoidCallback onTap;
@@ -77,19 +78,16 @@ class ZenPoseCard extends StatelessWidget {
     );
   }
 
-  Widget _iconAvatar(PoseDifficulty difficulty) {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        color: difficulty.bgColor,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        Icons.self_improvement_rounded,
-        color: difficulty.color,
-        size: 28,
-      ),
+  Widget _thumbnail({
+    required double width,
+    required double height,
+    required BorderRadius borderRadius,
+  }) {
+    return PoseThumbnailImage(
+      template: template,
+      width: width,
+      height: height,
+      borderRadius: borderRadius,
     );
   }
 
@@ -116,8 +114,12 @@ class ZenPoseCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _iconAvatar(difficulty),
-        const SizedBox(height: 10),
+        _thumbnail(
+          width: double.infinity,
+          height: 92,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        const SizedBox(height: 12),
         Text(
           template.name,
           style: const TextStyle(
@@ -138,7 +140,11 @@ class ZenPoseCard extends StatelessWidget {
   Widget _compactLayout(PoseDifficulty difficulty) {
     return Row(
       children: [
-        _iconAvatar(difficulty),
+        _thumbnail(
+          width: 56,
+          height: 56,
+          borderRadius: BorderRadius.circular(12),
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

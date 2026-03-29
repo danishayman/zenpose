@@ -11,6 +11,7 @@ import '../models/pose_template.dart';
 import '../models/unlocked_badge.dart';
 import '../services/daily_challenge_service.dart';
 import '../theme/zen_theme.dart';
+import '../widgets/pose_thumbnail_image.dart';
 import '../widgets/pre_session_countdown_widgets.dart';
 import 'daily_challenge_summary_screen.dart';
 import 'main_screen.dart';
@@ -45,8 +46,10 @@ class _DailyChallengeWorkoutFlowScreenState
   int _readyCycle = 0;
   _WorkoutPhase _phase = _WorkoutPhase.ready;
   Timer? _restTimer;
-  int _restRemainingSeconds = DailyChallengeService.challengeRestDuration.inSeconds;
-  int _sessionRestSeconds = DailyChallengeService.challengeRestDuration.inSeconds;
+  int _restRemainingSeconds =
+      DailyChallengeService.challengeRestDuration.inSeconds;
+  int _sessionRestSeconds =
+      DailyChallengeService.challengeRestDuration.inSeconds;
   final Set<int> _redoStepIndexes = <int>{};
 
   int _sessionXpEarned = 0;
@@ -77,7 +80,9 @@ class _DailyChallengeWorkoutFlowScreenState
     _templatesByName = {for (final t in templates) t.name: t};
     _bundle = bundle;
     _currentStepIndex = _firstPendingStepIndex(bundle);
-    _phase = _currentStepIndex == null ? _WorkoutPhase.completed : _WorkoutPhase.ready;
+    _phase = _currentStepIndex == null
+        ? _WorkoutPhase.completed
+        : _WorkoutPhase.ready;
     _readyCycle = 0;
     if (!mounted) return;
     setState(() => _loading = false);
@@ -192,9 +197,9 @@ class _DailyChallengeWorkoutFlowScreenState
             returnResultOnCompletion: true,
           );
 
-      result = await Navigator.of(context).push<ChallengeStepResult>(
-        MaterialPageRoute(builder: (_) => evaluator),
-      );
+      result = await Navigator.of(
+        context,
+      ).push<ChallengeStepResult>(MaterialPageRoute(builder: (_) => evaluator));
     } catch (error) {
       debugPrint('Failed to launch exercise session: $error');
       if (mounted) {
@@ -446,10 +451,7 @@ class _DailyChallengeWorkoutFlowScreenState
         decoration: ZenDecor.gradientBackdrop(),
         child: _loading || bundle == null
             ? const Center(child: CircularProgressIndicator())
-            : SafeArea(
-                top: false,
-                child: _buildPhaseBody(bundle),
-              ),
+            : SafeArea(top: false, child: _buildPhaseBody(bundle)),
       ),
     );
   }
@@ -518,7 +520,7 @@ class _DailyChallengeWorkoutFlowScreenState
         if (showPreview)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: PoseDemoAnimation(
+            child: PoseThumbnailImage(
               template: nextTemplate,
               height: 210,
               borderRadius: BorderRadius.circular(24),

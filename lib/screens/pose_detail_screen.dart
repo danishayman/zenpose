@@ -5,12 +5,13 @@ import '../theme/zen_theme.dart';
 import '../widgets/zen_pose_card.dart';
 import '../widgets/zen_primary_button.dart';
 import '../widgets/zen_section_header.dart';
+import '../widgets/pose_thumbnail_image.dart';
 import 'main_screen.dart';
 import 'pre_session_intro_screen.dart';
 
 /// Pose Detail screen — shown between the Practice grid and the live session.
 ///
-/// Shows the pose name, icon illustration, description, difficulty pill,
+/// Shows the pose name, static thumbnail, description, difficulty pill,
 /// and a "Start Practice" CTA that launches [PreSessionIntroScreen].
 class PoseDetailScreen extends StatelessWidget {
   final PoseTemplate template;
@@ -58,7 +59,7 @@ class PoseDetailScreen extends StatelessWidget {
                   children: [
                     SizedBox(height: MediaQuery.of(context).padding.top + 56),
                     // Illustration hero
-                    _buildIllustration(difficulty),
+                    _buildIllustration(template, difficulty),
                     const SizedBox(height: 24),
 
                     // Difficulty & category chips
@@ -183,30 +184,21 @@ class PoseDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildIllustration(PoseDifficulty difficulty) {
+  Widget _buildIllustration(PoseTemplate template, PoseDifficulty difficulty) {
     return Container(
       width: double.infinity,
       height: 220,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            difficulty.bgColor,
-            difficulty.bgColor.withValues(alpha: 0.5),
-          ],
-        ),
         borderRadius: ZenDecor.cardRadius,
+        border: Border.all(
+          color: difficulty.color.withValues(alpha: 0.20),
+          width: 1.2,
+        ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.self_improvement_rounded,
-            size: 90,
-            color: difficulty.color.withValues(alpha: 0.7),
-          ),
-        ],
+      child: PoseThumbnailImage(
+        template: template,
+        height: 220,
+        borderRadius: ZenDecor.cardRadius,
       ),
     );
   }
