@@ -38,9 +38,22 @@ void main() {
       expect(missing.score, closeTo(82, 0.0001));
     });
 
-    test('returns unstablePose when pose is detected but unstable', () {
+    test('debounces unstablePose entry', () {
       final service = WorkoutGuidanceService();
-      final snapshot = service.evaluate(
+      final t0 = DateTime(2026, 3, 14, 9, 0, 0);
+
+      service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 76,
+        holdProgress: 0.15,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>['Straighten your left leg'],
+        now: t0,
+      );
+      final earlyUnstable = service.evaluate(
         cameraReady: true,
         hasPose: true,
         poseStable: false,
@@ -49,37 +62,159 @@ void main() {
         holdProgress: 0.15,
         scoreThreshold: 70,
         feedbackMessages: const <String>['Straighten your left leg'],
+        now: t0.add(const Duration(milliseconds: 120)),
+      );
+      final confirmedUnstable = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: false,
+        poseCompleted: false,
+        score: 76,
+        holdProgress: 0.15,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>['Straighten your left leg'],
+        now: t0.add(const Duration(milliseconds: 420)),
       );
 
-      expect(snapshot.state, WorkoutGuidanceState.unstablePose);
-      expect(snapshot.primaryCue, 'Hold still');
+      expect(earlyUnstable.state, isNot(WorkoutGuidanceState.unstablePose));
+      expect(confirmedUnstable.state, WorkoutGuidanceState.unstablePose);
     });
 
-    test('enters holding only when stable and score threshold is met', () {
+    test('enters holding only after sustained threshold + hysteresis', () {
       final service = WorkoutGuidanceService();
+      final t0 = DateTime(2026, 3, 14, 9, 0, 0);
       final aligning = service.evaluate(
         cameraReady: true,
         hasPose: true,
         poseStable: true,
         poseCompleted: false,
-        score: 65,
+        score: 74,
         holdProgress: 0.2,
         scoreThreshold: 70,
         feedbackMessages: const <String>['Raise your right arm'],
+        now: t0,
+      );
+      final stillAligning = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 74,
+        holdProgress: 0.35,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>['Raise your right arm'],
+        now: t0.add(const Duration(milliseconds: 200)),
       );
       final holding = service.evaluate(
         cameraReady: true,
         hasPose: true,
         poseStable: true,
         poseCompleted: false,
-        score: 84,
+        score: 74,
         holdProgress: 0.35,
         scoreThreshold: 70,
         feedbackMessages: const <String>['Raise your right arm'],
+        now: t0.add(const Duration(milliseconds: 500)),
       );
 
       expect(aligning.state, WorkoutGuidanceState.aligning);
+      expect(stillAligning.state, WorkoutGuidanceState.aligning);
       expect(holding.state, WorkoutGuidanceState.holding);
+    });
+
+    test('exits holding when score drops below exit threshold', () {
+      final service = WorkoutGuidanceService();
+      final t0 = DateTime(2026, 3, 14, 9, 0, 0);
+
+      service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 74,
+        holdProgress: 0.2,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>['Raise your right arm'],
+        now: t0,
+      );
+      service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 74,
+        holdProgress: 0.3,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>['Raise your right arm'],
+        now: t0.add(const Duration(milliseconds: 500)),
+      );
+
+      final exited = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 64,
+        holdProgress: 0.3,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>['Raise your right arm'],
+        now: t0.add(const Duration(milliseconds: 900)),
+      );
+
+      expect(exited.state, WorkoutGuidanceState.aligning);
+    });
+
+    test('prioritizes torso cues and emits a single visual cue', () {
+      final service = WorkoutGuidanceService();
+      final snapshot = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 60,
+        holdProgress: 0.1,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>[
+          'Raise your right arm',
+          'Adjust torso alignment',
+          'Straighten your left leg',
+        ],
+        now: DateTime(2026, 3, 14, 9, 0, 0),
+      );
+
+      expect(snapshot.primaryCue, 'Adjust torso alignment');
+      expect(snapshot.secondaryCue, isNull);
+    });
+
+    test('suppresses contradictory cue flips for the same limb', () {
+      final service = WorkoutGuidanceService();
+      final t0 = DateTime(2026, 3, 14, 9, 0, 0);
+
+      final first = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 60,
+        holdProgress: 0.1,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>['Raise your right arm'],
+        now: t0,
+      );
+      final second = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 60,
+        holdProgress: 0.1,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>['Lower your right arm'],
+        now: t0.add(const Duration(milliseconds: 900)),
+      );
+
+      expect(first.primaryCue, 'Raise your right arm');
+      expect(second.primaryCue, isNot('Lower your right arm'));
     });
 
     test('resets after tracking-loss grace timeout expires', () {
@@ -116,6 +251,43 @@ void main() {
       expect(expired.shouldResetSession, isTrue);
       expect(expired.score, 0);
       expect(expired.holdProgress, 0);
+
+      final stillMissing = service.evaluate(
+        cameraReady: true,
+        hasPose: false,
+        poseStable: false,
+        poseCompleted: false,
+        score: 0,
+        holdProgress: 0,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>[],
+        now: t0.add(const Duration(seconds: 4)),
+      );
+      expect(stillMissing.shouldResetSession, isFalse);
+
+      service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 80,
+        holdProgress: 0.2,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>[],
+        now: t0.add(const Duration(seconds: 5)),
+      );
+      final expiredAgain = service.evaluate(
+        cameraReady: true,
+        hasPose: false,
+        poseStable: false,
+        poseCompleted: false,
+        score: 0,
+        holdProgress: 0,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>[],
+        now: t0.add(const Duration(seconds: 8)),
+      );
+      expect(expiredAgain.shouldResetSession, isTrue);
     });
   });
 }

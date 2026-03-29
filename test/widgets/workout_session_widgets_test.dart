@@ -33,10 +33,46 @@ void main() {
 
       expect(find.text('Step into frame'), findsOneWidget);
     });
+
+    testWidgets('uses display score/progress overrides when provided', (
+      tester,
+    ) async {
+      const snapshot = WorkoutGuidanceSnapshot(
+        score: 10,
+        holdProgress: 0.1,
+        state: WorkoutGuidanceState.aligning,
+        primaryCue: null,
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WorkoutStatusHud(
+              snapshot: snapshot,
+              holdSeconds: 0.0,
+              durationSeconds: 45.0,
+              scoreThreshold: 70.0,
+              displayScore: 66.0,
+              displayProgress: 0.6,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('66%'), findsOneWidget);
+      final progress = tester.widget<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator),
+      );
+      expect(progress.value, closeTo(0.6, 0.0001));
+    });
   });
 
   group('WorkoutFeedbackPanel', () {
-    testWidgets('renders primary cue before secondary cue', (tester) async {
+    testWidgets('renders only primary cue in a fixed single slot', (
+      tester,
+    ) async {
       const snapshot = WorkoutGuidanceSnapshot(
         score: 72,
         holdProgress: 0.3,
@@ -54,13 +90,11 @@ void main() {
         ),
       );
 
-      final primary = find.text('Primary correction');
-      final secondary = find.text('Secondary hint');
-      expect(primary, findsOneWidget);
-      expect(secondary, findsOneWidget);
+      expect(find.text('Primary correction'), findsOneWidget);
+      expect(find.text('Secondary hint'), findsNothing);
       expect(
-        tester.getTopLeft(primary).dy,
-        lessThan(tester.getTopLeft(secondary).dy),
+        tester.getSize(find.byType(WorkoutFeedbackPanel)).height,
+        closeTo(92.0, 0.01),
       );
     });
   });

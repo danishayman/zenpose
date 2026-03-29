@@ -118,6 +118,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   /// Smoothed similarity score (0–100 %) for the current frame (used for logic).
   final ValueNotifier<double> _smoothedSimilarityNotifier = ValueNotifier(0.0);
 
+  /// Smoothed HUD score display (cadence + deadband controlled).
+  final ValueNotifier<double> _hudScoreNotifier = ValueNotifier(0.0);
+
+  /// Smoothed HUD progress display (updated at ~5 Hz).
+  final ValueNotifier<double> _hudProgressNotifier = ValueNotifier(0.0);
+
   /// Pose hold progress (0.0–1.0) for the current frame.
   final ValueNotifier<double> _holdProgressNotifier = ValueNotifier(0.0);
 
@@ -169,9 +175,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final ValueNotifier<double> _fpsNotifier = ValueNotifier(0);
   int _frameCount = 0;
   DateTime _lastFpsUpdate = DateTime.now();
+  DateTime? _lastHudScoreUpdateAt;
+  DateTime? _lastHudProgressUpdateAt;
   bool _isSavingResult = false;
   bool _resultDelivered = false;
   Timer? _timedUiTicker;
+
+  static const Duration _hudScoreCadence = Duration(milliseconds: 250);
+  static const Duration _hudProgressCadence = Duration(milliseconds: 200);
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -230,6 +241,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _normalizedVectorNotifier.dispose();
     _rawSimilarityNotifier.dispose();
     _smoothedSimilarityNotifier.dispose();
+    _hudScoreNotifier.dispose();
+    _hudProgressNotifier.dispose();
     _holdProgressNotifier.dispose();
     _holdSecondsNotifier.dispose();
     _poseCompletedNotifier.dispose();
@@ -287,6 +300,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         scoreThreshold: _sessionConfig.scoreThreshold,
         feedbackMessages: const <String>[],
       );
+      _updateHudMetrics(at: DateTime.now(), score: 0, progress: 0, force: true);
       _startDetection();
     } catch (e) {
       if (!mounted) return;
@@ -407,6 +421,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           now: now,
         );
         _guidanceNotifier.value = guidance;
+        _updateHudMetrics(
+          at: now,
+          score: guidance.score,
+          progress: guidance.holdProgress,
+        );
         _speakPrimaryCue(guidance);
 
         // Debug: print the normalized vector to console.
@@ -477,6 +496,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           now: now,
         );
         _guidanceNotifier.value = guidance;
+        _updateHudMetrics(
+          at: now,
+          score: guidance.score,
+          progress: guidance.holdProgress,
+        );
         if (guidance.shouldResetSession &&
             _poseResultNotifier.value == null &&
             !_isTimedMode) {
@@ -539,6 +563,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _angleFeedbackNotifier.value = [];
     _lastXpGainedNotifier.value = 0;
     _lastUnlockedBadgesNotifier.value = const <UnlockedBadge>[];
+    _lastHudScoreUpdateAt = null;
+    _lastHudProgressUpdateAt = null;
+    _updateHudMetrics(at: DateTime.now(), score: 0, progress: 0, force: true);
     _guidanceNotifier.value = _guidanceService.evaluate(
       cameraReady: _isCameraReady,
       hasPose: false,
@@ -550,6 +577,47 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       feedbackMessages: const <String>[],
     );
     unawaited(_voiceCueService.reset());
+  }
+
+  void _updateHudMetrics({
+    required DateTime at,
+    required double score,
+    required double progress,
+    bool force = false,
+  }) {
+    final roundedScore = score.clamp(0.0, 100.0).toDouble().roundToDouble();
+    final normalizedProgress = progress.clamp(0.0, 1.0).toDouble();
+
+    if (force || _shouldRefreshHudScore(at, roundedScore)) {
+      _hudScoreNotifier.value = roundedScore;
+      _lastHudScoreUpdateAt = at;
+    }
+    if (force || _shouldRefreshHudProgress(at, normalizedProgress)) {
+      _hudProgressNotifier.value = normalizedProgress;
+      _lastHudProgressUpdateAt = at;
+    }
+  }
+
+  bool _shouldRefreshHudScore(DateTime at, double nextScore) {
+    final last = _lastHudScoreUpdateAt;
+    if (last == null) return true;
+    final elapsed = at.difference(last);
+    if (elapsed < _hudScoreCadence) return false;
+
+    final delta = (nextScore - _hudScoreNotifier.value).abs();
+    if (delta >= 2.0) return true;
+    return elapsed >= const Duration(seconds: 1) && delta >= 1.0;
+  }
+
+  bool _shouldRefreshHudProgress(DateTime at, double nextProgress) {
+    final last = _lastHudProgressUpdateAt;
+    if (last == null) return true;
+    final elapsed = at.difference(last);
+    if (elapsed < _hudProgressCadence) return false;
+
+    final delta = (nextProgress - _hudProgressNotifier.value).abs();
+    if (delta >= 0.003) return true;
+    return elapsed >= const Duration(milliseconds: 800);
   }
 
   Future<void> _persistPoseResult(PoseResult result) async {
@@ -592,7 +660,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _timedUiTicker?.cancel();
     if (!_isTimedMode) return;
     _timedUiTicker = Timer.periodic(const Duration(milliseconds: 200), (_) {
-      if (!mounted || !_isTimedMode || _poseResultNotifier.value != null) return;
+      if (!mounted || !_isTimedMode || _poseResultNotifier.value != null)
+        return;
       _holdProgressNotifier.value = _poseSessionService.timedProgress;
       _holdSecondsNotifier.value = _poseSessionService.timedElapsedSeconds;
       if (_poseSessionService.timedRemainingSeconds <= 0) {
@@ -662,7 +731,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final now = DateTime.now();
     final finalized = _poseSessionService.finalizeTimedSession(timestamp: now);
     final score = finalized?.bestScore ?? _poseSessionService.averageScore;
-    final elapsed = finalized?.holdDuration ??
+    final elapsed =
+        finalized?.holdDuration ??
         _poseSessionService.timedElapsedSeconds.clamp(0, 9999).toDouble();
     Navigator.of(context).pop(
       ChallengeStepResult(
@@ -898,11 +968,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       left: 12,
       right: 12,
       child: AnimatedBuilder(
-        animation: Listenable.merge([_guidanceNotifier, _holdSecondsNotifier]),
+        animation: Listenable.merge([
+          _guidanceNotifier,
+          _holdSecondsNotifier,
+          _hudScoreNotifier,
+          _hudProgressNotifier,
+        ]),
         builder: (context, _) {
           return WorkoutStatusHud(
             snapshot: _guidanceNotifier.value,
             holdSeconds: _holdSecondsNotifier.value,
+            displayScore: _hudScoreNotifier.value,
+            displayProgress: _hudProgressNotifier.value,
             durationSeconds: _isTimedMode
                 ? _poseSessionService.timedDuration.inMilliseconds / 1000.0
                 : _poseSessionService.holdDuration.inMilliseconds / 1000.0,
@@ -980,10 +1057,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () =>
-                            _returnTimedNavigation(
-                              ChallengeStepNavigationAction.previous,
-                            ),
+                        onPressed: () => _returnTimedNavigation(
+                          ChallengeStepNavigationAction.previous,
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           side: BorderSide(
@@ -1014,10 +1090,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     const SizedBox(width: 10),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () =>
-                            _returnTimedNavigation(
-                              ChallengeStepNavigationAction.next,
-                            ),
+                        onPressed: () => _returnTimedNavigation(
+                          ChallengeStepNavigationAction.next,
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           side: BorderSide(

@@ -8,6 +8,8 @@ class WorkoutStatusHud extends StatelessWidget {
   final double holdSeconds;
   final double durationSeconds;
   final double scoreThreshold;
+  final double? displayScore;
+  final double? displayProgress;
 
   const WorkoutStatusHud({
     super.key,
@@ -15,12 +17,16 @@ class WorkoutStatusHud extends StatelessWidget {
     required this.holdSeconds,
     required this.durationSeconds,
     required this.scoreThreshold,
+    this.displayScore,
+    this.displayProgress,
   });
 
   @override
   Widget build(BuildContext context) {
-    final score = snapshot.score;
-    final progress = snapshot.holdProgress.clamp(0.0, 1.0).toDouble();
+    final score = (displayScore ?? snapshot.score).clamp(0.0, 100.0).toDouble();
+    final progress = (displayProgress ?? snapshot.holdProgress)
+        .clamp(0.0, 1.0)
+        .toDouble();
     final holdActive = snapshot.state == WorkoutGuidanceState.holding;
     final isStableState =
         snapshot.state != WorkoutGuidanceState.unstablePose &&
@@ -167,29 +173,28 @@ class WorkoutFeedbackPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!visible) return const SizedBox.shrink();
-    final shown = snapshot.cues.take(2).toList(growable: false);
-    if (shown.isEmpty) return const SizedBox.shrink();
+    final cue = snapshot.primaryCue?.trim() ?? '';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(
-            'GUIDANCE',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.0,
-              fontFamily: 'Manrope',
+    return SizedBox(
+      height: 92,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 6),
+            child: Text(
+              'GUIDANCE',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+                fontFamily: 'Manrope',
+              ),
             ),
           ),
-        ),
-        ...shown.map(
-          (msg) => Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+          Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               decoration: BoxDecoration(
@@ -200,6 +205,7 @@ class WorkoutFeedbackPanel extends StatelessWidget {
                 ),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Icon(
                     Icons.tips_and_updates_rounded,
@@ -208,13 +214,21 @@ class WorkoutFeedbackPanel extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      msg,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'Manrope',
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      transitionBuilder: (child, animation) =>
+                          FadeTransition(opacity: animation, child: child),
+                      child: Text(
+                        cue,
+                        key: ValueKey<String>(cue),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: cue.isEmpty ? Colors.white38 : Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Manrope',
+                        ),
                       ),
                     ),
                   ),
@@ -222,8 +236,8 @@ class WorkoutFeedbackPanel extends StatelessWidget {
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

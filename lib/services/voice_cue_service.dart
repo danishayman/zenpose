@@ -28,38 +28,56 @@ class FlutterTtsVoiceSpeaker implements VoiceSpeaker {
 class VoiceCueService {
   final VoiceSpeaker _speaker;
   final Duration cooldown;
+  final Duration repeatInterval;
+  final Duration postUnspeakableMute;
 
   DateTime? _lastSpokenAt;
-  String? _lastMessage;
+  DateTime? _lastUnspeakableAt;
+  final Map<String, DateTime> _lastMessageAt = <String, DateTime>{};
 
   VoiceCueService({
     required VoiceSpeaker speaker,
-    this.cooldown = const Duration(seconds: 3),
+    this.cooldown = const Duration(seconds: 6),
+    this.repeatInterval = const Duration(seconds: 12),
+    this.postUnspeakableMute = const Duration(milliseconds: 1200),
   }) : _speaker = speaker;
 
   Future<bool> speakIfAllowed(
     String message,
     WorkoutGuidanceState state, {
     DateTime? now,
+    bool isCritical = false,
   }) async {
     final trimmed = message.trim();
     if (trimmed.isEmpty) return false;
-    if (!_isSpeakableState(state)) return false;
 
     final at = now ?? DateTime.now();
+    if (!_isSpeakableState(state)) {
+      _lastUnspeakableAt = at;
+      return false;
+    }
+
+    final unspeakableAt = _lastUnspeakableAt;
+    if (!isCritical &&
+        unspeakableAt != null &&
+        at.difference(unspeakableAt) < postUnspeakableMute) {
+      return false;
+    }
+
     final last = _lastSpokenAt;
     if (last != null && at.difference(last) < cooldown) {
       return false;
     }
-    if (_lastMessage == trimmed &&
-        last != null &&
-        at.difference(last) < cooldown) {
+    final repeatAt = _lastMessageAt[trimmed];
+    if (!isCritical &&
+        repeatAt != null &&
+        at.difference(repeatAt) < repeatInterval) {
       return false;
     }
 
     await _speaker.speak(trimmed);
     _lastSpokenAt = at;
-    _lastMessage = trimmed;
+    _lastMessageAt[trimmed] = at;
     return true;
   }
 
@@ -69,7 +87,8 @@ class VoiceCueService {
 
   Future<void> reset() async {
     _lastSpokenAt = null;
-    _lastMessage = null;
+    _lastUnspeakableAt = null;
+    _lastMessageAt.clear();
     await _speaker.stop();
   }
 
