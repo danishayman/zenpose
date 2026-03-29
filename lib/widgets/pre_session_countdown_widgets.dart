@@ -61,6 +61,8 @@ class PreSessionCountdownPanel extends StatefulWidget {
   final int countdownSeconds;
   final VoidCallback onCountdownComplete;
   final bool compact;
+  final bool showStartNowButton;
+  final String startNowLabel;
 
   const PreSessionCountdownPanel({
     super.key,
@@ -68,6 +70,8 @@ class PreSessionCountdownPanel extends StatefulWidget {
     required this.countdownSeconds,
     required this.onCountdownComplete,
     this.compact = false,
+    this.showStartNowButton = false,
+    this.startNowLabel = 'Start Now',
   });
 
   @override
@@ -129,6 +133,15 @@ class _PreSessionCountdownPanelState extends State<PreSessionCountdownPanel> {
     widget.onCountdownComplete();
   }
 
+  void _startNow() {
+    if (_completed) return;
+    _timer?.cancel();
+    if (mounted) {
+      setState(() => _remaining = 0);
+    }
+    _notifyComplete();
+  }
+
   @override
   Widget build(BuildContext context) {
     final headlineStyle = widget.compact
@@ -170,6 +183,25 @@ class _PreSessionCountdownPanelState extends State<PreSessionCountdownPanel> {
                   _remaining > 0 ? 'Opening camera in...' : 'Launching...',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
+                if (widget.showStartNowButton && _remaining > 0) ...[
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _startNow,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: ZenColors.teal,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      textStyle: const TextStyle(
+                        fontFamily: 'Manrope',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    child: Text(widget.startNowLabel),
+                  ),
+                ],
               ],
             ),
           ),

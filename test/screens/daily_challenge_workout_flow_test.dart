@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zenpose/constants/session_launch_config.dart';
 import 'package:zenpose/models/challenge_step_result.dart';
 import 'package:zenpose/models/daily_challenge.dart';
 import 'package:zenpose/models/daily_challenge_step.dart';
@@ -8,8 +7,9 @@ import 'package:zenpose/models/pose_template.dart';
 import 'package:zenpose/models/unlocked_badge.dart';
 import 'package:zenpose/screens/daily_challenge_workout_flow_screen.dart';
 import 'package:zenpose/services/daily_challenge_service.dart';
-import 'package:zenpose/widgets/pose_thumbnail_image.dart';
 import 'package:zenpose/widgets/pre_session_countdown_widgets.dart';
+
+const int _readyCountdownSeconds = 10;
 
 class _FakeDailyChallengeService extends DailyChallengeService {
   DailyChallengeBundle _bundle;
@@ -203,9 +203,7 @@ void main() {
       await tester.pump();
       expect(find.text('Get Ready'), findsOneWidget);
 
-      await tester.pump(
-        Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds),
-      );
+      await tester.pump(const Duration(seconds: _readyCountdownSeconds));
       await tester.pumpAndSettle();
       expect(find.text('COMPLETED'), findsOneWidget);
 
@@ -214,8 +212,7 @@ void main() {
 
       expect(find.text('REST'), findsOneWidget);
       expect(find.text('00:30'), findsOneWidget);
-      expect(find.byType(PoseThumbnailImage), findsOneWidget);
-      expect(find.byType(PoseDemoAnimation), findsNothing);
+      expect(find.byType(PoseDemoAnimation), findsOneWidget);
 
       await tester.ensureVisible(find.text('+20s'));
       await tester.tap(find.text('+20s'));
@@ -228,6 +225,67 @@ void main() {
       expect(find.text('COMPLETED'), findsOneWidget);
     },
   );
+
+  testWidgets('start now button skips ready countdown immediately', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final now = DateTime(2026, 3, 27, 10, 0, 0);
+    final challenge = DailyChallenge(
+      dateKey: '2026-03-27',
+      status: DailyChallengeStatus.inProgress,
+      skipCount: 0,
+      totalSteps: 1,
+      startedAt: now,
+      completedAt: null,
+      updatedAt: now,
+      sequence: const <String>['Downdog'],
+    );
+    final steps = <DailyChallengeStep>[
+      DailyChallengeStep(
+        dateKey: '2026-03-27',
+        stepIndex: 0,
+        poseName: 'Downdog',
+        status: DailyChallengeStepStatus.pending,
+        bestScore: null,
+        holdDuration: null,
+        updatedAt: now,
+      ),
+    ];
+    final service = _FakeDailyChallengeService(
+      bundle: DailyChallengeBundle(challenge: challenge, steps: steps),
+      templates: <PoseTemplate>[_template('downdog', 'Downdog')],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DailyChallengeWorkoutFlowScreen(
+          dateKey: '2026-03-27',
+          challengeService: service,
+          evaluatorBuilder: (_) => const _EvaluatorStub(
+            action: ChallengeStepNavigationAction.completed,
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Get Ready'), findsOneWidget);
+    expect(find.text('Start Now'), findsOneWidget);
+
+    await tester.tap(find.text('Start Now'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('COMPLETED'), findsOneWidget);
+  });
 
   testWidgets('rest timer ending auto-launches next exercise', (tester) async {
     final now = DateTime(2026, 3, 27, 10, 0, 0);
@@ -283,9 +341,7 @@ void main() {
 
     await tester.pump();
     await tester.pump();
-    await tester.pump(
-      Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds),
-    );
+    await tester.pump(const Duration(seconds: _readyCountdownSeconds));
     await tester.pumpAndSettle();
     await tester.tap(find.text('COMPLETED'));
     await tester.pumpAndSettle();
@@ -363,9 +419,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      await tester.pump(
-        Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds),
-      );
+      await tester.pump(const Duration(seconds: _readyCountdownSeconds));
       await tester.pumpAndSettle();
       await tester.tap(find.text('NEXT'));
       await tester.pumpAndSettle();
@@ -453,9 +507,7 @@ void main() {
       await tester.pump();
       expect(find.textContaining('EXERCISE 2/2'), findsOneWidget);
 
-      await tester.pump(
-        Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds),
-      );
+      await tester.pump(const Duration(seconds: _readyCountdownSeconds));
       await tester.pumpAndSettle();
       expect(find.text('PREVIOUS'), findsOneWidget);
       await tester.tap(find.text('PREVIOUS'));
@@ -463,9 +515,7 @@ void main() {
 
       expect(find.textContaining('EXERCISE 1/2'), findsOneWidget);
 
-      await tester.pump(
-        Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds),
-      );
+      await tester.pump(const Duration(seconds: _readyCountdownSeconds));
       await tester.pumpAndSettle();
       expect(find.text('COMPLETED'), findsOneWidget);
       await tester.tap(find.text('COMPLETED'));
@@ -520,9 +570,7 @@ void main() {
 
       await tester.pump();
       await tester.pump();
-      await tester.pump(
-        Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds),
-      );
+      await tester.pump(const Duration(seconds: _readyCountdownSeconds));
       await tester.pumpAndSettle();
       await tester.tap(find.text('COMPLETED'));
       await tester.pumpAndSettle();
@@ -639,9 +687,7 @@ void main() {
 
     await tester.pump();
     await tester.pump();
-    await tester.pump(
-      Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds),
-    );
+    await tester.pump(const Duration(seconds: _readyCountdownSeconds));
     await tester.pumpAndSettle();
     await tester.tap(find.text('COMPLETED'));
     await tester.pumpAndSettle();

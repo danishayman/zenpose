@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../constants/session_launch_config.dart';
 import '../models/challenge_step_result.dart';
 import '../models/daily_challenge.dart';
 import '../models/daily_challenge_step.dart';
@@ -11,7 +10,6 @@ import '../models/pose_template.dart';
 import '../models/unlocked_badge.dart';
 import '../services/daily_challenge_service.dart';
 import '../theme/zen_theme.dart';
-import '../widgets/pose_thumbnail_image.dart';
 import '../widgets/pre_session_countdown_widgets.dart';
 import 'daily_challenge_summary_screen.dart';
 import 'main_screen.dart';
@@ -37,6 +35,8 @@ class DailyChallengeWorkoutFlowScreen extends StatefulWidget {
 
 class _DailyChallengeWorkoutFlowScreenState
     extends State<DailyChallengeWorkoutFlowScreen> {
+  static const int _readyCountdownSeconds = 10;
+
   late final DailyChallengeService _challengeService;
   DailyChallengeBundle? _bundle;
   Map<String, PoseTemplate> _templatesByName = <String, PoseTemplate>{};
@@ -501,7 +501,9 @@ class _DailyChallengeWorkoutFlowScreenState
         PreSessionCountdownPanel(
           key: ValueKey<String>('ready-${step.stepIndex}-$_readyCycle'),
           template: template,
-          countdownSeconds: SessionLaunchConfig.preSessionCountdownSeconds,
+          countdownSeconds: _readyCountdownSeconds,
+          showStartNowButton: true,
+          startNowLabel: 'Start Now',
           onCountdownComplete: _launchExercise,
         ),
       ],
@@ -520,8 +522,8 @@ class _DailyChallengeWorkoutFlowScreenState
         if (showPreview)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: PoseThumbnailImage(
-              template: nextTemplate,
+            child: PoseDemoAnimation(
+              template: nextTemplate!,
               height: 210,
               borderRadius: BorderRadius.circular(24),
             ),
