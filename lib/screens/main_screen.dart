@@ -1339,6 +1339,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   painter: SkeletonOverlayPainter(
                     landmarks: normalizedLandmarks,
                     similarityScore: _guidanceNotifier.value.score,
+                    scoreThreshold: _poseSessionService.scoreThreshold,
                     mirror:
                         _cameraService.cameraDescription?.lensDirection ==
                         CameraLensDirection.front,

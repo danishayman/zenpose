@@ -1,6 +1,53 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../models/landmark.dart';
+
+/// Computes dynamic score bands and corresponding skeleton colors.
+class SkeletonOverlayColorBands {
+  final double orangeStart;
+  final double yellowStart;
+  final double greenStart;
+
+  const SkeletonOverlayColorBands({
+    required this.orangeStart,
+    required this.yellowStart,
+    required this.greenStart,
+  });
+
+  static const Color red = Color(0xFFFF3B30);
+  static const Color orange = Color(0xFFFF9500);
+  static const Color yellow = Color(0xFFFFFF00);
+  static const Color green = Color(0xFF00FF00);
+
+  factory SkeletonOverlayColorBands.fromThreshold(double scoreThreshold) {
+    final greenStart = scoreThreshold.clamp(1.0, 100.0).toDouble();
+    final orangeStart = math.max(
+      10.0,
+      math.min(greenStart - 20.0, greenStart * 0.57),
+    );
+    final yellowStart = math.max(
+      orangeStart + 8.0,
+      math.min(greenStart - 5.0, greenStart * 0.86),
+    );
+
+    return SkeletonOverlayColorBands(
+      orangeStart: orangeStart,
+      yellowStart: yellowStart,
+      greenStart: greenStart,
+    );
+  }
+
+  Color colorForScore(double? score) {
+    final normalized = score?.clamp(0.0, 100.0).toDouble();
+    if (normalized == null) return red;
+    if (normalized < orangeStart) return red;
+    if (normalized < yellowStart) return orange;
+    if (normalized < greenStart) return yellow;
+    return green;
+  }
+}
 
 /// SkeletonOverlayPainter draws key pose joints and bones on top of a camera
 /// preview using **normalized** landmark coordinates (0–1).
@@ -13,12 +60,16 @@ class SkeletonOverlayPainter extends CustomPainter {
   /// Optional similarity score (0–100). Drives joint color.
   final double? similarityScore;
 
+  /// Score threshold that defines a "correct" (green) pose.
+  final double scoreThreshold;
+
   /// Whether to mirror horizontally (useful for front camera preview).
   final bool mirror;
 
   SkeletonOverlayPainter({
     required this.landmarks,
     this.similarityScore,
+    required this.scoreThreshold,
     this.mirror = false,
   });
 
@@ -79,22 +130,18 @@ class SkeletonOverlayPainter extends CustomPainter {
 
   static const double _jointRadius = 4.0;
   static const double _boneStrokeWidth = 3.0;
-  static const double _greenThreshold = 85.0;
-  static const double _yellowThreshold = 70.0;
 
   final Paint _jointPaint = Paint()..style = PaintingStyle.fill;
   final Paint _bonePaint = Paint()
-    ..color = const Color(0xFF00FFFF)
+    ..color = SkeletonOverlayColorBands.red
     ..strokeWidth = _boneStrokeWidth
     ..style = PaintingStyle.stroke;
 
   // ── Helpers ─────────────────────────────────────────────────────────────
 
-  Color _jointColorForScore(double? score) {
-    if (score == null) return const Color(0xFF00FF00);
-    if (score >= _greenThreshold) return const Color(0xFF00FF00); // green
-    if (score >= _yellowThreshold) return const Color(0xFFFFFF00); // yellow
-    return const Color(0xFFFF3B30); // red
+  Color _overlayColorForScore(double? score, double threshold) {
+    final bands = SkeletonOverlayColorBands.fromThreshold(threshold);
+    return bands.colorForScore(score);
   }
 
   Offset? _toScreen(Landmark lm, Size size) {
@@ -119,7 +166,9 @@ class SkeletonOverlayPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (landmarks.isEmpty) return;
 
-    _jointPaint.color = _jointColorForScore(similarityScore);
+    final overlayColor = _overlayColorForScore(similarityScore, scoreThreshold);
+    _jointPaint.color = overlayColor;
+    _bonePaint.color = overlayColor;
 
     // Precompute the required joint offsets once.
     final points = <int, Offset>{};
@@ -153,5 +202,6 @@ class SkeletonOverlayPainter extends CustomPainter {
   bool shouldRepaint(covariant SkeletonOverlayPainter oldDelegate) =>
       !identical(oldDelegate.landmarks, landmarks) ||
       oldDelegate.similarityScore != similarityScore ||
+      oldDelegate.scoreThreshold != scoreThreshold ||
       oldDelegate.mirror != mirror;
 }
