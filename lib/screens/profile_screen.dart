@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/pose_result.dart';
 import '../models/user_stats.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
@@ -7,9 +8,21 @@ import '../theme/zen_theme.dart';
 import '../widgets/zen_loading_shimmer.dart';
 import '../widgets/zen_section_header.dart';
 import '../widgets/zen_stat_card.dart';
+import 'streak_calendar_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final Future<UserStats> Function()? loadUserStats;
+  final Future<int> Function()? loadBadgeCount;
+  final Future<List<PoseResult>> Function()? loadAllResults;
+  final WidgetBuilder? streakCalendarBuilder;
+
+  const ProfileScreen({
+    super.key,
+    this.loadUserStats,
+    this.loadBadgeCount,
+    this.loadAllResults,
+    this.streakCalendarBuilder,
+  });
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -27,13 +40,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<_ProfileData> _load() async {
-    final stats = await _databaseService.getUserStats();
-    final badgeCount = await _databaseService.getUnlockedBadgeCount();
-    final allResults = await _databaseService.getAllResults();
+    final stats =
+        await (widget.loadUserStats?.call() ?? _databaseService.getUserStats());
+    final badgeCount =
+        await (widget.loadBadgeCount?.call() ??
+            _databaseService.getUnlockedBadgeCount());
+    final allResults =
+        await (widget.loadAllResults?.call() ??
+            _databaseService.getAllResults());
     return _ProfileData(
       stats: stats,
       badgeCount: badgeCount,
       totalSessions: allResults.length,
+    );
+  }
+
+  Future<void> _openStreakCalendar() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            widget.streakCalendarBuilder ?? (_) => const StreakCalendarScreen(),
+      ),
     );
   }
 
@@ -163,6 +190,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 value: '${data.stats.currentStreak}',
                 icon: Icons.local_fire_department_rounded,
                 accentColor: ZenColors.warning,
+                onTap: _openStreakCalendar,
               ),
             ),
           ],

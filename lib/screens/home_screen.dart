@@ -9,9 +9,21 @@ import '../widgets/zen_loading_shimmer.dart';
 import '../widgets/zen_section_header.dart';
 import '../widgets/zen_stat_card.dart';
 import 'daily_challenge_runner_screen.dart';
+import 'streak_calendar_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final Future<DailyChallengeBundle> Function()? loadTodayChallenge;
+  final Future<UserStats> Function()? loadUserStats;
+  final Future<int> Function()? loadBadgeCount;
+  final WidgetBuilder? streakCalendarBuilder;
+
+  const HomeScreen({
+    super.key,
+    this.loadTodayChallenge,
+    this.loadUserStats,
+    this.loadBadgeCount,
+    this.streakCalendarBuilder,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -30,9 +42,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<_HomeData> _load() async {
-    final challenge = await _challengeService.getOrCreateTodayChallenge();
-    final stats = await _databaseService.getUserStats();
-    final badgeCount = await _databaseService.getUnlockedBadgeCount();
+    final challenge =
+        await (widget.loadTodayChallenge?.call() ??
+            _challengeService.getOrCreateTodayChallenge());
+    final stats =
+        await (widget.loadUserStats?.call() ?? _databaseService.getUserStats());
+    final badgeCount =
+        await (widget.loadBadgeCount?.call() ??
+            _databaseService.getUnlockedBadgeCount());
     return _HomeData(
       challenge: challenge,
       userStats: stats,
@@ -54,6 +71,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     await _refresh();
+  }
+
+  Future<void> _openStreakCalendar() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            widget.streakCalendarBuilder ?? (_) => const StreakCalendarScreen(),
+      ),
+    );
   }
 
   String _greeting() {
@@ -106,8 +132,11 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 48, color: ZenColors.textMuted),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 48,
+              color: ZenColors.textMuted,
+            ),
             const SizedBox(height: 16),
             Text(
               'Failed to load home',
@@ -134,15 +163,12 @@ class _HomeScreenState extends State<HomeScreen> {
         Text(
           '${_greeting()} 🌿',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: ZenColors.textMuted,
-                fontWeight: FontWeight.w600,
-              ),
+            color: ZenColors.textMuted,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: 4),
-        Text(
-          'ZenPose',
-          style: Theme.of(context).textTheme.headlineLarge,
-        ),
+        Text('ZenPose', style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 2),
         Text(
           'Move mindfully, breathe deeply.',
@@ -162,8 +188,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final statusLabel = isCompleted
         ? 'Completed ✓'
         : challenge.hasStarted
-            ? 'Resume Challenge'
-            : 'Start Challenge';
+        ? 'Resume Challenge'
+        : 'Start Challenge';
 
     return Container(
       decoration: ZenDecor.heroGradient(),
@@ -174,8 +200,10 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: ZenDecor.pillRadius,
@@ -183,8 +211,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.bolt_rounded,
-                        size: 13, color: Colors.white),
+                    const Icon(
+                      Icons.bolt_rounded,
+                      size: 13,
+                      color: Colors.white,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       "Today's Challenge",
@@ -232,8 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
               value: progress,
               minHeight: 7,
               backgroundColor: Colors.white.withValues(alpha: 0.22),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(Colors.white),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
             ),
           ),
           const SizedBox(height: 16),
@@ -276,6 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 value: '${data.userStats.currentStreak}',
                 icon: Icons.local_fire_department_rounded,
                 accentColor: ZenColors.warning,
+                onTap: _openStreakCalendar,
               ),
             ),
             const SizedBox(width: 10),
@@ -329,14 +360,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 28,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isDone
-                            ? ZenColors.teal
-                            : ZenColors.sage100,
+                        color: isDone ? ZenColors.teal : ZenColors.sage100,
                       ),
                       child: Center(
                         child: isDone
-                            ? const Icon(Icons.check_rounded,
-                                size: 15, color: Colors.white)
+                            ? const Icon(
+                                Icons.check_rounded,
+                                size: 15,
+                                color: Colors.white,
+                              )
                             : Text(
                                 '${index + 1}',
                                 style: const TextStyle(
@@ -353,18 +385,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         poseName,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              decoration: isDone
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                              color: isDone
-                                  ? ZenColors.textMuted
-                                  : ZenColors.textPrimary,
-                            ),
+                          decoration: isDone
+                              ? TextDecoration.lineThrough
+                              : null,
+                          color: isDone
+                              ? ZenColors.textMuted
+                              : ZenColors.textPrimary,
+                        ),
                       ),
                     ),
                     if (isDone)
-                      const Icon(Icons.check_circle_rounded,
-                          size: 16, color: ZenColors.teal),
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        size: 16,
+                        color: ZenColors.teal,
+                      ),
                   ],
                 ),
               );

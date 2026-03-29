@@ -8,9 +8,25 @@ import '../theme/zen_theme.dart';
 import '../widgets/zen_loading_shimmer.dart';
 import '../widgets/zen_section_header.dart';
 import '../widgets/zen_stat_card.dart';
+import 'streak_calendar_screen.dart';
 
 class ProgressDashboardScreen extends StatefulWidget {
-  const ProgressDashboardScreen({super.key});
+  final Future<List<PoseResult>> Function()? loadAllResults;
+  final Future<double?> Function(String poseName)? loadBestScoreForPose;
+  final Future<UserStats> Function()? loadUserStats;
+  final Future<int> Function()? loadBadgeCount;
+  final Future<List<UnlockedBadge>> Function()? loadLatestBadges;
+  final WidgetBuilder? streakCalendarBuilder;
+
+  const ProgressDashboardScreen({
+    super.key,
+    this.loadAllResults,
+    this.loadBestScoreForPose,
+    this.loadUserStats,
+    this.loadBadgeCount,
+    this.loadLatestBadges,
+    this.streakCalendarBuilder,
+  });
 
   @override
   State<ProgressDashboardScreen> createState() =>
@@ -28,11 +44,15 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
   }
 
   Future<_ProgressData> _loadProgress() async {
-    final results = await _databaseService.getAllResults();
+    final results =
+        await (widget.loadAllResults?.call() ??
+            _databaseService.getAllResults());
     final poseNames = results.map((r) => r.poseName).toSet().toList()..sort();
     final bestScoreEntries = await Future.wait(
       poseNames.map((poseName) async {
-        final score = await _databaseService.getBestScoreForPose(poseName);
+        final score =
+            await (widget.loadBestScoreForPose?.call(poseName) ??
+                _databaseService.getBestScoreForPose(poseName));
         return MapEntry(poseName, score);
       }),
     );
@@ -47,10 +67,14 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
         : results.map((r) => r.bestScore).reduce((a, b) => a + b) /
               totalSessions;
     final recentAttempts = results.take(8).toList();
-    final userStats = await _databaseService.getUserStats();
-    final unlockedBadgeCount = await _databaseService.getUnlockedBadgeCount();
+    final userStats =
+        await (widget.loadUserStats?.call() ?? _databaseService.getUserStats());
+    final unlockedBadgeCount =
+        await (widget.loadBadgeCount?.call() ??
+            _databaseService.getUnlockedBadgeCount());
     final latestUnlockedBadges =
-        await _databaseService.getLatestUnlockedBadges(limit: 5);
+        await (widget.loadLatestBadges?.call() ??
+            _databaseService.getLatestUnlockedBadges(limit: 5));
 
     return _ProgressData(
       bestScores: bestScores,
@@ -67,6 +91,15 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
   Future<void> _refresh() async {
     setState(() => _progressFuture = _loadProgress());
     await _progressFuture;
+  }
+
+  Future<void> _openStreakCalendar() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            widget.streakCalendarBuilder ?? (_) => const StreakCalendarScreen(),
+      ),
+    );
   }
 
   @override
@@ -203,6 +236,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
                 value: '${data.userStats.currentStreak}d',
                 icon: Icons.local_fire_department_rounded,
                 accentColor: ZenColors.warning,
+                onTap: _openStreakCalendar,
               ),
             ),
             const SizedBox(width: 10),
@@ -212,6 +246,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
                 value: '${data.userStats.longestStreak}d',
                 icon: Icons.emoji_events_rounded,
                 accentColor: const Color(0xFFC49A1B),
+                onTap: _openStreakCalendar,
               ),
             ),
             const SizedBox(width: 10),
@@ -253,49 +288,55 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
           child: data.bestScores.isEmpty
               ? _empty(context, 'Complete sessions to populate best scores.')
               : Column(
-                  children: (data.bestScores.entries.toList()
-                        ..sort((a, b) => a.key.compareTo(b.key)))
-                      .map((entry) {
-                    final score = entry.value ?? 0;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  entry.key,
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
+                  children:
+                      (data.bestScores.entries.toList()
+                            ..sort((a, b) => a.key.compareTo(b.key)))
+                          .map((entry) {
+                            final score = entry.value ?? 0;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          entry.key,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodyLarge,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${score.toStringAsFixed(0)}%',
+                                        style: const TextStyle(
+                                          fontFamily: 'Manrope',
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w800,
+                                          color: ZenColors.teal,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  ClipRRect(
+                                    borderRadius: ZenDecor.pillRadius,
+                                    child: LinearProgressIndicator(
+                                      value: (score / 100).clamp(0.0, 1.0),
+                                      minHeight: 7,
+                                      backgroundColor: ZenColors.surface2,
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                            ZenColors.teal,
+                                          ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                '${score.toStringAsFixed(0)}%',
-                                style: const TextStyle(
-                                  fontFamily: 'Manrope',
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: ZenColors.teal,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          ClipRRect(
-                            borderRadius: ZenDecor.pillRadius,
-                            child: LinearProgressIndicator(
-                              value: (score / 100).clamp(0.0, 1.0),
-                              minHeight: 7,
-                              backgroundColor: ZenColors.surface2,
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                  ZenColors.teal),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                            );
+                          })
+                          .toList(),
                 ),
         ),
       ],
@@ -381,8 +422,8 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
     final color = score >= 80
         ? ZenColors.success
         : score >= 60
-            ? ZenColors.warning
-            : ZenColors.error;
+        ? ZenColors.warning
+        : ZenColors.error;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -395,9 +436,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
               borderRadius: ZenDecor.chipRadius,
             ),
             child: Icon(
-              result.completed
-                  ? Icons.check_rounded
-                  : Icons.timer_outlined,
+              result.completed ? Icons.check_rounded : Icons.timer_outlined,
               size: 18,
               color: color,
             ),
@@ -431,9 +470,9 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
   }
 
   Widget _empty(BuildContext context, String message) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+  );
 }
 
 // ── Custom weekly bar chart ─────────────────────────────────────────────────
@@ -465,8 +504,7 @@ class _WeeklyBarChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(7, (i) {
           final isToday = (DateTime.now().weekday - 1) % 7 == i;
-          final fraction =
-              maxCount == 0 ? 0.0 : counts[i] / maxCount;
+          final fraction = maxCount == 0 ? 0.0 : counts[i] / maxCount;
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -502,9 +540,7 @@ class _WeeklyBarChart extends StatelessWidget {
                       fontFamily: 'Manrope',
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: isToday
-                          ? ZenColors.teal
-                          : ZenColors.textMuted,
+                      color: isToday ? ZenColors.teal : ZenColors.textMuted,
                     ),
                   ),
                 ],
