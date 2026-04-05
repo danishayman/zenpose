@@ -168,9 +168,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   /// Error message to show if initialisation fails.
   String? _errorMessage;
 
-  /// Whether wide lens mode is currently active.
-  bool _isWideLens = false;
-
   /// Simple FPS counter for debug overlay.
   final ValueNotifier<double> _fpsNotifier = ValueNotifier(0);
   int _frameCount = 0;
@@ -645,17 +642,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// Toggle wide lens mode (zoom out to widest FOV).
-  Future<void> _toggleWideLens() async {
-    final newState = !_isWideLens;
-    try {
-      await _cameraService.setWideLens(newState);
-      if (mounted) setState(() => _isWideLens = newState);
-    } catch (e) {
-      debugPrint('[WideLens] Error toggling wide lens: $e');
-    }
-  }
-
   void _startTimedUiTicker() {
     _timedUiTicker?.cancel();
     if (!_isTimedMode) return;
@@ -891,26 +877,25 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   ),
                 ),
                 const SizedBox(width: 10),
-                // Wide lens toggle
-                GestureDetector(
-                  onTap: _toggleWideLens,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: _isWideLens
-                          ? const Color(0xFF4A9B8E).withValues(alpha: 0.55)
-                          : Colors.black.withValues(alpha: 0.45),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.12),
-                      ),
+                // Wide-lens status indicator (always-on policy when available)
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _cameraService.hasWideLens
+                        ? const Color(0xFF4A9B8E).withValues(alpha: 0.55)
+                        : Colors.black.withValues(alpha: 0.45),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
                     ),
-                    child: Icon(
-                      _isWideLens ? Icons.zoom_in_map : Icons.zoom_out_map,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                  ),
+                  child: Icon(
+                    _cameraService.hasWideLens
+                        ? Icons.zoom_out_map
+                        : Icons.crop_free,
+                    color: Colors.white,
+                    size: 18,
                   ),
                 ),
               ],

@@ -11,25 +11,32 @@ class AuthState {
   final AuthStatus status;
   final String? userId;
   final String? email;
+  final String? displayName;
 
   const AuthState({
     required this.status,
     required this.userId,
     required this.email,
+    required this.displayName,
   });
 
   const AuthState.unconfigured()
     : status = AuthStatus.unconfigured,
       userId = null,
-      email = null;
+      email = null,
+      displayName = null;
 
   const AuthState.unauthenticated()
     : status = AuthStatus.unauthenticated,
       userId = null,
-      email = null;
+      email = null,
+      displayName = null;
 
-  const AuthState.authenticated({required this.userId, required this.email})
-    : status = AuthStatus.authenticated;
+  const AuthState.authenticated({
+    required this.userId,
+    required this.email,
+    required this.displayName,
+  }) : status = AuthStatus.authenticated;
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
 }
@@ -78,6 +85,7 @@ class AuthService {
     authState.value = AuthState.authenticated(
       userId: user.id,
       email: user.email,
+      displayName: _extractDisplayName(user),
     );
     return authState.value;
   }
@@ -114,9 +122,12 @@ class AuthService {
   Future<void> signOut() async {
     if (_configured) {
       await supa.Supabase.instance.client.auth.signOut();
+      AuthContext.setActiveUserId(null);
+      authState.value = const AuthState.unauthenticated();
+      return;
     }
     AuthContext.setActiveUserId(null);
-    authState.value = const AuthState.unauthenticated();
+    authState.value = const AuthState.unconfigured();
   }
 
   void _ensureConfigured() {
@@ -144,7 +155,30 @@ class AuthService {
       authState.value = AuthState.authenticated(
         userId: user.id,
         email: user.email,
+        displayName: _extractDisplayName(user),
       );
     });
+  }
+
+  String? _extractDisplayName(supa.User user) {
+    final metadata = user.userMetadata;
+    final candidates = <Object?>[
+      metadata?['full_name'],
+      metadata?['name'],
+      metadata?['display_name'],
+      metadata?['preferred_username'],
+      metadata?['user_name'],
+      metadata?['username'],
+    ];
+    for (final candidate in candidates) {
+      final value = candidate?.toString().trim();
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+    final email = user.email?.trim();
+    if (email == null || email.isEmpty) return null;
+    final localPart = email.split('@').first.trim();
+    return localPart.isEmpty ? null : localPart;
   }
 }

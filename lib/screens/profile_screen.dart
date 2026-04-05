@@ -32,11 +32,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final DatabaseService _databaseService = DatabaseService.instance;
   final AuthService _authService = AuthService.instance;
   late Future<_ProfileData> _future;
+  bool _notificationsEnabled = true;
 
   @override
   void initState() {
     super.initState();
+    _authService.authState.addListener(_handleAuthStateChanged);
+    _syncNotificationSettingFromAuth();
     _future = _load();
+  }
+
+  @override
+  void dispose() {
+    _authService.authState.removeListener(_handleAuthStateChanged);
+    super.dispose();
+  }
+
+  void _handleAuthStateChanged() {
+    if (!mounted) return;
+    _syncNotificationSettingFromAuth();
+    setState(() => _future = _load());
+  }
+
+  void _syncNotificationSettingFromAuth() {
+    final auth = _authService.authState.value;
+    _notificationsEnabled = auth.status == AuthStatus.authenticated;
   }
 
   Future<_ProfileData> _load() async {
@@ -48,11 +68,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final allResults =
         await (widget.loadAllResults?.call() ??
             _databaseService.getAllResults());
+
+    final auth = _authService.authState.value;
+    final displayName = _resolveDisplayName(auth);
+    final email = auth.email?.trim();
+
     return _ProfileData(
       stats: stats,
       badgeCount: badgeCount,
       totalSessions: allResults.length,
+      displayName: displayName,
+      subtitle: (email != null && email.isNotEmpty)
+          ? email
+          : 'ZenPose practitioner',
+      avatarInitial: _avatarInitial(displayName),
+      statusText: auth.status == AuthStatus.authenticated
+          ? 'Active Practitioner'
+          : 'Offline Practitioner',
+      isAuthenticated: auth.status == AuthStatus.authenticated,
+      accountLabel: (email != null && email.isNotEmpty)
+          ? email
+          : 'Local profile',
     );
+  }
+
+  String _resolveDisplayName(AuthState auth) {
+    final explicit = auth.displayName?.trim();
+    if (explicit != null && explicit.isNotEmpty) {
+      return explicit;
+    }
+    final email = auth.email?.trim();
+    if (email != null && email.isNotEmpty) {
+      final localPart = email.split('@').first.trim();
+      if (localPart.isNotEmpty) {
+        return localPart;
+      }
+    }
+    return 'ZenPose User';
+  }
+
+  String _avatarInitial(String displayName) {
+    final trimmed = displayName.trim();
+    if (trimmed.isEmpty) return 'Z';
+    return trimmed.substring(0, 1).toUpperCase();
   }
 
   Future<void> _openStreakCalendar() async {
@@ -80,13 +138,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text('Profile', style: Theme.of(context).textTheme.headlineLarge),
               const SizedBox(height: 20),
-              _buildAvatar(context),
+              _buildAvatar(context, data),
               const SizedBox(height: 24),
               if (data != null) ...[
                 _buildStats(data),
                 const SizedBox(height: 24),
               ],
-              _buildSettingsSection(context),
+              _buildSettingsSection(context, data),
             ],
           );
         },
@@ -94,7 +152,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildAvatar(BuildContext context) {
+  Widget _buildAvatar(BuildContext context, _ProfileData? data) {
+    final displayName = data?.displayName ?? 'ZenPose User';
+    final subtitle = data?.subtitle ?? 'ZenPose practitioner';
+    final initial = data?.avatarInitial ?? 'Z';
+    final statusText = data?.statusText ?? 'Active Practitioner';
+
     return Container(
       decoration: ZenDecor.elevatedCard(),
       padding: const EdgeInsets.all(24),
@@ -119,10 +182,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'Y',
-                style: TextStyle(
+                initial,
+                style: const TextStyle(
                   fontFamily: 'Manrope',
                   fontSize: 36,
                   fontWeight: FontWeight.w700,
@@ -132,12 +195,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          Text('Yogi', style: Theme.of(context).textTheme.titleLarge),
+          Text(displayName, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
-          Text(
-            'ZenPose practitioner',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
@@ -147,12 +207,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.verified_rounded, size: 13, color: ZenColors.teal),
-                SizedBox(width: 5),
+              children: [
+                const Icon(
+                  Icons.verified_rounded,
+                  size: 13,
+                  color: ZenColors.teal,
+                ),
+                const SizedBox(width: 5),
                 Text(
-                  'Active Practitioner',
-                  style: TextStyle(
+                  statusText,
+                  style: const TextStyle(
                     fontFamily: 'Manrope',
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -221,7 +285,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSettingsSection(BuildContext context) {
+  Widget _buildSettingsSection(BuildContext context, _ProfileData? data) {
+    final accountLabel = data?.accountLabel ?? 'Local profile';
+    final isAuthenticated = data?.isAuthenticated ?? false;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -236,19 +303,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.notifications_outlined,
                 label: 'Notifications',
                 trailing: Switch(
-                  value: true,
-                  onChanged: (_) {},
+                  value: _notificationsEnabled,
+                  onChanged: (value) {
+                    setState(() => _notificationsEnabled = value);
+                  },
                   activeThumbColor: ZenColors.teal,
                 ),
               ),
               Divider(height: 1, color: ZenColors.surface2),
               _settingsRow(
                 context,
-                icon: Icons.logout_rounded,
-                label: 'Sign Out',
-                onTap: _signOut,
+                icon: Icons.account_circle_outlined,
+                label: 'Account',
+                trailing: SizedBox(
+                  width: 150,
+                  child: Text(
+                    accountLabel,
+                    textAlign: TextAlign.right,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: ZenColors.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
               Divider(height: 1, color: ZenColors.surface2),
+              if (isAuthenticated) ...[
+                _settingsRow(
+                  context,
+                  icon: Icons.logout_rounded,
+                  label: 'Sign Out',
+                  onTap: _signOut,
+                ),
+                Divider(height: 1, color: ZenColors.surface2),
+              ],
               _settingsRow(
                 context,
                 icon: Icons.info_outline_rounded,
@@ -260,14 +349,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 context,
                 icon: Icons.star_outline_rounded,
                 label: 'Rate the App',
-                onTap: () {},
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('In-app rating is coming soon.'),
+                    ),
+                  );
+                },
               ),
               Divider(height: 1, color: ZenColors.surface2),
               _settingsRow(
                 context,
                 icon: Icons.privacy_tip_outlined,
                 label: 'Privacy Policy',
-                onTap: () {},
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Privacy policy link will be added soon.'),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -344,10 +445,22 @@ class _ProfileData {
   final UserStats stats;
   final int badgeCount;
   final int totalSessions;
+  final String displayName;
+  final String subtitle;
+  final String avatarInitial;
+  final String statusText;
+  final bool isAuthenticated;
+  final String accountLabel;
 
   const _ProfileData({
     required this.stats,
     required this.badgeCount,
     required this.totalSessions,
+    required this.displayName,
+    required this.subtitle,
+    required this.avatarInitial,
+    required this.statusText,
+    required this.isAuthenticated,
+    required this.accountLabel,
   });
 }

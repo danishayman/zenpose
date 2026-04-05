@@ -11,6 +11,7 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 class CameraService {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
+  static const double _wideLensEpsilon = 0.01;
 
   /// Whether the service has been successfully initialised.
   bool get isInitialised => _controller?.value.isInitialized ?? false;
@@ -24,11 +25,16 @@ class CameraService {
   /// Whether wide lens (minimum zoom) is currently active.
   bool _isWideLens = false;
   bool get isWideLens => _isWideLens;
+  bool _hasWideLens = false;
+  bool get hasWideLens => _hasWideLens;
 
   /// Initialise the camera.
   ///
   /// Always selects the front-facing camera and opens it at low resolution
   /// (good balance between quality and inference speed).
+  ///
+  /// After init, it applies the "wide-lens only" policy by switching to the
+  /// minimum zoom level when true wide FOV is supported on the device.
   Future<void> initialise() async {
     const direction = CameraLensDirection.front;
     _cameras = await availableCameras();
@@ -50,6 +56,7 @@ class CameraService {
     );
 
     await _controller!.initialize();
+    await useWideLensOnlyIfAvailable();
   }
 
   /// Get the minimum zoom level supported by the camera.
@@ -64,19 +71,32 @@ class CameraService {
     await _controller!.setZoomLevel(level);
   }
 
-  /// Toggle wide lens mode.
+  /// Enforce "wide-lens only" policy where available.
   ///
-  /// When enabled, sets zoom to the camera's minimum level for the widest
-  /// possible field of view.  When disabled, resets to the default 1.0× zoom.
-  Future<void> setWideLens(bool enabled) async {
-    if (_controller == null || !_controller!.value.isInitialized) return;
-    _isWideLens = enabled;
-    if (enabled) {
-      final minZoom = await _controller!.getMinZoomLevel();
+  /// Returns true when true wide mode is available and applied (min zoom < 1x).
+  /// Returns false when the device has no wider-than-1x front-camera zoom.
+  Future<bool> useWideLensOnlyIfAvailable() async {
+    if (_controller == null || !_controller!.value.isInitialized) return false;
+    final minZoom = await _controller!.getMinZoomLevel();
+    _hasWideLens = minZoom < (1.0 - _wideLensEpsilon);
+    if (_hasWideLens) {
       await _controller!.setZoomLevel(minZoom);
-    } else {
-      await _controller!.setZoomLevel(1.0);
+      _isWideLens = true;
+      return true;
     }
+
+    await _controller!.setZoomLevel(1.0);
+    _isWideLens = false;
+    return false;
+  }
+
+  /// Legacy entry point kept for compatibility.
+  ///
+  /// This app now runs in wide-lens-only mode, so disabling wide lens is
+  /// intentionally ignored.
+  Future<void> setWideLens(bool enabled) async {
+    if (!enabled) return;
+    await useWideLensOnlyIfAvailable();
   }
 
   /// Start streaming camera frames.
