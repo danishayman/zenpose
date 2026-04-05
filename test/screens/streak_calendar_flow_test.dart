@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zenpose/models/body_measurement.dart';
 import 'package:zenpose/models/daily_challenge.dart';
 import 'package:zenpose/models/daily_challenge_step.dart';
 import 'package:zenpose/models/pose_result.dart';
-import 'package:zenpose/models/unlocked_badge.dart';
+import 'package:zenpose/models/pose_template.dart';
 import 'package:zenpose/models/user_stats.dart';
+import 'package:zenpose/models/weekly_workout_goal.dart';
 import 'package:zenpose/screens/home_screen.dart';
 import 'package:zenpose/screens/profile_screen.dart';
 import 'package:zenpose/screens/progress_dashboard_screen.dart';
@@ -88,35 +90,30 @@ void main() {
     expect(find.byType(StreakCalendarScreen), findsOneWidget);
   });
 
-  testWidgets('tapping Progress Streak and Best Streak opens streak calendar', (
-    tester,
-  ) async {
+  testWidgets('progress dashboard renders new tabs', (tester) async {
     _setLargeSurface(tester);
 
     await tester.pumpWidget(
       _app(
         ProgressDashboardScreen(
           loadAllResults: () async => completedResults,
-          loadBestScoreForPose: (_) async => 88,
-          loadUserStats: () async => baseStats,
-          loadBadgeCount: () async => 1,
-          loadLatestBadges: () async => const <UnlockedBadge>[],
-          streakCalendarBuilder: testStreakBuilder(),
+          loadWeeklyGoal: () async => WeeklyWorkoutGoal(
+            userId: 'u1',
+            targetWorkouts: 3,
+            updatedAt: DateTime(2026, 3, 29),
+            isSynced: true,
+          ),
+          loadMeasurementHistory: (_) async => const <BodyMeasurement>[],
+          loadPoseTemplates: () async => const <PoseTemplate>[],
+          nowBuilder: () => DateTime(2026, 3, 29),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Streak'));
-    await tester.pumpAndSettle();
-    expect(find.byType(StreakCalendarScreen), findsOneWidget);
-
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Best Streak'));
-    await tester.pumpAndSettle();
-    expect(find.byType(StreakCalendarScreen), findsOneWidget);
+    expect(find.text('Overview'), findsOneWidget);
+    expect(find.text('Exercises'), findsOneWidget);
+    expect(find.text('Measures'), findsOneWidget);
   });
 
   testWidgets('month navigation updates header label', (tester) async {

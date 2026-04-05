@@ -1,31 +1,38 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
+import '../models/body_measurement.dart';
 import '../models/pose_result.dart';
-import '../models/unlocked_badge.dart';
-import '../models/user_stats.dart';
+import '../models/pose_template.dart';
+import '../models/progress_analytics_models.dart';
+import '../models/weekly_workout_goal.dart';
 import '../services/database_service.dart';
+import '../services/pose_template_service.dart';
+import '../services/progress_analytics_service.dart';
 import '../theme/zen_theme.dart';
 import '../widgets/zen_loading_shimmer.dart';
 import '../widgets/zen_section_header.dart';
-import '../widgets/zen_stat_card.dart';
-import 'streak_calendar_screen.dart';
 
 class ProgressDashboardScreen extends StatefulWidget {
   final Future<List<PoseResult>> Function()? loadAllResults;
-  final Future<double?> Function(String poseName)? loadBestScoreForPose;
-  final Future<UserStats> Function()? loadUserStats;
-  final Future<int> Function()? loadBadgeCount;
-  final Future<List<UnlockedBadge>> Function()? loadLatestBadges;
-  final WidgetBuilder? streakCalendarBuilder;
+  final Future<WeeklyWorkoutGoal> Function()? loadWeeklyGoal;
+  final Future<void> Function(int targetWorkouts)? saveWeeklyGoal;
+  final Future<List<BodyMeasurement>> Function(BodyMetricType metricType)?
+  loadMeasurementHistory;
+  final Future<void> Function(BodyMeasurement measurement)? saveMeasurement;
+  final Future<List<PoseTemplate>> Function()? loadPoseTemplates;
+  final DateTime Function()? nowBuilder;
 
   const ProgressDashboardScreen({
     super.key,
     this.loadAllResults,
-    this.loadBestScoreForPose,
-    this.loadUserStats,
-    this.loadBadgeCount,
-    this.loadLatestBadges,
-    this.streakCalendarBuilder,
+    this.loadWeeklyGoal,
+    this.saveWeeklyGoal,
+    this.loadMeasurementHistory,
+    this.saveMeasurement,
+    this.loadPoseTemplates,
+    this.nowBuilder,
   });
 
   @override
@@ -34,71 +41,279 @@ class ProgressDashboardScreen extends StatefulWidget {
 }
 
 class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
+  static const List<String> _monthNames = <String>[
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
   final DatabaseService _databaseService = DatabaseService.instance;
-  late Future<_ProgressData> _progressFuture;
+  final ProgressAnalyticsService _analyticsService =
+      const ProgressAnalyticsService();
+  final PoseTemplateService _poseTemplateService = PoseTemplateService();
+  final TextEditingController _exerciseSearchController =
+      TextEditingController();
+
+  late Future<_ProgressDashboardData> _future;
+  late DateTime _visibleMonth;
+  String _exerciseQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _progressFuture = _loadProgress();
+    final now = _now();
+    _visibleMonth = DateTime(now.year, now.month);
+    _future = _load();
+    _exerciseSearchController.addListener(() {
+      setState(
+        () => _exerciseQuery = _exerciseSearchController.text
+            .trim()
+            .toLowerCase(),
+      );
+    });
   }
 
-  Future<_ProgressData> _loadProgress() async {
+  @override
+  void dispose() {
+    _exerciseSearchController.dispose();
+    super.dispose();
+  }
+
+  DateTime _now() => widget.nowBuilder?.call() ?? DateTime.now();
+
+  Future<_ProgressDashboardData> _load() async {
     final results =
         await (widget.loadAllResults?.call() ??
             _databaseService.getAllResults());
-    final poseNames = results.map((r) => r.poseName).toSet().toList()..sort();
-    final bestScoreEntries = await Future.wait(
-      poseNames.map((poseName) async {
-        final score =
-            await (widget.loadBestScoreForPose?.call(poseName) ??
-                _databaseService.getBestScoreForPose(poseName));
-        return MapEntry(poseName, score);
+    final weeklyGoal =
+        await (widget.loadWeeklyGoal?.call() ??
+            _databaseService.getWeeklyWorkoutGoal());
+    final measurementEntries = await Future.wait(
+      BodyMetricType.coreMetrics.map((metricType) async {
+        final history =
+            await (widget.loadMeasurementHistory?.call(metricType) ??
+                _databaseService.getBodyMeasurementHistory(metricType));
+        return MapEntry(metricType, history);
       }),
     );
 
-    final bestScores = <String, double?>{
-      for (final entry in bestScoreEntries) entry.key: entry.value,
-    };
-    final totalSessions = results.length;
-    final totalCompleted = results.where((r) => r.completed).length;
-    final averageScore = totalSessions == 0
-        ? null
-        : results.map((r) => r.bestScore).reduce((a, b) => a + b) /
-              totalSessions;
-    final recentAttempts = results.take(8).toList();
-    final userStats =
-        await (widget.loadUserStats?.call() ?? _databaseService.getUserStats());
-    final unlockedBadgeCount =
-        await (widget.loadBadgeCount?.call() ??
-            _databaseService.getUnlockedBadgeCount());
-    final latestUnlockedBadges =
-        await (widget.loadLatestBadges?.call() ??
-            _databaseService.getLatestUnlockedBadges(limit: 5));
+    List<PoseTemplate> templates;
+    try {
+      templates =
+          await (widget.loadPoseTemplates?.call() ??
+              _poseTemplateService.loadTemplates());
+    } catch (_) {
+      templates = const <PoseTemplate>[];
+    }
 
-    return _ProgressData(
-      bestScores: bestScores,
-      totalSessions: totalSessions,
-      totalCompleted: totalCompleted,
-      averageScore: averageScore,
-      recentAttempts: recentAttempts,
-      userStats: userStats,
-      unlockedBadgeCount: unlockedBadgeCount,
-      latestUnlockedBadges: latestUnlockedBadges,
+    return _ProgressDashboardData(
+      results: results,
+      weeklyGoal: weeklyGoal,
+      measurementHistoryByMetric: <BodyMetricType, List<BodyMeasurement>>{
+        for (final entry in measurementEntries) entry.key: entry.value,
+      },
+      poseTemplates: templates,
     );
   }
 
   Future<void> _refresh() async {
-    setState(() => _progressFuture = _loadProgress());
-    await _progressFuture;
+    setState(() {
+      _future = _load();
+    });
+    await _future;
   }
 
-  Future<void> _openStreakCalendar() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder:
-            widget.streakCalendarBuilder ?? (_) => const StreakCalendarScreen(),
-      ),
+  Future<void> _saveWeeklyGoal(int targetWorkouts) async {
+    await (widget.saveWeeklyGoal?.call(targetWorkouts) ??
+        _databaseService.upsertWeeklyWorkoutGoal(
+          targetWorkouts: targetWorkouts,
+        ));
+    await _refresh();
+  }
+
+  Future<void> _saveBodyMeasurement(
+    BodyMetricType metricType, {
+    required double value,
+    required DateTime measuredAt,
+  }) async {
+    final measurement = BodyMeasurement(
+      userId: '',
+      metricType: metricType,
+      value: value,
+      unit: metricType.unit,
+      measuredAt: measuredAt,
+      updatedAt: DateTime.now().toUtc(),
+      isSynced: false,
+    );
+    await (widget.saveMeasurement?.call(measurement) ??
+        _databaseService.insertBodyMeasurement(measurement));
+    await _refresh();
+  }
+
+  String _monthLabel(DateTime month) =>
+      '${_monthNames[month.month - 1]} ${month.year}';
+
+  void _shiftVisibleMonth(int delta) {
+    setState(() {
+      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
+    });
+  }
+
+  Future<void> _showGoalEditor(int currentTarget) async {
+    final controller = TextEditingController(text: '$currentTarget');
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            8,
+            20,
+            MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Set Weekly Goal',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('progress-goal-target-input'),
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Workouts per week',
+                  hintText: 'e.g. 3',
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  key: const Key('progress-goal-save-button'),
+                  onPressed: () async {
+                    final parsed = int.tryParse(controller.text.trim());
+                    if (parsed == null || parsed <= 0) return;
+                    await _saveWeeklyGoal(parsed);
+                    if (!context.mounted) return;
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Save Goal'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showMeasurementEditor({
+    required BodyMetricType metricType,
+    double? initialValue,
+  }) async {
+    final controller = TextEditingController(
+      text: initialValue == null ? '' : initialValue.toStringAsFixed(1),
+    );
+    var selectedDate = _now();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Update ${metricType.label}',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: Key('progress-measure-input-${metricType.metricKey}'),
+                    controller: controller,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: metricType.label,
+                      suffixText: metricType.unit,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Date: ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate,
+                            firstDate: DateTime(2020, 1, 1),
+                            lastDate: DateTime(2100, 12, 31),
+                          );
+                          if (picked == null) return;
+                          setSheetState(() => selectedDate = picked);
+                        },
+                        child: const Text('Pick date'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      key: Key('progress-measure-save-${metricType.metricKey}'),
+                      onPressed: () async {
+                        final parsed = double.tryParse(controller.text.trim());
+                        if (parsed == null) return;
+                        await _saveBodyMeasurement(
+                          metricType,
+                          value: parsed,
+                          measuredAt: selectedDate,
+                        );
+                        if (!context.mounted) return;
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('Save Measurement'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -106,8 +321,8 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
   Widget build(BuildContext context) {
     return SafeArea(
       bottom: false,
-      child: FutureBuilder<_ProgressData>(
-        future: _progressFuture,
+      child: FutureBuilder<_ProgressDashboardData>(
+        future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const ZenPageLoadingShimmer();
@@ -118,26 +333,83 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
             );
           }
           final data = snapshot.data!;
-          return RefreshIndicator(
-            color: ZenColors.teal,
-            onRefresh: _refresh,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+          final monthlySummary = _analyticsService.buildMonthlySummary(
+            results: data.results,
+            month: _visibleMonth,
+          );
+          final weeklyCompleted = _analyticsService.countWeeklyCompleted(
+            results: data.results,
+            anchorDate: _now(),
+          );
+          final exercises = _analyticsService.buildExerciseTrends(data.results);
+          final filteredExercises = exercises
+              .where(
+                (entry) =>
+                    entry.poseName.toLowerCase().contains(_exerciseQuery),
+              )
+              .toList(growable: false);
+          final measureTrends = <BodyMetricType, MeasureTrendSnapshot>{
+            for (final metric in BodyMetricType.coreMetrics)
+              metric: _analyticsService.buildMeasureTrend(
+                metricType: metric,
+                history:
+                    data.measurementHistoryByMetric[metric] ??
+                    const <BodyMeasurement>[],
+              ),
+          };
+          final templateByPoseName = <String, PoseTemplate>{
+            for (final template in data.poseTemplates)
+              _normalizeName(template.name): template,
+          };
+
+          return DefaultTabController(
+            length: 3,
+            child: Column(
               children: [
-                _header(context),
-                const SizedBox(height: 20),
-                _statsOverview(data),
-                const SizedBox(height: 20),
-                _weeklyChart(data),
-                const SizedBox(height: 20),
-                _gamification(data),
-                const SizedBox(height: 20),
-                _bestScores(data),
-                const SizedBox(height: 20),
-                _badges(data),
-                const SizedBox(height: 20),
-                _attempts(data),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  child: _buildHeader(),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: ZenColors.surface1,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: TabBar(
+                    dividerColor: Colors.transparent,
+                    indicatorColor: ZenColors.teal,
+                    indicatorWeight: 2.6,
+                    labelColor: ZenColors.textPrimary,
+                    unselectedLabelColor: ZenColors.textMuted,
+                    tabs: const [
+                      Tab(key: Key('progress-tab-overview'), text: 'Overview'),
+                      Tab(
+                        key: Key('progress-tab-exercises'),
+                        text: 'Exercises',
+                      ),
+                      Tab(key: Key('progress-tab-measures'), text: 'Measures'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _buildOverviewTab(
+                        monthlySummary: monthlySummary,
+                        weeklyCompleted: weeklyCompleted,
+                        weeklyGoal: data.weeklyGoal.targetWorkouts,
+                      ),
+                      _buildExercisesTab(
+                        exercises: filteredExercises,
+                        templateByPoseName: templateByPoseName,
+                      ),
+                      _buildMeasuresTab(measureTrends: measureTrends),
+                    ],
+                  ),
+                ),
               ],
             ),
           );
@@ -146,322 +418,174 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
     );
   }
 
-  Widget _header(BuildContext context) {
+  Widget _buildHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Progress', style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 4),
         Text(
-          'Your mindful consistency and alignment trend.',
+          'Track your consistency, exercise trends, and body metrics.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],
     );
   }
 
-  Widget _statsOverview(_ProgressData data) {
-    final average = data.averageScore == null
-        ? 'N/A'
-        : '${data.averageScore!.toStringAsFixed(0)}%';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const ZenSectionHeader(title: 'Overview'),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: ZenStatCard(
-                label: 'Sessions',
-                value: '${data.totalSessions}',
-                icon: Icons.fitness_center_rounded,
-                accentColor: ZenColors.teal,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ZenStatCard(
-                label: 'Completed',
-                value: '${data.totalCompleted}',
-                icon: Icons.check_circle_outline_rounded,
-                accentColor: ZenColors.success,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ZenStatCard(
-                label: 'Avg Score',
-                value: average,
-                icon: Icons.analytics_rounded,
-                accentColor: ZenColors.forest,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+  Widget _buildOverviewTab({
+    required MonthlyWorkoutSummary monthlySummary,
+    required int weeklyCompleted,
+    required int weeklyGoal,
+  }) {
+    final remaining = math.max(0, weeklyGoal - weeklyCompleted);
+    final progress = weeklyGoal == 0
+        ? 0.0
+        : (weeklyCompleted / weeklyGoal).clamp(0.0, 1.0);
+    final sparkValues = monthlySummary.dailyPoints
+        .map((point) => point.workouts.toDouble())
+        .toList();
 
-  Widget _weeklyChart(_ProgressData data) {
-    // Build a 7-day bar chart using CustomPainter — no extra dependency.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const ZenSectionHeader(
-          title: 'Weekly Activity',
-          subtitle: 'Sessions per day',
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: ZenDecor.elevatedCard(),
-          padding: const EdgeInsets.all(16),
-          child: _WeeklyBarChart(results: data.recentAttempts),
-        ),
-      ],
-    );
-  }
-
-  Widget _gamification(_ProgressData data) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const ZenSectionHeader(title: 'Achievements'),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: ZenStatCard(
-                label: 'Streak',
-                value: '${data.userStats.currentStreak}d',
-                icon: Icons.local_fire_department_rounded,
-                accentColor: ZenColors.warning,
-                onTap: _openStreakCalendar,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ZenStatCard(
-                label: 'Best Streak',
-                value: '${data.userStats.longestStreak}d',
-                icon: Icons.emoji_events_rounded,
-                accentColor: const Color(0xFFC49A1B),
-                onTap: _openStreakCalendar,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ZenStatCard(
-                label: 'Total XP',
-                value: '${data.userStats.totalXp}',
-                icon: Icons.star_rounded,
-                accentColor: ZenColors.teal,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ZenStatCard(
-                label: 'Badges',
-                value: '${data.unlockedBadgeCount}',
-                icon: Icons.workspace_premium_rounded,
-                accentColor: ZenColors.forest,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _bestScores(_ProgressData data) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const ZenSectionHeader(
-          title: 'Best Scores',
-          subtitle: 'Per pose — all time',
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: ZenDecor.elevatedCard(),
-          padding: const EdgeInsets.all(16),
-          child: data.bestScores.isEmpty
-              ? _empty(context, 'Complete sessions to populate best scores.')
-              : Column(
-                  children:
-                      (data.bestScores.entries.toList()
-                            ..sort((a, b) => a.key.compareTo(b.key)))
-                          .map((entry) {
-                            final score = entry.value ?? 0;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          entry.key,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodyLarge,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${score.toStringAsFixed(0)}%',
-                                        style: const TextStyle(
-                                          fontFamily: 'Manrope',
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w800,
-                                          color: ZenColors.teal,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  ClipRRect(
-                                    borderRadius: ZenDecor.pillRadius,
-                                    child: LinearProgressIndicator(
-                                      value: (score / 100).clamp(0.0, 1.0),
-                                      minHeight: 7,
-                                      backgroundColor: ZenColors.surface2,
-                                      valueColor:
-                                          const AlwaysStoppedAnimation<Color>(
-                                            ZenColors.teal,
-                                          ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          })
-                          .toList(),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _badges(_ProgressData data) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const ZenSectionHeader(
-          title: 'Recent Badges',
-          subtitle: 'Latest unlocked',
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: ZenDecor.elevatedCard(),
-          padding: const EdgeInsets.all(16),
-          child: data.latestUnlockedBadges.isEmpty
-              ? _empty(context, 'No badges unlocked yet.')
-              : Column(
-                  children: data.latestUnlockedBadges.map((badge) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: const BoxDecoration(
-                              color: ZenColors.sage100,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.workspace_premium_rounded,
-                              color: ZenColors.forest,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              badge.name,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _attempts(_ProgressData data) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const ZenSectionHeader(
-          title: 'Recent Attempts',
-          subtitle: 'Last 8 sessions',
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: ZenDecor.elevatedCard(),
-          padding: const EdgeInsets.all(16),
-          child: data.recentAttempts.isEmpty
-              ? _empty(context, 'No attempts yet. Start a session!')
-              : Column(
-                  children: data.recentAttempts
-                      .map((result) => _attemptRow(context, result))
-                      .toList(),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _attemptRow(BuildContext context, PoseResult result) {
-    final score = result.bestScore;
-    final color = score >= 80
-        ? ZenColors.success
-        : score >= 60
-        ? ZenColors.warning
-        : ZenColors.error;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
+    return RefreshIndicator(
+      color: ZenColors.teal,
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
         children: [
+          const ZenSectionHeader(title: 'Workouts'),
+          const SizedBox(height: 12),
           Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: ZenDecor.chipRadius,
-            ),
-            child: Icon(
-              result.completed ? Icons.check_rounded : Icons.timer_outlined,
-              size: 18,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
+            decoration: ZenDecor.elevatedCard(),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _monthLabel(_visibleMonth),
+                        key: const Key('progress-month-label'),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    IconButton(
+                      key: const Key('progress-prev-month'),
+                      onPressed: () => _shiftVisibleMonth(-1),
+                      icon: const Icon(Icons.chevron_left_rounded),
+                    ),
+                    IconButton(
+                      key: const Key('progress-next-month'),
+                      onPressed: () => _shiftVisibleMonth(1),
+                      icon: const Icon(Icons.chevron_right_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Text(
-                  result.poseName,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  '${monthlySummary.totalWorkouts} workouts',
+                  style: const TextStyle(
+                    fontFamily: 'Manrope',
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    color: ZenColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Completed sessions this month',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 92,
+                  child: _MiniSparkline(
+                    values: sparkValues,
+                    color: ZenColors.teal,
+                    fillColor: ZenColors.teal.withValues(alpha: 0.18),
+                  ),
                 ),
               ],
             ),
           ),
-          Text(
-            '${score.toStringAsFixed(0)}%',
-            style: TextStyle(
-              fontFamily: 'Manrope',
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: color,
+          const SizedBox(height: 20),
+          const ZenSectionHeader(title: 'This Week'),
+          const SizedBox(height: 12),
+          Container(
+            decoration: ZenDecor.elevatedCard(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$weeklyCompleted / $weeklyGoal workouts completed',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    Text(
+                      remaining == 0 ? 'Goal met' : '$remaining left',
+                      style: TextStyle(
+                        fontFamily: 'Manrope',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: remaining == 0
+                            ? ZenColors.success
+                            : ZenColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: ZenDecor.pillRadius,
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 8,
+                    backgroundColor: ZenColors.surface2,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      ZenColors.teal,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildCompactMonthCalendar(
+            month: _visibleMonth,
+            activeDateKeys: monthlySummary.activeDateKeys,
+          ),
+          const SizedBox(height: 20),
+          Container(
+            decoration: ZenDecor.elevatedCard(),
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Suggested Goal',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$weeklyGoal workouts per week',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton(
+                  key: const Key('progress-edit-goal-button'),
+                  onPressed: () => _showGoalEditor(weeklyGoal),
+                  child: const Text('Set Goal'),
+                ),
+              ],
             ),
           ),
         ],
@@ -469,108 +593,491 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
     );
   }
 
-  Widget _empty(BuildContext context, String message) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
-  );
-}
-
-// ── Custom weekly bar chart ─────────────────────────────────────────────────
-
-class _WeeklyBarChart extends StatelessWidget {
-  final List<PoseResult> results;
-
-  const _WeeklyBarChart({required this.results});
-
-  @override
-  Widget build(BuildContext context) {
-    // Count sessions per weekday (Mon=0 … Sun=6)
-    final counts = List<int>.filled(7, 0);
-    final now = DateTime.now();
-    for (final r in results) {
-      final ts = r.timestamp ?? now;
-      final diff = now.difference(ts).inDays;
-      if (diff < 7) {
-        final dayIndex = (ts.weekday - 1) % 7; // Mon=0
-        counts[dayIndex]++;
-      }
+  Widget _buildCompactMonthCalendar({
+    required DateTime month,
+    required Set<String> activeDateKeys,
+  }) {
+    final monthStart = DateTime(month.year, month.month, 1);
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final leading = monthStart.weekday % 7;
+    final dayCells = <Widget>[
+      for (var i = 0; i < leading; i++) const SizedBox.shrink(),
+      for (var day = 1; day <= daysInMonth; day++)
+        _buildCalendarCell(
+          DateTime(month.year, month.month, day),
+          activeDateKeys,
+        ),
+    ];
+    final trailing = (7 - (dayCells.length % 7)) % 7;
+    for (var i = 0; i < trailing; i++) {
+      dayCells.add(const SizedBox.shrink());
     }
-    final maxCount = counts.reduce((a, b) => a > b ? a : b);
 
-    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    return SizedBox(
-      height: 110,
+    return Container(
+      decoration: ZenDecor.elevatedCard(),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Calendar', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              _WeekdayChip(label: 'S'),
+              _WeekdayChip(label: 'M'),
+              _WeekdayChip(label: 'T'),
+              _WeekdayChip(label: 'W'),
+              _WeekdayChip(label: 'T'),
+              _WeekdayChip(label: 'F'),
+              _WeekdayChip(label: 'S'),
+            ],
+          ),
+          const SizedBox(height: 8),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: dayCells.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: 1.15,
+            ),
+            itemBuilder: (_, index) => dayCells[index],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarCell(DateTime date, Set<String> activeDateKeys) {
+    final key = _dateKey(date);
+    final isActive = activeDateKeys.contains(key);
+    final today = DateTime.now();
+    final isToday =
+        date.year == today.year &&
+        date.month == today.month &&
+        date.day == today.day;
+
+    return Padding(
+      padding: const EdgeInsets.all(3),
+      child: Container(
+        key: Key('progress-day-$key-${isActive ? 'active' : 'inactive'}'),
+        decoration: BoxDecoration(
+          color: isActive ? ZenColors.teal100 : ZenColors.surface1,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isToday ? ZenColors.teal : ZenColors.surface2,
+            width: isToday ? 1.6 : 1.0,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '${date.day}',
+          style: TextStyle(
+            fontFamily: 'Manrope',
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: isActive ? ZenColors.teal : ZenColors.textMuted,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExercisesTab({
+    required List<ExerciseTrendSnapshot> exercises,
+    required Map<String, PoseTemplate> templateByPoseName,
+  }) {
+    return RefreshIndicator(
+      color: ZenColors.teal,
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+        children: [
+          TextField(
+            key: const Key('progress-exercises-search'),
+            controller: _exerciseSearchController,
+            decoration: const InputDecoration(
+              hintText: 'Search for exercise',
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: ZenColors.textMuted,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              const Icon(
+                Icons.swap_vert_rounded,
+                size: 18,
+                color: ZenColors.textMuted,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Recent Performed',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: ZenColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (exercises.isEmpty)
+            Container(
+              decoration: ZenDecor.elevatedCard(),
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                _exerciseQuery.isEmpty
+                    ? 'No exercise data yet. Complete a session to see trends.'
+                    : 'No exercise found for "$_exerciseQuery".',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            )
+          else
+            ...exercises.map(
+              (entry) => _buildExerciseRow(
+                entry,
+                templateByPoseName[_normalizeName(entry.poseName)],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExerciseRow(
+    ExerciseTrendSnapshot exercise,
+    PoseTemplate? template,
+  ) {
+    final deltaColor = exercise.deltaScore >= 0
+        ? ZenColors.success
+        : ZenColors.error;
+    final deltaPrefix = exercise.deltaScore >= 0 ? '+' : '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: ZenDecor.elevatedCard(),
+      padding: const EdgeInsets.all(12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(7, (i) {
-          final isToday = (DateTime.now().weekday - 1) % 7 == i;
-          final fraction = maxCount == 0 ? 0.0 : counts[i] / maxCount;
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _PoseThumb(template: template),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  exercise.poseName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Latest ${exercise.latestScore.toStringAsFixed(0)}% · Best ${exercise.bestScore.toStringAsFixed(0)}%',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Δ $deltaPrefix${exercise.deltaScore.toStringAsFixed(1)}% · Avg hold ${exercise.averageHoldDuration.toStringAsFixed(1)}s',
+                  style: TextStyle(
+                    fontFamily: 'Manrope',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: deltaColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 110,
+            height: 54,
+            child: _MiniSparkline(
+              values: exercise.recentScores,
+              color: ZenColors.teal,
+              fillColor: Colors.transparent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMeasuresTab({
+    required Map<BodyMetricType, MeasureTrendSnapshot> measureTrends,
+  }) {
+    return RefreshIndicator(
+      color: ZenColors.teal,
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+        children: BodyMetricType.coreMetrics.map((metricType) {
+          final snapshot = measureTrends[metricType]!;
+          final latestText = snapshot.latestValue == null
+              ? 'No data'
+              : '${snapshot.latestValue!.toStringAsFixed(1)} ${metricType.unit}';
+          final delta = snapshot.deltaValue;
+          final deltaText = delta == null
+              ? 'Tap to add measurement'
+              : 'Latest change: ${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)} ${metricType.unit}';
+          return InkWell(
+            key: Key('progress-measure-row-${metricType.metricKey}'),
+            onTap: () => _showMeasurementEditor(
+              metricType: metricType,
+              initialValue: snapshot.latestValue,
+            ),
+            borderRadius: ZenDecor.cardRadius,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: ZenDecor.elevatedCard(),
+              padding: const EdgeInsets.all(14),
+              child: Row(
                 children: [
-                  if (counts[i] > 0)
-                    Text(
-                      '${counts[i]}',
-                      style: const TextStyle(
-                        fontFamily: 'Manrope',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: ZenColors.teal,
-                      ),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: ZenColors.sage100,
+                      shape: BoxShape.circle,
                     ),
-                  const SizedBox(height: 2),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.easeOutCubic,
-                    height: fraction == 0 ? 4 : 70 * fraction,
-                    decoration: BoxDecoration(
-                      color: isToday ? ZenColors.teal : ZenColors.sage,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(6),
-                      ),
+                    child: Icon(
+                      metricType == BodyMetricType.bodyWeight
+                          ? Icons.monitor_weight_outlined
+                          : Icons.percent_rounded,
+                      size: 22,
+                      color: ZenColors.forest,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    labels[i],
-                    style: TextStyle(
-                      fontFamily: 'Manrope',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isToday ? ZenColors.teal : ZenColors.textMuted,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          metricType.label,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          latestText,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          deltaText,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 100,
+                    height: 48,
+                    child: _MiniSparkline(
+                      values: snapshot.history.reversed
+                          .map((e) => e.value)
+                          .toList(),
+                      color: ZenColors.teal,
+                      fillColor: Colors.transparent,
                     ),
                   ),
                 ],
               ),
             ),
           );
-        }),
+        }).toList(),
+      ),
+    );
+  }
+
+  String _normalizeName(String value) {
+    final lower = value.toLowerCase();
+    return lower.replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
+  String _dateKey(DateTime date) {
+    final local = date.toLocal();
+    final year = local.year.toString().padLeft(4, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+}
+
+class _PoseThumb extends StatelessWidget {
+  final PoseTemplate? template;
+
+  const _PoseThumb({required this.template});
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = template == null
+        ? null
+        : 'assets/thumbnail/${template!.templateKey}.jpg';
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 52,
+        height: 52,
+        child: asset == null
+            ? _fallback()
+            : Image.asset(
+                asset,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _fallback(),
+              ),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    return Container(
+      color: ZenColors.sage100,
+      child: const Icon(
+        Icons.self_improvement_rounded,
+        color: ZenColors.forest,
       ),
     );
   }
 }
 
-class _ProgressData {
-  final Map<String, double?> bestScores;
-  final int totalSessions;
-  final int totalCompleted;
-  final double? averageScore;
-  final List<PoseResult> recentAttempts;
-  final UserStats userStats;
-  final int unlockedBadgeCount;
-  final List<UnlockedBadge> latestUnlockedBadges;
+class _MiniSparkline extends StatelessWidget {
+  final List<double> values;
+  final Color color;
+  final Color fillColor;
 
-  const _ProgressData({
-    required this.bestScores,
-    required this.totalSessions,
-    required this.totalCompleted,
-    required this.averageScore,
-    required this.recentAttempts,
-    required this.userStats,
-    required this.unlockedBadgeCount,
-    required this.latestUnlockedBadges,
+  const _MiniSparkline({
+    required this.values,
+    required this.color,
+    required this.fillColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _MiniSparklinePainter(
+        values: values,
+        color: color,
+        fillColor: fillColor,
+      ),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _MiniSparklinePainter extends CustomPainter {
+  final List<double> values;
+  final Color color;
+  final Color fillColor;
+
+  _MiniSparklinePainter({
+    required this.values,
+    required this.color,
+    required this.fillColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final strokePaint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    if (values.isEmpty) {
+      final y = size.height * 0.5;
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        strokePaint..color = ZenColors.surface2,
+      );
+      return;
+    }
+
+    final minValue = values.reduce(math.min);
+    final maxValue = values.reduce(math.max);
+    final range = (maxValue - minValue).abs();
+    final effectiveRange = range < 0.0001 ? 1.0 : range;
+    final xStep = values.length == 1 ? 0.0 : size.width / (values.length - 1);
+    final path = Path();
+
+    for (var i = 0; i < values.length; i++) {
+      final normalizedY = (values[i] - minValue) / effectiveRange;
+      final x = i * xStep;
+      final y = size.height - (normalizedY * (size.height - 4)) - 2;
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    if (fillColor.a > 0) {
+      final fillPath = Path.from(path)
+        ..lineTo(size.width, size.height)
+        ..lineTo(0, size.height)
+        ..close();
+      final fillPaint = Paint()
+        ..color = fillColor
+        ..style = PaintingStyle.fill;
+      canvas.drawPath(fillPath, fillPaint);
+    }
+
+    canvas.drawPath(path, strokePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniSparklinePainter oldDelegate) {
+    if (oldDelegate.color != color || oldDelegate.fillColor != fillColor) {
+      return true;
+    }
+    if (oldDelegate.values.length != values.length) return true;
+    for (var i = 0; i < values.length; i++) {
+      if (oldDelegate.values[i] != values[i]) return true;
+    }
+    return false;
+  }
+}
+
+class _WeekdayChip extends StatelessWidget {
+  final String label;
+
+  const _WeekdayChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontFamily: 'Manrope',
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: ZenColors.textMuted,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressDashboardData {
+  final List<PoseResult> results;
+  final WeeklyWorkoutGoal weeklyGoal;
+  final Map<BodyMetricType, List<BodyMeasurement>> measurementHistoryByMetric;
+  final List<PoseTemplate> poseTemplates;
+
+  const _ProgressDashboardData({
+    required this.results,
+    required this.weeklyGoal,
+    required this.measurementHistoryByMetric,
+    required this.poseTemplates,
   });
 }

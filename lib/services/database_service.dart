@@ -7,9 +7,11 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/daily_challenge.dart';
 import '../models/daily_challenge_step.dart';
+import '../models/body_measurement.dart';
 import '../models/pose_result.dart';
 import '../models/unlocked_badge.dart';
 import '../models/user_stats.dart';
+import '../models/weekly_workout_goal.dart';
 import 'auth_context.dart';
 import 'badge_catalog.dart';
 
@@ -19,7 +21,7 @@ class DatabaseService {
   factory DatabaseService() => instance;
 
   static const String databaseName = 'yoga_trainer.db';
-  static const int databaseVersion = 5;
+  static const int databaseVersion = 6;
 
   static const String tablePoseResults = 'pose_results';
   static const String columnId = 'id';
@@ -54,6 +56,8 @@ class DatabaseService {
 
   static const String tableDailyChallenges = 'daily_challenges';
   static const String tableDailyChallengeSteps = 'daily_challenge_steps';
+  static const String tableWeeklyWorkoutGoals = 'weekly_workout_goals';
+  static const String tableBodyMeasurements = 'body_measurements';
   static const String columnDateKey = 'date_key';
   static const String columnStatus = 'status';
   static const String columnSkipCount = 'skip_count';
@@ -66,6 +70,11 @@ class DatabaseService {
   static const String columnSessionFeedback = 'session_feedback';
   static const String columnSessionElapsedSeconds = 'session_elapsed_seconds';
   static const String columnStepIndex = 'step_index';
+  static const String columnTargetWorkouts = 'target_workouts';
+  static const String columnMetricKey = 'metric_key';
+  static const String columnValue = 'value';
+  static const String columnUnit = 'unit';
+  static const String columnMeasuredAt = 'measured_at';
   static const int singleUserStatsRowId = 1;
 
   Database? _database;
@@ -113,7 +122,9 @@ class DatabaseService {
     ''');
     await _createGamificationTables(db);
     await _createDailyChallengeTables(db);
+    await _createProgressTrackingTables(db);
     await _ensureUserStatsRow(db);
+    await _ensureWeeklyGoalRow(db);
     await _seedBadges(db);
   }
 
@@ -135,15 +146,25 @@ class DatabaseService {
     if (oldVersion < 5) {
       await _migrateToV5(db);
     }
+    if (oldVersion < 6) {
+      await _migrateToV6(db);
+    }
     await _createGamificationTables(db);
     await _createDailyChallengeTables(db);
+    await _createProgressTrackingTables(db);
     await _ensureDailyChallengeSummaryColumns(db);
     await _ensureUserStatsRow(db);
+    await _ensureWeeklyGoalRow(db);
     await _seedBadges(db);
   }
 
   Future<void> _migrateToV5(Database db) async {
     await _ensureDailyChallengeSummaryColumns(db);
+  }
+
+  Future<void> _migrateToV6(Database db) async {
+    await _createProgressTrackingTables(db);
+    await _ensureWeeklyGoalRow(db);
   }
 
   Future<void> _migrateToV4(Database db) async {
@@ -296,6 +317,29 @@ class DatabaseService {
     ''');
   }
 
+  Future<void> _createProgressTrackingTables(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableWeeklyWorkoutGoals (
+        $columnUserId TEXT PRIMARY KEY,
+        $columnTargetWorkouts INTEGER NOT NULL DEFAULT 3,
+        $columnUpdatedAt TEXT NOT NULL,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableBodyMeasurements (
+        $columnUserId TEXT NOT NULL,
+        $columnMetricKey TEXT NOT NULL,
+        $columnValue REAL NOT NULL,
+        $columnUnit TEXT NOT NULL,
+        $columnMeasuredAt TEXT NOT NULL,
+        $columnUpdatedAt TEXT NOT NULL,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY($columnUserId, $columnMetricKey, $columnMeasuredAt)
+      )
+    ''');
+  }
+
   Future<void> _ensureDailyChallengeSummaryColumns(DatabaseExecutor db) async {
     if (!await _columnExists(
       db: db,
@@ -349,6 +393,22 @@ class DatabaseService {
       columnLongestStreak: 0,
       columnTotalXp: 0,
       columnLastActiveDate: null,
+      columnUpdatedAt: _nowIso(),
+      columnIsSynced: 0,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+  }
+
+  Future<void> _ensureWeeklyGoalRow(DatabaseExecutor db) async {
+    final rows = await db.query(
+      tableWeeklyWorkoutGoals,
+      where: '$columnUserId = ?',
+      whereArgs: <Object?>[_activeUserId],
+      limit: 1,
+    );
+    if (rows.isNotEmpty) return;
+    await db.insert(tableWeeklyWorkoutGoals, <String, Object?>{
+      columnUserId: _activeUserId,
+      columnTargetWorkouts: 3,
       columnUpdatedAt: _nowIso(),
       columnIsSynced: 0,
     }, conflictAlgorithm: ConflictAlgorithm.ignore);
@@ -679,6 +739,72 @@ class DatabaseService {
     return rows.map(UnlockedBadge.fromMap).toList();
   }
 
+  Future<WeeklyWorkoutGoal> getWeeklyWorkoutGoal() async {
+    final db = await database;
+    await _ensureWeeklyGoalRow(db);
+    final rows = await db.query(
+      tableWeeklyWorkoutGoals,
+      where: '$columnUserId = ?',
+      whereArgs: <Object?>[_activeUserId],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return WeeklyWorkoutGoal.defaultForUser(_activeUserId);
+    }
+    return WeeklyWorkoutGoal.fromMap(rows.first);
+  }
+
+  Future<void> upsertWeeklyWorkoutGoal({required int targetWorkouts}) async {
+    final db = await database;
+    final clampedTarget = targetWorkouts.clamp(1, 14);
+    final nowIso = _nowIso();
+    await db.insert(tableWeeklyWorkoutGoals, <String, Object?>{
+      columnUserId: _activeUserId,
+      columnTargetWorkouts: clampedTarget,
+      columnUpdatedAt: nowIso,
+      columnIsSynced: 0,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    notifyLocalMutation();
+  }
+
+  Future<void> insertBodyMeasurement(BodyMeasurement measurement) async {
+    final db = await database;
+    final nowIso = _nowIso();
+    final payload = measurement.toMap();
+    payload[columnUserId] = _activeUserId;
+    payload[columnUpdatedAt] = nowIso;
+    payload[columnIsSynced] = 0;
+    await db.insert(
+      tableBodyMeasurements,
+      payload,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    notifyLocalMutation();
+  }
+
+  Future<List<BodyMeasurement>> getBodyMeasurementHistory(
+    BodyMetricType metricType, {
+    int limit = 30,
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      tableBodyMeasurements,
+      where: '$columnUserId = ? AND $columnMetricKey = ?',
+      whereArgs: <Object?>[_activeUserId, metricType.metricKey],
+      orderBy: '$columnMeasuredAt DESC',
+      limit: limit,
+    );
+    return rows.map(BodyMeasurement.fromMap).toList(growable: false);
+  }
+
+  Future<BodyMeasurement?> getLatestBodyMeasurement(
+    BodyMetricType metricType,
+  ) async {
+    final rows = await getBodyMeasurementHistory(metricType, limit: 1);
+    if (rows.isEmpty) return null;
+    return rows.first;
+  }
+
   Future<void> insertDailyChallenge({
     required DailyChallenge challenge,
     required List<DailyChallengeStep> steps,
@@ -778,6 +904,10 @@ class DatabaseService {
         return <String>[columnUserId, columnDateKey];
       case tableDailyChallengeSteps:
         return <String>[columnUserId, columnDateKey, columnStepIndex];
+      case tableWeeklyWorkoutGoals:
+        return <String>[columnUserId];
+      case tableBodyMeasurements:
+        return <String>[columnUserId, columnMetricKey, columnMeasuredAt];
       default:
         throw ArgumentError('Unsupported sync table: $tableName');
     }
