@@ -523,7 +523,7 @@ class _DailyChallengeWorkoutFlowScreenState
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: PoseDemoAnimation(
-              template: nextTemplate!,
+              template: nextTemplate,
               height: 210,
               borderRadius: BorderRadius.circular(24),
             ),
