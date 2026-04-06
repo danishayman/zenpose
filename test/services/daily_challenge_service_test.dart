@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:zenpose/models/daily_challenge.dart';
 import 'package:zenpose/services/daily_challenge_service.dart';
 
 void main() {
@@ -86,6 +87,69 @@ void main() {
           holdDurationSeconds: 40,
         ),
         isFalse,
+      );
+    });
+  });
+
+  group('DailyChallengeService level-based hold policy', () {
+    test('maps XP bands to level correctly', () {
+      expect(
+        DailyChallengeService.levelFromXp(0),
+        equals(DailyChallengeUserLevel.beginner),
+      );
+      expect(
+        DailyChallengeService.levelFromXp(999),
+        equals(DailyChallengeUserLevel.beginner),
+      );
+      expect(
+        DailyChallengeService.levelFromXp(1000),
+        equals(DailyChallengeUserLevel.intermediate),
+      );
+      expect(
+        DailyChallengeService.levelFromXp(2999),
+        equals(DailyChallengeUserLevel.intermediate),
+      );
+      expect(
+        DailyChallengeService.levelFromXp(3000),
+        equals(DailyChallengeUserLevel.advanced),
+      );
+    });
+
+    test('maps level to hold seconds correctly', () {
+      expect(
+        DailyChallengeService.holdSecondsForLevel(
+          DailyChallengeUserLevel.beginner,
+        ),
+        equals(20),
+      );
+      expect(
+        DailyChallengeService.holdSecondsForLevel(
+          DailyChallengeUserLevel.intermediate,
+        ),
+        equals(35),
+      );
+      expect(
+        DailyChallengeService.holdSecondsForLevel(
+          DailyChallengeUserLevel.advanced,
+        ),
+        equals(45),
+      );
+    });
+
+    test('falls back to legacy 45s when challenge target is missing', () {
+      final challenge = DailyChallenge(
+        dateKey: '2026-04-07',
+        status: DailyChallengeStatus.inProgress,
+        skipCount: 0,
+        totalSteps: 5,
+        startedAt: DateTime(2026, 4, 7, 8, 0),
+        completedAt: null,
+        updatedAt: DateTime(2026, 4, 7, 8, 0),
+        sequence: const <String>['Tree'],
+      );
+      expect(
+        DailyChallengeService.targetHoldSecondsForChallenge(challenge),
+        equals(45),
       );
     });
   });

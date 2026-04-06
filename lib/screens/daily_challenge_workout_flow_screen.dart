@@ -182,14 +182,15 @@ class _DailyChallengeWorkoutFlowScreenState
       setState(() => _phase = _WorkoutPhase.exercise);
     }
     try {
+      final challengeHoldDuration = _resolvedChallengeHoldDuration();
       final evaluator =
           widget.evaluatorBuilder?.call(template) ??
           MainScreen(
             poseTemplate: template,
-            sessionConfig: const PoseSessionConfig(
+            sessionConfig: PoseSessionConfig(
               mode: PoseSessionMode.timed,
-              holdDuration: DailyChallengeService.challengeHoldDuration,
-              timedDuration: DailyChallengeService.challengeHoldDuration,
+              holdDuration: challengeHoldDuration,
+              timedDuration: challengeHoldDuration,
               scoreThreshold: DailyChallengeService.challengeScoreThreshold,
               persistResult: false,
             ),
@@ -422,10 +423,10 @@ class _DailyChallengeWorkoutFlowScreenState
         .toList(growable: false);
     if (completed.isEmpty) return null;
     var activeSeconds = 0.0;
+    final fallbackHoldSeconds =
+        DailyChallengeService.targetHoldSecondsForChallenge(bundle.challenge);
     for (final step in completed) {
-      activeSeconds +=
-          step.holdDuration ??
-          DailyChallengeService.challengeHoldDuration.inSeconds.toDouble();
+      activeSeconds += step.holdDuration ?? fallbackHoldSeconds.toDouble();
     }
     return double.parse(
       (activeSeconds * DailyChallengeService.caloriesPerActiveSecond)
@@ -494,7 +495,7 @@ class _DailyChallengeWorkoutFlowScreenState
         Text(step.poseName, style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 4),
         Text(
-          'Get ready, then start your 45-second timed set.',
+          'Get ready, then start your ${_resolvedChallengeHoldSeconds()}-second timed set.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 14),
@@ -653,5 +654,19 @@ class _DailyChallengeWorkoutFlowScreenState
     final mins = seconds ~/ 60;
     final secs = seconds % 60;
     return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+
+  int _resolvedChallengeHoldSeconds() {
+    final bundle = _bundle;
+    if (bundle == null) {
+      return DailyChallengeService.challengeHoldDuration.inSeconds;
+    }
+    return DailyChallengeService.targetHoldSecondsForChallenge(
+      bundle.challenge,
+    );
+  }
+
+  Duration _resolvedChallengeHoldDuration() {
+    return Duration(seconds: _resolvedChallengeHoldSeconds());
   }
 }

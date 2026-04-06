@@ -226,6 +226,55 @@ void main() {
     },
   );
 
+  testWidgets('ready copy uses challenge target hold seconds', (tester) async {
+    final now = DateTime(2026, 3, 27, 10, 0, 0);
+    final challenge = DailyChallenge(
+      dateKey: '2026-03-27',
+      status: DailyChallengeStatus.inProgress,
+      skipCount: 0,
+      totalSteps: 1,
+      targetHoldSeconds: 20,
+      startedAt: now,
+      completedAt: null,
+      updatedAt: now,
+      sequence: const <String>['Downdog'],
+    );
+    final steps = <DailyChallengeStep>[
+      DailyChallengeStep(
+        dateKey: '2026-03-27',
+        stepIndex: 0,
+        poseName: 'Downdog',
+        status: DailyChallengeStepStatus.pending,
+        bestScore: null,
+        holdDuration: null,
+        updatedAt: now,
+      ),
+    ];
+    final service = _FakeDailyChallengeService(
+      bundle: DailyChallengeBundle(challenge: challenge, steps: steps),
+      templates: <PoseTemplate>[_template('downdog', 'Downdog')],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DailyChallengeWorkoutFlowScreen(
+          dateKey: '2026-03-27',
+          challengeService: service,
+          evaluatorBuilder: (_) => const _EvaluatorStub(
+            action: ChallengeStepNavigationAction.completed,
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    expect(
+      find.text('Get ready, then start your 20-second timed set.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('start now button skips ready countdown immediately', (
     tester,
   ) async {

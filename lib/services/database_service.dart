@@ -32,7 +32,7 @@ class DatabaseService {
     _databaseNameOverrideForTesting = fileName;
   }
 
-  static const int databaseVersion = 8;
+  static const int databaseVersion = 9;
 
   static const String tablePoseResults = 'pose_results';
   static const String columnId = 'id';
@@ -77,6 +77,7 @@ class DatabaseService {
   static const String columnStatus = 'status';
   static const String columnSkipCount = 'skip_count';
   static const String columnTotalSteps = 'total_steps';
+  static const String columnTargetHoldSeconds = 'target_hold_seconds';
   static const String columnJoinedAt = 'joined_at';
   static const String columnStartedAt = 'started_at';
   static const String columnCompletedAt = 'completed_at';
@@ -174,10 +175,14 @@ class DatabaseService {
     if (oldVersion < 8) {
       await _migrateToV8(db);
     }
+    if (oldVersion < 9) {
+      await _migrateToV9(db);
+    }
     await _createGamificationTables(db);
     await _createDailyChallengeTables(db);
     await _createProgressTrackingTables(db);
     await _ensureDailyChallengeSummaryColumns(db);
+    await _ensureDailyChallengeTargetHoldSecondsColumn(db);
     await _ensureUserStatsRow(db);
     await _ensureWeeklyGoalRow(db);
     await _seedBadges(db);
@@ -206,6 +211,10 @@ class DatabaseService {
         'ALTER TABLE $tablePoseResults ADD COLUMN $columnSessionType TEXT',
       );
     }
+  }
+
+  Future<void> _migrateToV9(Database db) async {
+    await _ensureDailyChallengeTargetHoldSecondsColumn(db);
   }
 
   Future<void> _migrateToV4(Database db) async {
@@ -330,6 +339,7 @@ class DatabaseService {
         $columnStatus TEXT NOT NULL DEFAULT 'in_progress',
         $columnSkipCount INTEGER NOT NULL DEFAULT 0,
         $columnTotalSteps INTEGER NOT NULL,
+        $columnTargetHoldSeconds INTEGER,
         $columnStartedAt TEXT,
         $columnCompletedAt TEXT,
         $columnSessionAvgScore REAL,
@@ -431,6 +441,20 @@ class DatabaseService {
     )) {
       await db.execute(
         'ALTER TABLE $tableDailyChallenges ADD COLUMN $columnSessionElapsedSeconds INTEGER',
+      );
+    }
+  }
+
+  Future<void> _ensureDailyChallengeTargetHoldSecondsColumn(
+    DatabaseExecutor db,
+  ) async {
+    if (!await _columnExists(
+      db: db,
+      tableName: tableDailyChallenges,
+      columnName: columnTargetHoldSeconds,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tableDailyChallenges ADD COLUMN $columnTargetHoldSeconds INTEGER',
       );
     }
   }

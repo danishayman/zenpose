@@ -25,6 +25,8 @@ class DailyChallengeStepProcessResult {
   });
 }
 
+enum DailyChallengeUserLevel { beginner, intermediate, advanced }
+
 /// Local offline daily challenge orchestration.
 class DailyChallengeService {
   final DatabaseService _databaseService;
@@ -43,10 +45,18 @@ class DailyChallengeService {
   static const int maxSkips = 1;
   static const int transitionSeconds =
       SessionLaunchConfig.preSessionCountdownSeconds;
+  // Legacy/default fallback for challenge rows created before level-based
+  // hold durations were introduced.
   static const Duration challengeHoldDuration = Duration(seconds: 45);
   static const Duration challengeRestDuration = Duration(seconds: 30);
   static const double challengeScoreThreshold = 70;
   static const double caloriesPerActiveSecond = 0.08;
+
+  static const int beginnerMaxXp = 999;
+  static const int intermediateMaxXp = 2999;
+  static const int beginnerChallengeHoldSeconds = 20;
+  static const int intermediateChallengeHoldSeconds = 35;
+  static const int advancedChallengeHoldSeconds = 45;
 
   static String dateKeyFromDate(DateTime date) {
     final local = date.toLocal();
@@ -69,6 +79,36 @@ class DailyChallengeService {
   }
 
   static bool canSkip(int currentSkipCount) => currentSkipCount < maxSkips;
+
+  static DailyChallengeUserLevel levelFromXp(int totalXp) {
+    if (totalXp <= beginnerMaxXp) {
+      return DailyChallengeUserLevel.beginner;
+    }
+    if (totalXp <= intermediateMaxXp) {
+      return DailyChallengeUserLevel.intermediate;
+    }
+    return DailyChallengeUserLevel.advanced;
+  }
+
+  static int holdSecondsForLevel(DailyChallengeUserLevel level) {
+    return switch (level) {
+      DailyChallengeUserLevel.beginner => beginnerChallengeHoldSeconds,
+      DailyChallengeUserLevel.intermediate => intermediateChallengeHoldSeconds,
+      DailyChallengeUserLevel.advanced => advancedChallengeHoldSeconds,
+    };
+  }
+
+  static int holdSecondsForXp(int totalXp) {
+    return holdSecondsForLevel(levelFromXp(totalXp));
+  }
+
+  static int targetHoldSecondsForChallenge(DailyChallenge challenge) {
+    return challenge.targetHoldSeconds ?? challengeHoldDuration.inSeconds;
+  }
+
+  static Duration targetHoldDurationForChallenge(DailyChallenge challenge) {
+    return Duration(seconds: targetHoldSecondsForChallenge(challenge));
+  }
 
   static bool isStepPassing({
     required double bestScore,
@@ -125,11 +165,14 @@ class DailyChallengeService {
     );
 
     final createdAt = DateTime.now();
+    final userStats = await _databaseService.getUserStats();
+    final targetHoldSeconds = holdSecondsForXp(userStats.totalXp);
     final challenge = DailyChallenge(
       dateKey: dateKey,
       status: DailyChallengeStatus.inProgress,
       skipCount: 0,
       totalSteps: sequence.length,
+      targetHoldSeconds: targetHoldSeconds,
       startedAt: createdAt,
       completedAt: null,
       updatedAt: createdAt,
@@ -206,12 +249,14 @@ class DailyChallengeService {
     required ChallengeStepResult stepResult,
     bool allowOverwrite = false,
   }) async {
+    final bundle = await getOrCreateChallenge(dateKey: dateKey);
+    final requiredHold = targetHoldDurationForChallenge(bundle.challenge);
     if (!stepResult.passed ||
         !isStepPassing(
           bestScore: stepResult.bestScore,
           holdDurationSeconds: stepResult.holdDuration,
+          requiredHold: requiredHold,
         )) {
-      final bundle = await _refreshBundle(dateKey);
       return DailyChallengeStepProcessResult(
         bundle: bundle,
         xpGained: 0,
@@ -220,7 +265,6 @@ class DailyChallengeService {
       );
     }
 
-    final bundle = await getOrCreateChallenge(dateKey: dateKey);
     final step = bundle.steps.firstWhere((s) => s.stepIndex == stepIndex);
     final isPending = step.status == DailyChallengeStepStatus.pending;
     if (!isPending && !allowOverwrite) {
@@ -336,7 +380,11 @@ class DailyChallengeService {
   }) async {
     final bundle = await _refreshBundle(dateKey);
     final avgScore = _computeAverageScore(bundle.steps);
-    final activeSeconds = _computeActiveExerciseSeconds(bundle.steps);
+    final fallbackHoldSeconds = targetHoldSecondsForChallenge(bundle.challenge);
+    final activeSeconds = _computeActiveExerciseSeconds(
+      bundle.steps,
+      fallbackHoldSeconds: fallbackHoldSeconds,
+    );
     final calories = double.parse(
       (activeSeconds * caloriesPerActiveSecond).toStringAsFixed(1),
     );
@@ -416,15 +464,17 @@ class DailyChallengeService {
     return double.parse((total / scores.length).toStringAsFixed(1));
   }
 
-  static int _computeActiveExerciseSeconds(List<DailyChallengeStep> steps) {
+  static int _computeActiveExerciseSeconds(
+    List<DailyChallengeStep> steps, {
+    required int fallbackHoldSeconds,
+  }) {
     final completed = steps
         .where((s) => s.status == DailyChallengeStepStatus.completed)
         .toList(growable: false);
     if (completed.isEmpty) return 0;
     var seconds = 0.0;
     for (final step in completed) {
-      seconds +=
-          step.holdDuration ?? challengeHoldDuration.inSeconds.toDouble();
+      seconds += step.holdDuration ?? fallbackHoldSeconds.toDouble();
     }
     return seconds.round();
   }

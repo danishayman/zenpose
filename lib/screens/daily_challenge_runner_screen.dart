@@ -90,9 +90,10 @@ class _DailyChallengeRunnerScreenState
 
   Widget _buildOverview(DailyChallengeBundle bundle) {
     final exerciseCount = bundle.steps.length;
+    final challengeHoldSeconds =
+        DailyChallengeService.targetHoldSecondsForChallenge(bundle.challenge);
     final durationSecs =
-        (exerciseCount *
-            DailyChallengeService.challengeHoldDuration.inSeconds) +
+        (exerciseCount * challengeHoldSeconds) +
         ((exerciseCount - 1).clamp(0, 999) *
             DailyChallengeService.challengeRestDuration.inSeconds);
     final durationMins = (durationSecs / 60).ceil();
@@ -124,7 +125,12 @@ class _DailyChallengeRunnerScreenState
               const SizedBox(height: 20),
               Text('Exercises', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 10),
-              ...bundle.steps.map((step) => _exerciseTile(step)),
+              ...bundle.steps.map(
+                (step) => _exerciseTile(
+                  step,
+                  targetHoldSeconds: challengeHoldSeconds,
+                ),
+              ),
             ],
           ),
         ),
@@ -179,7 +185,10 @@ class _DailyChallengeRunnerScreenState
     );
   }
 
-  Widget _exerciseTile(DailyChallengeStep step) {
+  Widget _exerciseTile(
+    DailyChallengeStep step, {
+    required int targetHoldSeconds,
+  }) {
     final template = _templatesByName[step.poseName];
     final statusIcon = switch (step.status) {
       DailyChallengeStepStatus.completed => Icons.check_circle_rounded,
@@ -241,8 +250,8 @@ class _DailyChallengeRunnerScreenState
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  '00:45',
+                Text(
+                  _formatDurationClock(targetHoldSeconds),
                   style: TextStyle(
                     fontFamily: 'Manrope',
                     color: ZenColors.textMuted,
@@ -254,5 +263,11 @@ class _DailyChallengeRunnerScreenState
         ],
       ),
     );
+  }
+
+  String _formatDurationClock(int seconds) {
+    final mins = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 }

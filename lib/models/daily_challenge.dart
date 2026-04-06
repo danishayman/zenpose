@@ -30,6 +30,7 @@ class DailyChallenge {
   final DailyChallengeStatus status;
   final int skipCount;
   final int totalSteps;
+  final int? targetHoldSeconds;
   final DateTime? startedAt;
   final DateTime? completedAt;
   final DateTime? updatedAt;
@@ -44,6 +45,7 @@ class DailyChallenge {
     required this.status,
     required this.skipCount,
     required this.totalSteps,
+    this.targetHoldSeconds,
     required this.startedAt,
     required this.completedAt,
     required this.updatedAt,
@@ -64,6 +66,7 @@ class DailyChallenge {
       ),
       skipCount: _toInt(map['skip_count']),
       totalSteps: _toInt(map['total_steps']),
+      targetHoldSeconds: _toIntOrNull(map['target_hold_seconds']),
       startedAt: _toDateTime(map['started_at']),
       completedAt: _toDateTime(map['completed_at']),
       updatedAt: _toDateTime(map['updated_at']),
@@ -81,6 +84,7 @@ class DailyChallenge {
       'status': status.dbValue,
       'skip_count': skipCount,
       'total_steps': totalSteps,
+      'target_hold_seconds': targetHoldSeconds,
       'started_at': startedAt?.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
@@ -95,6 +99,7 @@ class DailyChallenge {
   DailyChallenge copyWith({
     DailyChallengeStatus? status,
     int? skipCount,
+    int? targetHoldSeconds,
     DateTime? startedAt,
     DateTime? completedAt,
     DateTime? updatedAt,
@@ -108,6 +113,7 @@ class DailyChallenge {
       status: status ?? this.status,
       skipCount: skipCount ?? this.skipCount,
       totalSteps: totalSteps,
+      targetHoldSeconds: targetHoldSeconds ?? this.targetHoldSeconds,
       startedAt: startedAt ?? this.startedAt,
       completedAt: completedAt ?? this.completedAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -115,7 +121,8 @@ class DailyChallenge {
       sessionAvgScore: sessionAvgScore ?? this.sessionAvgScore,
       sessionCalories: sessionCalories ?? this.sessionCalories,
       sessionFeedback: sessionFeedback ?? this.sessionFeedback,
-      sessionElapsedSeconds: sessionElapsedSeconds ?? this.sessionElapsedSeconds,
+      sessionElapsedSeconds:
+          sessionElapsedSeconds ?? this.sessionElapsedSeconds,
     );
   }
 

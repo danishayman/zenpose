@@ -48,6 +48,7 @@ void main() {
       status: DailyChallengeStatus.inProgress,
       skipCount: 0,
       totalSteps: 1,
+      targetHoldSeconds: 20,
       startedAt: now,
       completedAt: null,
       updatedAt: now,
@@ -83,6 +84,7 @@ void main() {
 
     expect(find.text('Start'), findsOneWidget);
     expect(find.text('Get Ready'), findsNothing);
+    expect(find.text('00:20'), findsOneWidget);
     expect(find.byType(PoseThumbnailImage), findsWidgets);
     expect(find.byType(PoseDemoAnimation), findsNothing);
 
