@@ -63,6 +63,12 @@ class PreSessionCountdownPanel extends StatefulWidget {
   final bool compact;
   final bool showStartNowButton;
   final String startNowLabel;
+  final bool showHoldDurationPicker;
+  final int initialHoldSeconds;
+  final int minHoldSeconds;
+  final int maxHoldSeconds;
+  final int holdStepSeconds;
+  final ValueChanged<int>? onHoldSecondsChanged;
 
   const PreSessionCountdownPanel({
     super.key,
@@ -72,6 +78,12 @@ class PreSessionCountdownPanel extends StatefulWidget {
     this.compact = false,
     this.showStartNowButton = false,
     this.startNowLabel = 'Start Now',
+    this.showHoldDurationPicker = false,
+    this.initialHoldSeconds = 45,
+    this.minHoldSeconds = 10,
+    this.maxHoldSeconds = 120,
+    this.holdStepSeconds = 5,
+    this.onHoldSecondsChanged,
   });
 
   @override
@@ -82,12 +94,14 @@ class PreSessionCountdownPanel extends StatefulWidget {
 class _PreSessionCountdownPanelState extends State<PreSessionCountdownPanel> {
   Timer? _timer;
   late int _remaining;
+  late int _selectedHoldSeconds;
   bool _completed = false;
 
   @override
   void initState() {
     super.initState();
     _remaining = widget.countdownSeconds;
+    _selectedHoldSeconds = _clampHoldSeconds(widget.initialHoldSeconds);
     _startTimer();
   }
 
@@ -99,6 +113,9 @@ class _PreSessionCountdownPanelState extends State<PreSessionCountdownPanel> {
       _remaining = widget.countdownSeconds;
       _completed = false;
       _startTimer();
+    }
+    if (oldWidget.initialHoldSeconds != widget.initialHoldSeconds) {
+      _selectedHoldSeconds = _clampHoldSeconds(widget.initialHoldSeconds);
     }
   }
 
@@ -142,6 +159,29 @@ class _PreSessionCountdownPanelState extends State<PreSessionCountdownPanel> {
     _notifyComplete();
   }
 
+  int _clampHoldSeconds(int value) {
+    final min = widget.minHoldSeconds;
+    final max = widget.maxHoldSeconds;
+    return value.clamp(min, max).toInt();
+  }
+
+  int _snapToStep(double value) {
+    final clamped = value.clamp(
+      widget.minHoldSeconds.toDouble(),
+      widget.maxHoldSeconds.toDouble(),
+    );
+    final stepped = ((clamped - widget.minHoldSeconds) / widget.holdStepSeconds)
+        .round();
+    return widget.minHoldSeconds + (stepped * widget.holdStepSeconds);
+  }
+
+  void _setHoldSeconds(double value) {
+    final next = _clampHoldSeconds(_snapToStep(value));
+    if (next == _selectedHoldSeconds) return;
+    setState(() => _selectedHoldSeconds = next);
+    widget.onHoldSecondsChanged?.call(next);
+  }
+
   @override
   Widget build(BuildContext context) {
     final headlineStyle = widget.compact
@@ -153,59 +193,108 @@ class _PreSessionCountdownPanelState extends State<PreSessionCountdownPanel> {
     return Container(
       decoration: ZenDecor.elevatedCard(),
       padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Get Ready', style: headlineStyle),
-          const SizedBox(height: 4),
-          Text(
-            'Watch the pose demo. Camera opens automatically.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 14),
-          PoseDemoAnimation(template: widget.template, height: demoHeight),
-          const SizedBox(height: 14),
-          Center(
-            child: Column(
-              children: [
-                Text(
-                  _remaining > 0 ? '$_remaining' : 'GO',
-                  style: TextStyle(
-                    fontFamily: 'Manrope',
-                    fontSize: countdownSize,
-                    fontWeight: FontWeight.w800,
-                    color: ZenColors.teal,
-                    height: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _remaining > 0 ? 'Opening camera in...' : 'Launching...',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                if (widget.showStartNowButton && _remaining > 0) ...[
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: _startNow,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: ZenColors.teal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 10,
-                      ),
-                      textStyle: const TextStyle(
-                        fontFamily: 'Manrope',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    child: Text(widget.startNowLabel),
-                  ),
-                ],
-              ],
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Get Ready', style: headlineStyle),
+            const SizedBox(height: 4),
+            Text(
+              'Watch the pose demo. Camera opens automatically.',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            PoseDemoAnimation(template: widget.template, height: demoHeight),
+            if (widget.showHoldDurationPicker) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 2),
+                decoration: BoxDecoration(
+                  color: ZenColors.surface1,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: ZenColors.sage200.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Pose hold',
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${_selectedHoldSeconds}s',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: ZenColors.teal,
+                                fontWeight: FontWeight.w800,
+                                fontFamily: 'Manrope',
+                              ),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      min: widget.minHoldSeconds.toDouble(),
+                      max: widget.maxHoldSeconds.toDouble(),
+                      divisions:
+                          ((widget.maxHoldSeconds - widget.minHoldSeconds) /
+                                  widget.holdStepSeconds)
+                              .round(),
+                      value: _selectedHoldSeconds.toDouble(),
+                      label: '${_selectedHoldSeconds}s',
+                      onChanged: _setHoldSeconds,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    _remaining > 0 ? '$_remaining' : 'GO',
+                    style: TextStyle(
+                      fontFamily: 'Manrope',
+                      fontSize: countdownSize,
+                      fontWeight: FontWeight.w800,
+                      color: ZenColors.teal,
+                      height: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _remaining > 0 ? 'Opening camera in...' : 'Launching...',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  if (widget.showStartNowButton && _remaining > 0) ...[
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: _startNow,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: ZenColors.teal,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 10,
+                        ),
+                        textStyle: const TextStyle(
+                          fontFamily: 'Manrope',
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: Text(widget.startNowLabel),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

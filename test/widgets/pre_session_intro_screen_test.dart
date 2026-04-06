@@ -25,7 +25,7 @@ void main() {
         home: PreSessionIntroScreen(
           template: _template(),
           countdownSeconds: SessionLaunchConfig.preSessionCountdownSeconds,
-          destinationBuilder: (context, template) {
+          destinationBuilder: (context, template, holdDuration) {
             destinationBuilds += 1;
             return const Scaffold(body: Center(child: Text('DESTINATION')));
           },

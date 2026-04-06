@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/pose_template.dart';
+import '../models/pose_session_config.dart';
 import '../theme/zen_theme.dart';
 import '../widgets/zen_pose_card.dart';
 import '../widgets/zen_primary_button.dart';
@@ -170,9 +171,18 @@ class PoseDetailScreen extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (_) => PreSessionIntroScreen(
                       template: template,
-                      destinationBuilder: (_, poseTemplate) =>
+                      destinationBuilder: (_, poseTemplate, holdDuration) =>
                           sessionScreenBuilder?.call(poseTemplate) ??
-                          MainScreen(poseTemplate: poseTemplate),
+                          MainScreen(
+                            poseTemplate: poseTemplate,
+                            sessionConfig: PoseSessionConfig(
+                              mode: PoseSessionMode.holdThreshold,
+                              holdDuration: holdDuration,
+                              scoreThreshold: PoseSessionConfig
+                                  .defaultPractice
+                                  .scoreThreshold,
+                            ),
+                          ),
                     ),
                   ),
                 ),
