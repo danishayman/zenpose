@@ -126,7 +126,7 @@ select
       end,
     'YYYY-MM-DD'
   ) as last_active_date,
-  timezone('utc', current_date + time '23:40') as updated_at
+  timezone('utc', current_date + time '23:59:59') as updated_at
 from _demo_users d;
 
 insert into public.weekly_workout_goals (
@@ -141,7 +141,7 @@ select
     when 'intermediate' then 4
     when 'pro' then 7
   end as target_workouts,
-  timezone('utc', current_date + time '23:45') as updated_at
+  timezone('utc', current_date + time '23:59:58') as updated_at
 from _demo_users d;
 
 -- 3) Pose results (drives profile activity + dashboard analytics).
@@ -184,6 +184,7 @@ insert into public.pose_results (
   hold_duration,
   completed,
   "timestamp",
+  session_type,
   gamification_processed,
   updated_at
 )
@@ -225,6 +226,7 @@ select
           + (((s.day_idx + s.session_in_day) % 5) * interval '10 minute')
       )
   end as "timestamp",
+  'practice'::text as session_type,
   true as gamification_processed,
   case s.persona
     when 'beginner' then

@@ -6,6 +6,7 @@ import 'package:zenpose/models/daily_challenge_step.dart';
 import 'package:zenpose/models/pose_result.dart';
 import 'package:zenpose/models/pose_template.dart';
 import 'package:zenpose/models/profile_challenge_models.dart';
+import 'package:zenpose/models/session_history_entry.dart';
 import 'package:zenpose/models/user_stats.dart';
 import 'package:zenpose/models/weekly_workout_goal.dart';
 import 'package:zenpose/screens/home_screen.dart';
@@ -38,6 +39,50 @@ void main() {
       timestamp: DateTime(2026, 3, 24, 9, 0),
     ),
   ];
+  final homeHistory = <SessionHistoryEntry>[
+    SessionHistoryEntry(
+      sessionId: 'challenge:2026-03-29',
+      kind: SessionHistoryKind.challenge,
+      activityAt: DateTime(2026, 3, 29, 10, 30),
+      startedAt: DateTime(2026, 3, 29, 10, 0),
+      completed: false,
+      durationSeconds: 95,
+      averageScore: 84,
+      isLegacyPractice: false,
+      poses: const <SessionHistoryPoseEntry>[
+        SessionHistoryPoseEntry(
+          poseName: 'Tree',
+          status: SessionHistoryPoseStatus.completed,
+          bestScore: 84,
+          holdDurationSeconds: 45,
+        ),
+        SessionHistoryPoseEntry(
+          poseName: 'Plank',
+          status: SessionHistoryPoseStatus.pending,
+          bestScore: null,
+          holdDurationSeconds: null,
+        ),
+      ],
+    ),
+    SessionHistoryEntry(
+      sessionId: 'practice:1',
+      kind: SessionHistoryKind.practice,
+      activityAt: DateTime(2026, 3, 28, 20, 0),
+      startedAt: DateTime(2026, 3, 28, 20, 0),
+      completed: true,
+      durationSeconds: 180,
+      averageScore: 88,
+      isLegacyPractice: true,
+      poses: const <SessionHistoryPoseEntry>[
+        SessionHistoryPoseEntry(
+          poseName: 'Downdog',
+          status: SessionHistoryPoseStatus.completed,
+          bestScore: 88,
+          holdDurationSeconds: 180,
+        ),
+      ],
+    ),
+  ];
 
   WidgetBuilder testStreakBuilder() =>
       (_) => StreakCalendarScreen(
@@ -55,7 +100,8 @@ void main() {
           loadTodayChallenge: () async => challengeBundle,
           loadUserStats: () async => baseStats,
           loadBadgeCount: () async => 1,
-          loadSessionHistory: () async => completedResults,
+          loadSessionHistory: () async => homeHistory,
+          loadPoseTemplates: () async => const <PoseTemplate>[],
           streakCalendarBuilder: testStreakBuilder(),
         ),
       ),
@@ -102,7 +148,8 @@ void main() {
           loadTodayChallenge: () async => challengeBundle,
           loadUserStats: () async => baseStats,
           loadBadgeCount: () async => 1,
-          loadSessionHistory: () async => completedResults,
+          loadSessionHistory: () async => homeHistory,
+          loadPoseTemplates: () async => const <PoseTemplate>[],
           streakCalendarBuilder: testStreakBuilder(),
         ),
       ),
@@ -110,10 +157,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Session History'), findsOneWidget);
-    expect(find.textContaining('Mar 27, 2026'), findsOneWidget);
-    expect(find.textContaining('Mar 24, 2026'), findsOneWidget);
-    expect(find.text('88%'), findsOneWidget);
-    expect(find.text('84%'), findsOneWidget);
+    expect(find.text('Daily Yoga Flow'), findsOneWidget);
+    expect(find.text('Practice Session'), findsOneWidget);
+    expect(find.text('In Progress'), findsOneWidget);
+    expect(find.text('Avg Score'), findsNWidgets(2));
+    expect(find.text('Poses'), findsNWidgets(2));
+    expect(find.text('84%'), findsWidgets);
   });
 
   testWidgets('home screen session history empty state appears', (
@@ -127,7 +176,8 @@ void main() {
           loadTodayChallenge: () async => challengeBundle,
           loadUserStats: () async => baseStats,
           loadBadgeCount: () async => 1,
-          loadSessionHistory: () async => const <PoseResult>[],
+          loadSessionHistory: () async => const <SessionHistoryEntry>[],
+          loadPoseTemplates: () async => const <PoseTemplate>[],
           streakCalendarBuilder: testStreakBuilder(),
         ),
       ),
@@ -252,7 +302,8 @@ void main() {
           loadTodayChallenge: () async => challengeBundle,
           loadUserStats: () async => baseStats,
           loadBadgeCount: () async => 1,
-          loadSessionHistory: () async => completedResults,
+          loadSessionHistory: () async => homeHistory,
+          loadPoseTemplates: () async => const <PoseTemplate>[],
           streakCalendarBuilder: testStreakBuilder(),
         ),
       ),

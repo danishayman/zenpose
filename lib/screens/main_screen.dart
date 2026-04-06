@@ -621,8 +621,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     if (_isSavingResult) return;
     _isSavingResult = true;
     try {
-      final insertedId = await _databaseService.insertPoseResult(result);
-      final persistedResult = result.copyWith(id: insertedId);
+      final practiceResult = result.copyWith(
+        sessionType: PoseResultSessionType.practice,
+      );
+      final insertedId = await _databaseService.insertPoseResult(
+        practiceResult,
+      );
+      final persistedResult = practiceResult.copyWith(id: insertedId);
       final gamificationResult = await _gamificationService
           .processCompletedSession(persistedResult);
       _lastXpGainedNotifier.value = gamificationResult.xpGained;

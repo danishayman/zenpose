@@ -2,6 +2,30 @@
 ///
 /// [bestScore] is the best similarity score (0–100) achieved during the
 /// session. [holdDuration] is in seconds.
+enum PoseResultSessionType { challenge, practice }
+
+extension PoseResultSessionTypeX on PoseResultSessionType {
+  String get dbValue {
+    switch (this) {
+      case PoseResultSessionType.challenge:
+        return 'challenge';
+      case PoseResultSessionType.practice:
+        return 'practice';
+    }
+  }
+
+  static PoseResultSessionType? fromDbValue(String? value) {
+    switch (value) {
+      case 'challenge':
+        return PoseResultSessionType.challenge;
+      case 'practice':
+        return PoseResultSessionType.practice;
+      default:
+        return null;
+    }
+  }
+}
+
 class PoseResult {
   final int? id;
   final String poseName;
@@ -9,6 +33,7 @@ class PoseResult {
   final double holdDuration;
   final bool completed;
   final DateTime? timestamp;
+  final PoseResultSessionType? sessionType;
 
   const PoseResult({
     this.id,
@@ -17,6 +42,7 @@ class PoseResult {
     required this.holdDuration,
     required this.completed,
     this.timestamp,
+    this.sessionType,
   });
 
   factory PoseResult.fromMap(Map<String, Object?> map) {
@@ -32,6 +58,9 @@ class PoseResult {
       holdDuration: _toDouble(map['hold_duration']),
       completed: _toBool(map['completed']),
       timestamp: _toDateTime(map['timestamp']),
+      sessionType: PoseResultSessionTypeX.fromDbValue(
+        map['session_type']?.toString(),
+      ),
     );
   }
 
@@ -42,6 +71,7 @@ class PoseResult {
       'hold_duration': holdDuration,
       'completed': completed ? 1 : 0,
       'timestamp': timestamp?.toIso8601String(),
+      'session_type': sessionType?.dbValue,
     };
     if (includeId && id != null) {
       map['id'] = id;
@@ -56,6 +86,7 @@ class PoseResult {
     double? holdDuration,
     bool? completed,
     DateTime? timestamp,
+    PoseResultSessionType? sessionType,
   }) {
     return PoseResult(
       id: id ?? this.id,
@@ -64,6 +95,7 @@ class PoseResult {
       holdDuration: holdDuration ?? this.holdDuration,
       completed: completed ?? this.completed,
       timestamp: timestamp ?? this.timestamp,
+      sessionType: sessionType ?? this.sessionType,
     );
   }
 

@@ -24,7 +24,7 @@ void main() {
     await deleteDatabase(path);
   });
 
-  test('migrates v1 database to v7 while preserving pose_results', () async {
+  test('migrates v1 database to v8 while preserving pose_results', () async {
     final path = await dbPathForTest();
 
     final legacyDb = await openDatabase(
@@ -60,6 +60,10 @@ void main() {
     expect(
       poseRows.first[DatabaseService.columnGamificationProcessed],
       equals(0),
+    );
+    expect(
+      poseRows.first.containsKey(DatabaseService.columnSessionType),
+      isTrue,
     );
     expect(poseRows.first[DatabaseService.columnRecordId], isNotNull);
     expect(poseRows.first[DatabaseService.columnUserId], isNotNull);
@@ -113,7 +117,7 @@ void main() {
   });
 
   test(
-    'initializes v7 tables and default progress tracking rows on fresh database',
+    'initializes v8 tables and default progress tracking rows on fresh database',
     () async {
       final db = await DatabaseService.instance.database;
 
@@ -123,7 +127,7 @@ void main() {
       expect(statsRows.first[DatabaseService.columnTotalXp], equals(0));
       expect(statsRows.first[DatabaseService.columnUserId], isNotNull);
       expect(statsRows.first[DatabaseService.columnUpdatedAt], isNotNull);
-      expect(statsRows.first[DatabaseService.columnIsSynced], equals(0));
+      expect(statsRows.first[DatabaseService.columnIsSynced], equals(1));
 
       final badgeRows = await db.query(DatabaseService.tableBadges);
       expect(badgeRows.length, greaterThanOrEqualTo(3));
@@ -153,6 +157,18 @@ void main() {
       expect(names.contains(DatabaseService.columnSessionFeedback), isTrue);
       expect(
         names.contains(DatabaseService.columnSessionElapsedSeconds),
+        isTrue,
+      );
+
+      final poseColumns = await db.rawQuery(
+        'PRAGMA table_info(${DatabaseService.tablePoseResults})',
+      );
+      final poseColumnNames = poseColumns
+          .map((row) => row['name']?.toString())
+          .whereType<String>()
+          .toSet();
+      expect(
+        poseColumnNames.contains(DatabaseService.columnSessionType),
         isTrue,
       );
 

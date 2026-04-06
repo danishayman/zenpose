@@ -11,6 +11,7 @@ import '../models/badge_definition.dart';
 import '../models/body_measurement.dart';
 import '../models/pose_result.dart';
 import '../models/profile_challenge_models.dart';
+import '../models/session_history_entry.dart';
 import '../models/unlocked_badge.dart';
 import '../models/user_stats.dart';
 import '../models/weekly_workout_goal.dart';
@@ -31,7 +32,7 @@ class DatabaseService {
     _databaseNameOverrideForTesting = fileName;
   }
 
-  static const int databaseVersion = 7;
+  static const int databaseVersion = 8;
 
   static const String tablePoseResults = 'pose_results';
   static const String columnId = 'id';
@@ -42,6 +43,7 @@ class DatabaseService {
   static const String columnHoldDuration = 'hold_duration';
   static const String columnCompleted = 'completed';
   static const String columnTimestamp = 'timestamp';
+  static const String columnSessionType = 'session_type';
   static const String columnGamificationProcessed = 'gamification_processed';
   static const String columnUpdatedAt = 'updated_at';
   static const String columnIsSynced = 'is_synced';
@@ -131,6 +133,7 @@ class DatabaseService {
         $columnHoldDuration REAL,
         $columnCompleted INTEGER,
         $columnTimestamp TEXT,
+        $columnSessionType TEXT,
         $columnGamificationProcessed INTEGER NOT NULL DEFAULT 0,
         $columnUpdatedAt TEXT NOT NULL,
         $columnIsSynced INTEGER NOT NULL DEFAULT 0
@@ -168,6 +171,9 @@ class DatabaseService {
     if (oldVersion < 7) {
       await _migrateToV7(db);
     }
+    if (oldVersion < 8) {
+      await _migrateToV8(db);
+    }
     await _createGamificationTables(db);
     await _createDailyChallengeTables(db);
     await _createProgressTrackingTables(db);
@@ -188,6 +194,18 @@ class DatabaseService {
 
   Future<void> _migrateToV7(Database db) async {
     await _createProgressTrackingTables(db);
+  }
+
+  Future<void> _migrateToV8(Database db) async {
+    if (!await _columnExists(
+      db: db,
+      tableName: tablePoseResults,
+      columnName: columnSessionType,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tablePoseResults ADD COLUMN $columnSessionType TEXT',
+      );
+    }
   }
 
   Future<void> _migrateToV4(Database db) async {
@@ -425,14 +443,17 @@ class DatabaseService {
       limit: 1,
     );
     if (rows.isNotEmpty) return;
+    // Bootstrap rows should not win sync conflict resolution against remote
+    // seeded/demo data. Mark them synced with an old timestamp so remote
+    // values can be pulled first when available.
     await db.insert(tableUserStats, <String, Object?>{
       columnUserId: _activeUserId,
       columnCurrentStreak: 0,
       columnLongestStreak: 0,
       columnTotalXp: 0,
       columnLastActiveDate: null,
-      columnUpdatedAt: _nowIso(),
-      columnIsSynced: 0,
+      columnUpdatedAt: _bootstrapIso(),
+      columnIsSynced: 1,
     }, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
@@ -444,11 +465,12 @@ class DatabaseService {
       limit: 1,
     );
     if (rows.isNotEmpty) return;
+    // Same sync bootstrap behavior as _ensureUserStatsRow.
     await db.insert(tableWeeklyWorkoutGoals, <String, Object?>{
       columnUserId: _activeUserId,
       columnTargetWorkouts: 3,
-      columnUpdatedAt: _nowIso(),
-      columnIsSynced: 0,
+      columnUpdatedAt: _bootstrapIso(),
+      columnIsSynced: 1,
     }, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
@@ -710,6 +732,115 @@ class DatabaseService {
       orderBy: '$columnTimestamp DESC',
     );
     return rows.map(PoseResult.fromMap).toList();
+  }
+
+  Future<List<SessionHistoryEntry>> getHomeSessionHistory() async {
+    final db = await database;
+    final challengeRows = await db.query(
+      tableDailyChallenges,
+      where: '$columnUserId = ?',
+      whereArgs: <Object?>[_activeUserId],
+      orderBy: '$columnUpdatedAt DESC',
+    );
+    final stepRows = await db.query(
+      tableDailyChallengeSteps,
+      where: '$columnUserId = ?',
+      whereArgs: <Object?>[_activeUserId],
+      orderBy: '$columnDateKey ASC, $columnStepIndex ASC',
+    );
+
+    final stepsByDateKey = <String, List<DailyChallengeStep>>{};
+    for (final row in stepRows) {
+      final step = DailyChallengeStep.fromMap(row);
+      stepsByDateKey
+          .putIfAbsent(step.dateKey, () => <DailyChallengeStep>[])
+          .add(step);
+    }
+
+    final entries = <SessionHistoryEntry>[];
+    for (final challengeRow in challengeRows) {
+      final challenge = DailyChallenge.fromMap(challengeRow);
+      final steps = List<DailyChallengeStep>.from(
+        stepsByDateKey[challenge.dateKey] ?? const <DailyChallengeStep>[],
+      )..sort((a, b) => a.stepIndex.compareTo(b.stepIndex));
+      if (steps.isEmpty) continue;
+
+      final poses = steps
+          .map((step) {
+            return SessionHistoryPoseEntry(
+              poseName: step.poseName,
+              status: _mapStepStatus(step.status),
+              bestScore: step.bestScore,
+              holdDurationSeconds: step.holdDuration,
+            );
+          })
+          .toList(growable: false);
+      final durationSeconds =
+          challenge.sessionElapsedSeconds ?? _sumPoseDurationsSeconds(poses);
+      final averageScore =
+          challenge.sessionAvgScore ?? _averagePoseScore(poses);
+      final activityAt =
+          challenge.updatedAt ?? challenge.completedAt ?? challenge.startedAt;
+      final safeActivityAt =
+          activityAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+      final entry = SessionHistoryEntry(
+        sessionId: 'challenge:${challenge.dateKey}',
+        kind: SessionHistoryKind.challenge,
+        activityAt: safeActivityAt,
+        startedAt: challenge.startedAt,
+        completed: challenge.isCompleted,
+        durationSeconds: durationSeconds,
+        averageScore: averageScore,
+        isLegacyPractice: false,
+        poses: poses,
+      );
+      if (entry.hasStarted) {
+        entries.add(entry);
+      }
+    }
+
+    final practiceRows = await db.query(
+      tablePoseResults,
+      where:
+          '$columnUserId = ? AND ($columnSessionType = ? OR $columnSessionType IS NULL)',
+      whereArgs: <Object?>[
+        _activeUserId,
+        PoseResultSessionType.practice.dbValue,
+      ],
+      orderBy: '$columnTimestamp DESC',
+    );
+    for (final row in practiceRows) {
+      final result = PoseResult.fromMap(row);
+      final occurredAt =
+          result.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+      entries.add(
+        SessionHistoryEntry(
+          sessionId:
+              'practice:${result.id ?? row[columnRecordId] ?? occurredAt.microsecondsSinceEpoch}',
+          kind: SessionHistoryKind.practice,
+          activityAt: occurredAt,
+          startedAt: occurredAt,
+          completed: result.completed,
+          durationSeconds: result.holdDuration.round(),
+          averageScore: result.bestScore,
+          isLegacyPractice: result.sessionType == null,
+          poses: <SessionHistoryPoseEntry>[
+            SessionHistoryPoseEntry(
+              poseName: result.poseName,
+              status: result.completed
+                  ? SessionHistoryPoseStatus.completed
+                  : SessionHistoryPoseStatus.pending,
+              bestScore: result.bestScore,
+              holdDurationSeconds: result.holdDuration,
+            ),
+          ],
+        ),
+      );
+    }
+
+    entries.sort((a, b) => b.activityAt.compareTo(a.activityAt));
+    return entries;
   }
 
   Future<PoseResult?> getPoseResultById(int id) async {
@@ -982,6 +1113,36 @@ class DatabaseService {
     notifyLocalMutation();
   }
 
+  SessionHistoryPoseStatus _mapStepStatus(DailyChallengeStepStatus status) {
+    switch (status) {
+      case DailyChallengeStepStatus.completed:
+        return SessionHistoryPoseStatus.completed;
+      case DailyChallengeStepStatus.skipped:
+        return SessionHistoryPoseStatus.skipped;
+      case DailyChallengeStepStatus.pending:
+        return SessionHistoryPoseStatus.pending;
+    }
+  }
+
+  int _sumPoseDurationsSeconds(List<SessionHistoryPoseEntry> poses) {
+    var totalSeconds = 0.0;
+    for (final pose in poses) {
+      totalSeconds += pose.holdDurationSeconds ?? 0.0;
+    }
+    return totalSeconds.round();
+  }
+
+  double? _averagePoseScore(List<SessionHistoryPoseEntry> poses) {
+    final completedScores = poses
+        .where((pose) => pose.status == SessionHistoryPoseStatus.completed)
+        .map((pose) => pose.bestScore)
+        .whereType<double>()
+        .toList(growable: false);
+    if (completedScores.isEmpty) return null;
+    final total = completedScores.fold<double>(0, (sum, score) => sum + score);
+    return double.parse((total / completedScores.length).toStringAsFixed(1));
+  }
+
   Future<List<UserProfileChallengeState>> getProfileChallengeStatesForMonth(
     String monthKey,
   ) async {
@@ -1139,6 +1300,9 @@ class DatabaseService {
   }
 
   String _nowIso() => DateTime.now().toUtc().toIso8601String();
+
+  String _bootstrapIso() =>
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true).toIso8601String();
 
   String _generateRecordId() {
     final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(16);

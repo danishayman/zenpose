@@ -185,8 +185,8 @@ class DailyChallengeService {
 
     await _databaseService.updateDailyChallenge(
       bundle.challenge.copyWith(
-      skipCount: bundle.challenge.skipCount + 1,
-      updatedAt: now,
+        skipCount: bundle.challenge.skipCount + 1,
+        updatedAt: now,
       ),
     );
     await _syncChallengeCompletion(dateKey: dateKey, now: now);
@@ -251,6 +251,7 @@ class DailyChallengeService {
         holdDuration: stepResult.holdDuration,
         completed: true,
         timestamp: now,
+        sessionType: PoseResultSessionType.challenge,
       );
       final insertedId = await _databaseService.insertPoseResult(poseResult);
       final gamification = await _gamificationService.processCompletedSession(
@@ -308,6 +309,7 @@ class DailyChallengeService {
         holdDuration: stepResult.holdDuration,
         completed: true,
         timestamp: now,
+        sessionType: PoseResultSessionType.challenge,
       );
       final insertedId = await _databaseService.insertPoseResult(poseResult);
       final gamification = await _gamificationService.processCompletedSession(
@@ -339,7 +341,8 @@ class DailyChallengeService {
       (activeSeconds * caloriesPerActiveSecond).toStringAsFixed(1),
     );
     final now = DateTime.now();
-    final resolvedAll = bundle.completedStepsCount + bundle.skippedStepsCount >=
+    final resolvedAll =
+        bundle.completedStepsCount + bundle.skippedStepsCount >=
         bundle.steps.length;
     await _databaseService.updateDailyChallenge(
       bundle.challenge.copyWith(
@@ -420,7 +423,8 @@ class DailyChallengeService {
     if (completed.isEmpty) return 0;
     var seconds = 0.0;
     for (final step in completed) {
-      seconds += step.holdDuration ?? challengeHoldDuration.inSeconds.toDouble();
+      seconds +=
+          step.holdDuration ?? challengeHoldDuration.inSeconds.toDouble();
     }
     return seconds.round();
   }
