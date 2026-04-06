@@ -7,8 +7,10 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/daily_challenge.dart';
 import '../models/daily_challenge_step.dart';
+import '../models/badge_definition.dart';
 import '../models/body_measurement.dart';
 import '../models/pose_result.dart';
+import '../models/profile_challenge_models.dart';
 import '../models/unlocked_badge.dart';
 import '../models/user_stats.dart';
 import '../models/weekly_workout_goal.dart';
@@ -21,7 +23,15 @@ class DatabaseService {
   factory DatabaseService() => instance;
 
   static const String databaseName = 'yoga_trainer.db';
-  static const int databaseVersion = 6;
+  static String? _databaseNameOverrideForTesting;
+  static String get effectiveDatabaseName =>
+      _databaseNameOverrideForTesting ?? databaseName;
+
+  static void setDatabaseNameOverrideForTesting(String? fileName) {
+    _databaseNameOverrideForTesting = fileName;
+  }
+
+  static const int databaseVersion = 7;
 
   static const String tablePoseResults = 'pose_results';
   static const String columnId = 'id';
@@ -58,12 +68,18 @@ class DatabaseService {
   static const String tableDailyChallengeSteps = 'daily_challenge_steps';
   static const String tableWeeklyWorkoutGoals = 'weekly_workout_goals';
   static const String tableBodyMeasurements = 'body_measurements';
+  static const String tableUserProfileChallenges = 'user_profile_challenges';
   static const String columnDateKey = 'date_key';
+  static const String columnMonthKey = 'month_key';
+  static const String columnChallengeId = 'challenge_id';
   static const String columnStatus = 'status';
   static const String columnSkipCount = 'skip_count';
   static const String columnTotalSteps = 'total_steps';
+  static const String columnJoinedAt = 'joined_at';
   static const String columnStartedAt = 'started_at';
   static const String columnCompletedAt = 'completed_at';
+  static const String columnClaimedAt = 'claimed_at';
+  static const String columnRewardBadgeLabel = 'reward_badge_label';
   static const String columnSequenceJson = 'sequence_json';
   static const String columnSessionAvgScore = 'session_avg_score';
   static const String columnSessionCalories = 'session_calories';
@@ -95,7 +111,7 @@ class DatabaseService {
 
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, databaseName);
+    final path = join(dbPath, effectiveDatabaseName);
     return openDatabase(
       path,
       version: databaseVersion,
@@ -149,6 +165,9 @@ class DatabaseService {
     if (oldVersion < 6) {
       await _migrateToV6(db);
     }
+    if (oldVersion < 7) {
+      await _migrateToV7(db);
+    }
     await _createGamificationTables(db);
     await _createDailyChallengeTables(db);
     await _createProgressTrackingTables(db);
@@ -165,6 +184,10 @@ class DatabaseService {
   Future<void> _migrateToV6(Database db) async {
     await _createProgressTrackingTables(db);
     await _ensureWeeklyGoalRow(db);
+  }
+
+  Future<void> _migrateToV7(Database db) async {
+    await _createProgressTrackingTables(db);
   }
 
   Future<void> _migrateToV4(Database db) async {
@@ -336,6 +359,21 @@ class DatabaseService {
         $columnUpdatedAt TEXT NOT NULL,
         $columnIsSynced INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY($columnUserId, $columnMetricKey, $columnMeasuredAt)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableUserProfileChallenges (
+        $columnUserId TEXT NOT NULL,
+        $columnMonthKey TEXT NOT NULL,
+        $columnChallengeId TEXT NOT NULL,
+        $columnStatus TEXT NOT NULL,
+        $columnJoinedAt TEXT NOT NULL,
+        $columnCompletedAt TEXT,
+        $columnClaimedAt TEXT,
+        $columnRewardBadgeLabel TEXT,
+        $columnUpdatedAt TEXT NOT NULL,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY($columnUserId, $columnMonthKey, $columnChallengeId)
       )
     ''');
   }
@@ -723,6 +761,30 @@ class DatabaseService {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
+  Future<List<BadgeDefinition>> getBadgeDefinitions() async {
+    final db = await database;
+    final rows = await db.query(
+      tableBadges,
+      orderBy: '$columnBadgeCriteriaValue ASC, $columnBadgeName ASC',
+    );
+    return rows.map(BadgeDefinition.fromMap).toList(growable: false);
+  }
+
+  Future<List<UnlockedBadge>> getUnlockedBadges() async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT ub.$columnBadgeId, b.$columnBadgeName, b.$columnBadgeDescription, ub.$columnUnlockedAt
+      FROM $tableUserBadges ub
+      INNER JOIN $tableBadges b ON b.$columnBadgeId = ub.$columnBadgeId
+      WHERE ub.$columnUserId = ?
+      ORDER BY ub.$columnUnlockedAt DESC
+      ''',
+      <Object?>[_activeUserId],
+    );
+    return rows.map(UnlockedBadge.fromMap).toList(growable: false);
+  }
+
   Future<List<UnlockedBadge>> getLatestUnlockedBadges({int limit = 5}) async {
     final db = await database;
     final rows = await db.rawQuery(
@@ -752,6 +814,34 @@ class DatabaseService {
       return WeeklyWorkoutGoal.defaultForUser(_activeUserId);
     }
     return WeeklyWorkoutGoal.fromMap(rows.first);
+  }
+
+  Future<void> incrementTotalXp(int delta) async {
+    if (delta == 0) return;
+    final db = await database;
+    await _ensureUserStatsRow(db);
+    final rows = await db.query(
+      tableUserStats,
+      columns: <String>[columnTotalXp],
+      where: '$columnUserId = ?',
+      whereArgs: <Object?>[_activeUserId],
+      limit: 1,
+    );
+    final currentXp = rows.isEmpty
+        ? 0
+        : (rows.first[columnTotalXp] as num?)?.toInt() ?? 0;
+    final nextXp = currentXp + delta;
+    await db.update(
+      tableUserStats,
+      <String, Object?>{
+        columnTotalXp: nextXp,
+        columnUpdatedAt: _nowIso(),
+        columnIsSynced: 0,
+      },
+      where: '$columnUserId = ?',
+      whereArgs: <Object?>[_activeUserId],
+    );
+    notifyLocalMutation();
   }
 
   Future<void> upsertWeeklyWorkoutGoal({required int targetWorkouts}) async {
@@ -892,6 +982,51 @@ class DatabaseService {
     notifyLocalMutation();
   }
 
+  Future<List<UserProfileChallengeState>> getProfileChallengeStatesForMonth(
+    String monthKey,
+  ) async {
+    final db = await database;
+    final rows = await db.query(
+      tableUserProfileChallenges,
+      where: '$columnUserId = ? AND $columnMonthKey = ?',
+      whereArgs: <Object?>[_activeUserId, monthKey],
+      orderBy: '$columnUpdatedAt DESC',
+    );
+    return rows.map(UserProfileChallengeState.fromMap).toList(growable: false);
+  }
+
+  Future<UserProfileChallengeState?> getProfileChallengeState({
+    required String monthKey,
+    required String challengeId,
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      tableUserProfileChallenges,
+      where:
+          '$columnUserId = ? AND $columnMonthKey = ? AND $columnChallengeId = ?',
+      whereArgs: <Object?>[_activeUserId, monthKey, challengeId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return UserProfileChallengeState.fromMap(rows.first);
+  }
+
+  Future<void> upsertProfileChallengeState(
+    UserProfileChallengeState state,
+  ) async {
+    final db = await database;
+    final map = state.toMap();
+    map[columnUserId] = _activeUserId;
+    map[columnUpdatedAt] = _nowIso();
+    map[columnIsSynced] = 0;
+    await db.insert(
+      tableUserProfileChallenges,
+      map,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    notifyLocalMutation();
+  }
+
   List<String> tableKeyColumns(String tableName) {
     switch (tableName) {
       case tablePoseResults:
@@ -908,6 +1043,8 @@ class DatabaseService {
         return <String>[columnUserId];
       case tableBodyMeasurements:
         return <String>[columnUserId, columnMetricKey, columnMeasuredAt];
+      case tableUserProfileChallenges:
+        return <String>[columnUserId, columnMonthKey, columnChallengeId];
       default:
         throw ArgumentError('Unsupported sync table: $tableName');
     }

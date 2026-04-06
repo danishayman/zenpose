@@ -131,11 +131,12 @@ class GamificationService {
 
       final completedCount = await _countCompletedSessions(tx);
       final existingBadgeIds = await _getUnlockedBadgeIdSet(tx);
+      final bestCompletedScore = await _getBestCompletedScore(tx);
       final badgeIdsToUnlock = determineBadgeUnlocks(
         existingBadgeIds: existingBadgeIds,
-        hasCompletedAtLeastOne: completedCount >= 1,
+        completedSessions: completedCount,
         currentStreak: streakUpdate.currentStreak,
-        bestScore: result.bestScore,
+        bestScore: bestCompletedScore,
       );
 
       final unlockedAt = DateTime.now().toIso8601String();
@@ -230,26 +231,26 @@ class GamificationService {
     return baseXp + normalizedScore;
   }
 
-  /// Badge rule evaluator with duplicate protection through [existingBadgeIds].
+  /// Criteria-driven badge rule evaluator with duplicate protection.
   static List<String> determineBadgeUnlocks({
     required Set<String> existingBadgeIds,
-    required bool hasCompletedAtLeastOne,
+    required int completedSessions,
     required int currentStreak,
     required double bestScore,
   }) {
-    final eligible = <String>[];
-
-    if (hasCompletedAtLeastOne) {
-      eligible.add(BadgeCatalog.firstCompletionId);
-    }
-    if (currentStreak >= 3) {
-      eligible.add(BadgeCatalog.streak3Id);
-    }
-    if (bestScore >= 90) {
-      eligible.add(BadgeCatalog.highScore90Id);
-    }
-
-    return eligible.where((id) => !existingBadgeIds.contains(id)).toList();
+    return BadgeCatalog.defaultBadges
+        .where((badge) => !existingBadgeIds.contains(badge.id))
+        .where((badge) {
+          final target = badge.criteriaValue;
+          return switch (badge.criteriaType) {
+            'completed_sessions' => completedSessions >= target,
+            'streak' => currentStreak >= target,
+            'score' => bestScore >= target,
+            _ => false,
+          };
+        })
+        .map((badge) => badge.id)
+        .toList(growable: false);
   }
 
   Future<UserStats> _readUserStats(DatabaseExecutor db) async {
@@ -290,6 +291,23 @@ class GamificationService {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  Future<double> _getBestCompletedScore(DatabaseExecutor db) async {
+    final activeUserId = AuthContext.activeUserId;
+    final rows = await db.rawQuery(
+      '''
+      SELECT MAX(${DatabaseService.columnBestScore}) as max_score
+      FROM ${DatabaseService.tablePoseResults}
+      WHERE ${DatabaseService.columnCompleted} = 1
+        AND ${DatabaseService.columnUserId} = ?
+      ''',
+      <Object?>[activeUserId],
+    );
+    if (rows.isEmpty) return 0;
+    final value = rows.first['max_score'];
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   Future<Set<String>> _getUnlockedBadgeIdSet(DatabaseExecutor db) async {

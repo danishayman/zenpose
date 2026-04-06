@@ -41,6 +41,7 @@ class SyncService {
     DatabaseService.tableDailyChallengeSteps,
     DatabaseService.tableWeeklyWorkoutGoals,
     DatabaseService.tableBodyMeasurements,
+    DatabaseService.tableUserProfileChallenges,
   ];
 
   static bool shouldLocalWin({

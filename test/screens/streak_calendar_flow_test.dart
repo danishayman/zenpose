@@ -5,6 +5,7 @@ import 'package:zenpose/models/daily_challenge.dart';
 import 'package:zenpose/models/daily_challenge_step.dart';
 import 'package:zenpose/models/pose_result.dart';
 import 'package:zenpose/models/pose_template.dart';
+import 'package:zenpose/models/profile_challenge_models.dart';
 import 'package:zenpose/models/user_stats.dart';
 import 'package:zenpose/models/weekly_workout_goal.dart';
 import 'package:zenpose/screens/home_screen.dart';
@@ -54,6 +55,7 @@ void main() {
           loadTodayChallenge: () async => challengeBundle,
           loadUserStats: () async => baseStats,
           loadBadgeCount: () async => 1,
+          loadSessionHistory: () async => completedResults,
           streakCalendarBuilder: testStreakBuilder(),
         ),
       ),
@@ -78,6 +80,7 @@ void main() {
           loadUserStats: () async => baseStats,
           loadBadgeCount: () async => 1,
           loadAllResults: () async => completedResults,
+          loadChallenges: () async => const <ChallengeProgressSnapshot>[],
           streakCalendarBuilder: testStreakBuilder(),
         ),
       ),
@@ -88,6 +91,55 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(StreakCalendarScreen), findsOneWidget);
+  });
+
+  testWidgets('home screen shows recent session history', (tester) async {
+    _setLargeSurface(tester);
+
+    await tester.pumpWidget(
+      _app(
+        HomeScreen(
+          loadTodayChallenge: () async => challengeBundle,
+          loadUserStats: () async => baseStats,
+          loadBadgeCount: () async => 1,
+          loadSessionHistory: () async => completedResults,
+          streakCalendarBuilder: testStreakBuilder(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Session History'), findsOneWidget);
+    expect(find.textContaining('Mar 27, 2026'), findsOneWidget);
+    expect(find.textContaining('Mar 24, 2026'), findsOneWidget);
+    expect(find.text('88%'), findsOneWidget);
+    expect(find.text('84%'), findsOneWidget);
+  });
+
+  testWidgets('home screen session history empty state appears', (
+    tester,
+  ) async {
+    _setLargeSurface(tester);
+
+    await tester.pumpWidget(
+      _app(
+        HomeScreen(
+          loadTodayChallenge: () async => challengeBundle,
+          loadUserStats: () async => baseStats,
+          loadBadgeCount: () async => 1,
+          loadSessionHistory: () async => const <PoseResult>[],
+          streakCalendarBuilder: testStreakBuilder(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'No session history yet. Complete your first practice to start tracking.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('progress dashboard renders new tabs', (tester) async {
@@ -200,6 +252,7 @@ void main() {
           loadTodayChallenge: () async => challengeBundle,
           loadUserStats: () async => baseStats,
           loadBadgeCount: () async => 1,
+          loadSessionHistory: () async => completedResults,
           streakCalendarBuilder: testStreakBuilder(),
         ),
       ),

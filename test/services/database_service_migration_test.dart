@@ -15,7 +15,7 @@ void main() {
 
   Future<String> dbPathForTest() async {
     final root = await getDatabasesPath();
-    return p.join(root, DatabaseService.databaseName);
+    return p.join(root, DatabaseService.effectiveDatabaseName);
   }
 
   tearDown(() async {
@@ -24,7 +24,7 @@ void main() {
     await deleteDatabase(path);
   });
 
-  test('migrates v1 database to v6 while preserving pose_results', () async {
+  test('migrates v1 database to v7 while preserving pose_results', () async {
     final path = await dbPathForTest();
 
     final legacyDb = await openDatabase(
@@ -105,10 +105,15 @@ void main() {
       DatabaseService.tableBodyMeasurements,
     );
     expect(bodyMeasurementRows, isEmpty);
+
+    final profileChallengeRows = await db.query(
+      DatabaseService.tableUserProfileChallenges,
+    );
+    expect(profileChallengeRows, isEmpty);
   });
 
   test(
-    'initializes v6 tables and default progress tracking rows on fresh database',
+    'initializes v7 tables and default progress tracking rows on fresh database',
     () async {
       final db = await DatabaseService.instance.database;
 
@@ -162,6 +167,11 @@ void main() {
 
       final measureRows = await db.query(DatabaseService.tableBodyMeasurements);
       expect(measureRows, isEmpty);
+
+      final profileChallengeRows = await db.query(
+        DatabaseService.tableUserProfileChallenges,
+      );
+      expect(profileChallengeRows, isEmpty);
     },
   );
 
@@ -220,6 +230,9 @@ void main() {
     final measureKeys = DatabaseService.instance.tableKeyColumns(
       DatabaseService.tableBodyMeasurements,
     );
+    final profileChallengeKeys = DatabaseService.instance.tableKeyColumns(
+      DatabaseService.tableUserProfileChallenges,
+    );
     expect(weeklyKeys, equals(<String>[DatabaseService.columnUserId]));
     expect(
       measureKeys,
@@ -227,6 +240,14 @@ void main() {
         DatabaseService.columnUserId,
         DatabaseService.columnMetricKey,
         DatabaseService.columnMeasuredAt,
+      ]),
+    );
+    expect(
+      profileChallengeKeys,
+      equals(<String>[
+        DatabaseService.columnUserId,
+        DatabaseService.columnMonthKey,
+        DatabaseService.columnChallengeId,
       ]),
     );
   });

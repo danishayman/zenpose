@@ -56,15 +56,19 @@ void main() {
     test('unlocks expected badges and avoids duplicates', () {
       final unlocked = GamificationService.determineBadgeUnlocks(
         existingBadgeIds: <String>{BadgeCatalog.firstCompletionId},
-        hasCompletedAtLeastOne: true,
-        currentStreak: 3,
+        completedSessions: 5,
+        currentStreak: 7,
         bestScore: 95,
       );
 
+      expect(unlocked, contains(BadgeCatalog.sessions5Id));
       expect(unlocked, contains(BadgeCatalog.streak3Id));
+      expect(unlocked, contains(BadgeCatalog.streak7Id));
       expect(unlocked, contains(BadgeCatalog.highScore90Id));
+      expect(unlocked, contains(BadgeCatalog.highScore95Id));
       expect(unlocked, isNot(contains(BadgeCatalog.firstCompletionId)));
-      expect(unlocked.length, 2);
+      expect(unlocked, isNot(contains(BadgeCatalog.streak14Id)));
+      expect(unlocked, isNot(contains(BadgeCatalog.highScore98Id)));
     });
   });
 }

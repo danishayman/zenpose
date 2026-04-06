@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/daily_challenge.dart';
+import '../models/pose_result.dart';
 import '../models/user_stats.dart';
 import '../services/daily_challenge_service.dart';
 import '../services/database_service.dart';
@@ -15,6 +16,7 @@ class HomeScreen extends StatefulWidget {
   final Future<DailyChallengeBundle> Function()? loadTodayChallenge;
   final Future<UserStats> Function()? loadUserStats;
   final Future<int> Function()? loadBadgeCount;
+  final Future<List<PoseResult>> Function()? loadSessionHistory;
   final WidgetBuilder? streakCalendarBuilder;
 
   const HomeScreen({
@@ -22,6 +24,7 @@ class HomeScreen extends StatefulWidget {
     this.loadTodayChallenge,
     this.loadUserStats,
     this.loadBadgeCount,
+    this.loadSessionHistory,
     this.streakCalendarBuilder,
   });
 
@@ -30,6 +33,21 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const List<String> _monthNamesShort = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
   final DailyChallengeService _challengeService = DailyChallengeService();
   final DatabaseService _databaseService = DatabaseService.instance;
 
@@ -50,10 +68,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final badgeCount =
         await (widget.loadBadgeCount?.call() ??
             _databaseService.getUnlockedBadgeCount());
+    final sessionHistory =
+        await (widget.loadSessionHistory?.call() ??
+            _databaseService.getAllResults());
+    final sortedSessions = List<PoseResult>.from(sessionHistory)
+      ..sort((a, b) {
+        final aEpoch = a.timestamp?.millisecondsSinceEpoch ?? 0;
+        final bEpoch = b.timestamp?.millisecondsSinceEpoch ?? 0;
+        return bEpoch.compareTo(aEpoch);
+      });
     return _HomeData(
       challenge: challenge,
       userStats: stats,
       badgeCount: badgeCount,
+      sessionHistory: sortedSessions,
     );
   }
 
@@ -116,6 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 20),
                 _buildQuickStats(data),
                 const SizedBox(height: 24),
+                _buildSessionHistory(data),
+                const SizedBox(height: 24),
                 _buildTodaySequence(data.challenge),
               ],
             ),
@@ -176,6 +206,26 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ],
     );
+  }
+
+  String _formatSessionTimestamp(DateTime? timestamp) {
+    if (timestamp == null) return 'Unknown time';
+    final local = timestamp.toLocal();
+    final month = _monthNamesShort[local.month - 1];
+    final hour12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = local.hour >= 12 ? 'PM' : 'AM';
+    return '$month ${local.day}, ${local.year} • $hour12:$minute $period';
+  }
+
+  String _formatHoldDuration(double holdDurationSeconds) {
+    if (holdDurationSeconds >= 60) {
+      final minutes = holdDurationSeconds ~/ 60;
+      final remainingSeconds = (holdDurationSeconds % 60).round();
+      if (remainingSeconds == 0) return '${minutes}m';
+      return '${minutes}m ${remainingSeconds}s';
+    }
+    return '${holdDurationSeconds.round()}s';
   }
 
   Widget _buildChallengeHero(_HomeData data) {
@@ -333,6 +383,111 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildSessionHistory(_HomeData data) {
+    final sessions = data.sessionHistory.take(5).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ZenSectionHeader(
+          title: 'Session History',
+          subtitle: 'Your latest practice sessions',
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: ZenDecor.elevatedCard(),
+          padding: const EdgeInsets.all(16),
+          child: sessions.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'No session history yet. Complete your first practice to start tracking.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : Column(
+                  children: sessions.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final session = entry.value;
+                    final isLast = index == sessions.length - 1;
+                    final scoreLabel =
+                        '${session.bestScore.toStringAsFixed(0)}%';
+                    final durationLabel = _formatHoldDuration(
+                      session.holdDuration,
+                    );
+
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: session.completed
+                                  ? ZenColors.successLight
+                                  : ZenColors.warningLight,
+                            ),
+                            child: Icon(
+                              session.completed
+                                  ? Icons.check_rounded
+                                  : Icons.schedule_rounded,
+                              size: 18,
+                              color: session.completed
+                                  ? ZenColors.success
+                                  : ZenColors.warning,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  session.poseName,
+                                  style: Theme.of(context).textTheme.bodyLarge
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 1),
+                                Text(
+                                  '${_formatSessionTimestamp(session.timestamp)} · ${session.completed ? 'Completed' : 'Not completed'}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                scoreLabel,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: ZenColors.forest,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                durationLabel,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTodaySequence(DailyChallengeBundle bundle) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,10 +570,12 @@ class _HomeData {
   final DailyChallengeBundle challenge;
   final UserStats userStats;
   final int badgeCount;
+  final List<PoseResult> sessionHistory;
 
   const _HomeData({
     required this.challenge,
     required this.userStats,
     required this.badgeCount,
+    required this.sessionHistory,
   });
 }
