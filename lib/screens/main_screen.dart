@@ -31,6 +31,7 @@ import '../models/landmark.dart';
 import '../painters/skeleton_overlay_painter.dart';
 import '../services/database_service.dart';
 import '../services/gamification_service.dart';
+import '../theme/zen_theme.dart';
 import '../widgets/workout_session_widgets.dart';
 
 /// MainScreen composes the camera preview and skeleton overlay.
@@ -750,6 +751,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
+    final textTheme = Theme.of(context).textTheme;
 
     // Error state.
     if (_errorMessage != null) {
@@ -763,22 +765,23 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               children: [
                 const Icon(
                   Icons.videocam_off_rounded,
-                  color: Colors.redAccent,
+                  color: ZenColors.error,
                   size: 48,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Camera error',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
+                  style: textTheme.titleLarge?.copyWith(
+                    color: ZenColors.mist,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   '$_errorMessage',
-                  style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: ZenColors.mist.withValues(alpha: 0.70),
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -800,16 +803,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 width: 48,
                 height: 48,
                 child: CircularProgressIndicator(
-                  color: const Color(0xFF4A9B8E),
+                  color: ZenColors.teal,
                   strokeWidth: 3,
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Initialising camera…',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 15,
+                style: textTheme.bodyLarge?.copyWith(
+                  color: ZenColors.mist.withValues(alpha: 0.84),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -842,15 +844,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
+                      color: ZenColors.bark.withValues(alpha: 0.62),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.12),
+                        color: ZenColors.sage200.withValues(alpha: 0.35),
                       ),
                     ),
                     child: const Icon(
                       Icons.arrow_back_rounded,
-                      color: Colors.white,
+                      color: ZenColors.mist,
                       size: 20,
                     ),
                   ),
@@ -863,19 +865,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
+                      color: ZenColors.bark.withValues(alpha: 0.62),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.12),
+                        color: ZenColors.sage200.withValues(alpha: 0.35),
                       ),
                     ),
                     child: Text(
                       widget.poseTemplate.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: ZenColors.mist,
                         fontWeight: FontWeight.w700,
-                        fontFamily: 'Manrope',
+                        fontSize: 15,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -888,18 +889,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   height: 40,
                   decoration: BoxDecoration(
                     color: _cameraService.hasWideLens
-                        ? const Color(0xFF4A9B8E).withValues(alpha: 0.55)
-                        : Colors.black.withValues(alpha: 0.45),
+                        ? ZenColors.teal.withValues(alpha: 0.72)
+                        : ZenColors.bark.withValues(alpha: 0.62),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
+                      color: ZenColors.sage200.withValues(alpha: 0.35),
                     ),
                   ),
                   child: Icon(
                     _cameraService.hasWideLens
                         ? Icons.zoom_out_map
                         : Icons.crop_free,
-                    color: Colors.white,
+                    color: ZenColors.mist,
                     size: 18,
                   ),
                 ),
@@ -928,7 +929,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               if (result == null) return const SizedBox.shrink();
               return Positioned.fill(
                 child: Container(
-                  color: Colors.black.withValues(alpha: 0.60),
+                  color: ZenColors.bark.withValues(alpha: 0.70),
                   child: Center(
                     child: TweenAnimationBuilder<double>(
                       tween: Tween<double>(begin: 0.88, end: 1.0),
@@ -1001,6 +1002,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   Widget _buildTimedBottomPanel() {
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final textTheme = Theme.of(context).textTheme;
     return Positioned(
       left: 16,
       right: 16,
@@ -1008,9 +1010,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.55),
+          color: ZenColors.bark.withValues(alpha: 0.66),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          border: Border.all(color: ZenColors.sage200.withValues(alpha: 0.36)),
         ),
         child: AnimatedBuilder(
           animation: Listenable.merge([
@@ -1025,22 +1027,20 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               children: [
                 Text(
                   timer,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 46,
+                  style: textTheme.displayMedium?.copyWith(
+                    color: ZenColors.mist,
                     fontWeight: FontWeight.w800,
-                    fontFamily: 'Manrope',
+                    fontSize: 46,
                     height: 1.0,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Avg score ${_poseSessionService.averageScore.toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
+                  style: textTheme.labelLarge?.copyWith(
+                    color: ZenColors.mist.withValues(alpha: 0.80),
                     fontWeight: FontWeight.w600,
-                    fontFamily: 'Manrope',
+                    fontSize: 13,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -1052,9 +1052,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                           ChallengeStepNavigationAction.previous,
                         ),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
+                          foregroundColor: ZenColors.mist,
                           side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.30),
+                            color: ZenColors.sage200.withValues(alpha: 0.52),
+                          ),
+                          backgroundColor: ZenColors.bark.withValues(
+                            alpha: 0.28,
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 13),
                         ),
@@ -1067,8 +1070,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       child: ElevatedButton(
                         onPressed: _toggleTimedPause,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4A9B8E),
-                          foregroundColor: Colors.white,
+                          backgroundColor: ZenColors.teal,
+                          foregroundColor: ZenColors.mist,
                           padding: const EdgeInsets.symmetric(vertical: 13),
                         ),
                         child: Icon(
@@ -1085,9 +1088,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                           ChallengeStepNavigationAction.next,
                         ),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
+                          foregroundColor: ZenColors.mist,
                           side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.30),
+                            color: ZenColors.sage200.withValues(alpha: 0.52),
+                          ),
+                          backgroundColor: ZenColors.bark.withValues(
+                            alpha: 0.28,
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 13),
                         ),
@@ -1109,6 +1115,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     required int xpGained,
     required List<UnlockedBadge> unlockedBadges,
   }) {
+    final textTheme = Theme.of(context).textTheme;
     final bestScoreText = '${result.bestScore.toStringAsFixed(0)}%';
     final holdTimeText = '${result.holdDuration.toStringAsFixed(1)}s';
     final buttonText =
@@ -1116,19 +1123,19 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         (widget.returnResultOnCompletion ? 'Continue' : 'Try Again');
     final score = result.bestScore;
     final Color scoreColor = score >= 80
-        ? const Color(0xFF3D8B68)
+        ? ZenColors.success
         : score >= 60
-        ? const Color(0xFFD4872A)
-        : const Color(0xFFB33A3A);
+        ? ZenColors.warning
+        : ZenColors.error;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ZenColors.surface1,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: ZenColors.bark.withValues(alpha: 0.25),
             blurRadius: 32,
             offset: const Offset(0, 12),
           ),
@@ -1145,7 +1152,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF3F5A45), Color(0xFF4A9B8E)],
+                colors: <Color>[ZenColors.forest, ZenColors.teal],
               ),
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
@@ -1155,33 +1162,31 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
+                    color: ZenColors.mist.withValues(alpha: 0.20),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.check_rounded,
-                    color: Colors.white,
+                    color: ZenColors.mist,
                     size: 32,
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Pose Completed!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
+                  style: textTheme.titleLarge?.copyWith(
+                    color: ZenColors.mist,
                     fontWeight: FontWeight.w800,
-                    fontFamily: 'Manrope',
+                    fontSize: 20,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   result.poseName,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.80),
-                    fontSize: 14,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: ZenColors.mist.withValues(alpha: 0.82),
                     fontWeight: FontWeight.w500,
-                    fontFamily: 'Manrope',
+                    fontSize: 14,
                   ),
                 ),
               ],
@@ -1198,34 +1203,31 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   children: [
                     Text(
                       bestScoreText,
-                      style: TextStyle(
+                      style: textTheme.displayMedium?.copyWith(
                         color: scoreColor,
                         fontSize: 44,
                         fontWeight: FontWeight.w800,
-                        fontFamily: 'Manrope',
                         height: 1.0,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Best',
-                          style: TextStyle(
-                            color: Color(0xFF5C6E5F),
-                            fontSize: 12,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: ZenColors.textSecondary,
                             fontWeight: FontWeight.w600,
-                            fontFamily: 'Manrope',
+                            fontSize: 12,
                           ),
                         ),
                         Text(
                           'Score',
-                          style: TextStyle(
-                            color: Color(0xFF5C6E5F),
-                            fontSize: 12,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: ZenColors.textSecondary,
                             fontWeight: FontWeight.w600,
-                            fontFamily: 'Manrope',
+                            fontSize: 12,
                           ),
                         ),
                       ],
@@ -1239,7 +1241,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF6F1E7),
+                    color: ZenColors.sand,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
@@ -1248,16 +1250,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       const Icon(
                         Icons.timer_outlined,
                         size: 16,
-                        color: Color(0xFF5C6E5F),
+                        color: ZenColors.textSecondary,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         'Hold time: $holdTimeText',
-                        style: const TextStyle(
-                          color: Color(0xFF2D3A2E),
-                          fontSize: 14,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: ZenColors.textPrimary,
                           fontWeight: FontWeight.w600,
-                          fontFamily: 'Manrope',
+                          fontSize: 14,
                         ),
                       ),
                     ],

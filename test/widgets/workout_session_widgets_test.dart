@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zenpose/models/unlocked_badge.dart';
 import 'package:zenpose/models/workout_guidance_snapshot.dart';
+import 'package:zenpose/theme/zen_theme.dart';
 import 'package:zenpose/widgets/workout_session_widgets.dart';
 
 void main() {
@@ -32,6 +33,19 @@ void main() {
       );
 
       expect(find.text('Step into frame'), findsOneWidget);
+      final hudContainer = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byType(WorkoutStatusHud),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      final hudDecoration = hudContainer.decoration as BoxDecoration;
+      expect(
+        hudDecoration.color,
+        equals(ZenColors.bark.withValues(alpha: 0.66)),
+      );
     });
 
     testWidgets('uses display score/progress overrides when provided', (
@@ -92,6 +106,19 @@ void main() {
 
       expect(find.text('Primary correction'), findsOneWidget);
       expect(find.text('Secondary hint'), findsNothing);
+      final guidanceContainer = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byType(WorkoutFeedbackPanel),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      final guidanceDecoration = guidanceContainer.decoration as BoxDecoration;
+      expect(
+        guidanceDecoration.color,
+        equals(ZenColors.bark.withValues(alpha: 0.66)),
+      );
       expect(
         tester.getSize(find.byType(WorkoutFeedbackPanel)).height,
         closeTo(92.0, 0.01),

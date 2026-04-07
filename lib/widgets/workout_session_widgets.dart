@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/unlocked_badge.dart';
 import '../models/workout_guidance_snapshot.dart';
+import '../theme/zen_theme.dart';
 
 class WorkoutStatusHud extends StatelessWidget {
   final WorkoutGuidanceSnapshot snapshot;
@@ -23,6 +24,8 @@ class WorkoutStatusHud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
     final score = (displayScore ?? snapshot.score).clamp(0.0, 100.0).toDouble();
     final progress = (displayProgress ?? snapshot.holdProgress)
         .clamp(0.0, 1.0)
@@ -33,19 +36,20 @@ class WorkoutStatusHud extends StatelessWidget {
         snapshot.state != WorkoutGuidanceState.noUserDetected;
 
     final Color scoreColor = score >= 80
-        ? const Color(0xFF4ADBA8)
+        ? ZenColors.success
         : score >= scoreThreshold
-        ? const Color(0xFFFFD166)
-        : const Color(0xFFFF8C66);
-    final Color barColor = holdActive
-        ? const Color(0xFF4ADBA8)
-        : const Color(0xFF4A9B8E);
+        ? ZenColors.warning
+        : ZenColors.error;
+    final Color barColor = holdActive ? ZenColors.success : ZenColors.teal;
     final chipColor = isStableState
-        ? const Color(0xFF4ADBA8).withValues(alpha: 0.18)
-        : Colors.white.withValues(alpha: 0.10);
+        ? ZenColors.success.withValues(alpha: 0.18)
+        : ZenColors.bark.withValues(alpha: 0.48);
+    final chipBorderColor = isStableState
+        ? ZenColors.success.withValues(alpha: 0.40)
+        : ZenColors.sage200.withValues(alpha: 0.30);
     final chipTextColor = isStableState
-        ? const Color(0xFF4ADBA8)
-        : Colors.white60;
+        ? ZenColors.successLight
+        : ZenColors.mist.withValues(alpha: 0.70);
     final chipIcon = isStableState
         ? Icons.check_circle_rounded
         : Icons.radio_button_unchecked;
@@ -53,9 +57,9 @@ class WorkoutStatusHud extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.50),
+        color: ZenColors.bark.withValues(alpha: 0.66),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: ZenColors.sage200.withValues(alpha: 0.36)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,24 +72,21 @@ class WorkoutStatusHud extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'POSE MATCH',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 10,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: ZenColors.mist.withValues(alpha: 0.72),
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.0,
-                      fontFamily: 'Manrope',
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${score.toStringAsFixed(0)}%',
-                    style: TextStyle(
+                    style: textTheme.headlineLarge?.copyWith(
                       color: scoreColor,
-                      fontSize: 32,
                       fontWeight: FontWeight.w800,
-                      fontFamily: 'Manrope',
+                      fontSize: 32,
                       height: 1.0,
                     ),
                   ),
@@ -99,6 +100,7 @@ class WorkoutStatusHud extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: chipColor,
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: chipBorderColor),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -107,11 +109,10 @@ class WorkoutStatusHud extends StatelessWidget {
                     const SizedBox(width: 5),
                     Text(
                       snapshot.statusLabel,
-                      style: TextStyle(
+                      style: textTheme.labelMedium?.copyWith(
                         color: chipTextColor,
-                        fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        fontFamily: 'Manrope',
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -125,7 +126,7 @@ class WorkoutStatusHud extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 7,
-              backgroundColor: Colors.white.withValues(alpha: 0.15),
+              backgroundColor: ZenColors.mist.withValues(alpha: 0.15),
               valueColor: AlwaysStoppedAnimation<Color>(barColor),
             ),
           ),
@@ -136,20 +137,18 @@ class WorkoutStatusHud extends StatelessWidget {
               Text(
                 'Hold  ${holdSeconds.toStringAsFixed(1)}s / '
                 '${durationSeconds.toStringAsFixed(0)}s',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
+                style: textTheme.labelMedium?.copyWith(
+                  color: ZenColors.mist.withValues(alpha: 0.84),
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Manrope',
+                  fontSize: 12,
                 ),
               ),
               if (!holdActive)
                 Text(
                   'Needs ≥${scoreThreshold.toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    color: Colors.white38,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: ZenColors.mist.withValues(alpha: 0.52),
                     fontSize: 11,
-                    fontFamily: 'Manrope',
                   ),
                 ),
             ],
@@ -173,6 +172,7 @@ class WorkoutFeedbackPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!visible) return const SizedBox.shrink();
+    final textTheme = Theme.of(context).textTheme;
     final cue = snapshot.primaryCue?.trim() ?? '';
 
     return SizedBox(
@@ -181,16 +181,14 @@ class WorkoutFeedbackPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(left: 4, bottom: 6),
             child: Text(
               'GUIDANCE',
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 10,
+              style: textTheme.labelSmall?.copyWith(
+                color: ZenColors.mist.withValues(alpha: 0.72),
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.0,
-                fontFamily: 'Manrope',
               ),
             ),
           ),
@@ -198,18 +196,18 @@ class WorkoutFeedbackPanel extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
+                color: ZenColors.bark.withValues(alpha: 0.66),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: const Color(0xFFFFD166).withValues(alpha: 0.35),
+                  color: ZenColors.warning.withValues(alpha: 0.55),
                 ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.tips_and_updates_rounded,
-                    color: Color(0xFFFFD166),
+                    color: ZenColors.warning,
                     size: 14,
                   ),
                   const SizedBox(width: 8),
@@ -223,11 +221,12 @@ class WorkoutFeedbackPanel extends StatelessWidget {
                         key: ValueKey<String>(cue),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: cue.isEmpty ? Colors.white38 : Colors.white,
-                          fontSize: 13,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: cue.isEmpty
+                              ? ZenColors.mist.withValues(alpha: 0.50)
+                              : ZenColors.mist,
                           fontWeight: FontWeight.w500,
-                          fontFamily: 'Manrope',
+                          fontSize: 13,
                         ),
                       ),
                     ),
@@ -257,32 +256,31 @@ class WorkoutRewardSummary extends StatelessWidget {
     if (xpGained <= 0 && unlockedBadges.isEmpty) {
       return const SizedBox.shrink();
     }
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F7F4),
+        color: ZenColors.surface1,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ZenColors.surface2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Rewards',
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+            style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           if (xpGained > 0)
             Text(
               'XP +$xpGained',
-              style: const TextStyle(
-                color: Color(0xFF2D3A2E),
-                fontSize: 14,
+              style: textTheme.bodyLarge?.copyWith(
+                color: ZenColors.textPrimary,
                 fontWeight: FontWeight.w700,
-                fontFamily: 'Manrope',
+                fontSize: 14,
               ),
             ),
           if (unlockedBadges.isNotEmpty) ...[
@@ -298,17 +296,16 @@ class WorkoutRewardSummary extends StatelessWidget {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: ZenColors.surface0,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFD8E5DE)),
+                        border: Border.all(color: ZenColors.surface2),
                       ),
                       child: Text(
                         badge.name,
-                        style: const TextStyle(
-                          color: Color(0xFF2D3A2E),
-                          fontSize: 12,
+                        style: textTheme.labelMedium?.copyWith(
+                          color: ZenColors.textPrimary,
                           fontWeight: FontWeight.w600,
-                          fontFamily: 'Manrope',
+                          fontSize: 12,
                         ),
                       ),
                     ),
