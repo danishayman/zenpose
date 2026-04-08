@@ -1137,6 +1137,39 @@ class DatabaseService {
     notifyLocalMutation();
   }
 
+  Future<void> reorderDailyChallengeSteps({
+    required String dateKey,
+    required List<DailyChallengeStep> orderedSteps,
+  }) async {
+    final db = await database;
+    final nowIso = _nowIso();
+    await db.transaction((tx) async {
+      for (var stepIndex = 0; stepIndex < orderedSteps.length; stepIndex++) {
+        final step = orderedSteps[stepIndex];
+        final updated = await tx.update(
+          tableDailyChallengeSteps,
+          <String, Object?>{
+            columnPoseName: step.poseName,
+            columnStatus: step.status.dbValue,
+            columnBestScore: step.bestScore,
+            columnHoldDuration: step.holdDuration,
+            columnUpdatedAt: nowIso,
+            columnIsSynced: 0,
+          },
+          where:
+              '$columnUserId = ? AND $columnDateKey = ? AND $columnStepIndex = ?',
+          whereArgs: <Object?>[_activeUserId, dateKey, stepIndex],
+        );
+        if (updated == 0) {
+          throw StateError(
+            'Failed to reorder step at index $stepIndex for $dateKey.',
+          );
+        }
+      }
+    });
+    notifyLocalMutation();
+  }
+
   SessionHistoryPoseStatus _mapStepStatus(DailyChallengeStepStatus status) {
     switch (status) {
       case DailyChallengeStepStatus.completed:

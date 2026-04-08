@@ -539,12 +539,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _headlineForMetric(ProfileActivitySeries series) {
     if (series.points.isEmpty) return '0';
-    final latest = series.points.last.value;
+    final latest = _latestNonZeroValue(series.points);
     return switch (series.metric) {
       ProfileActivityMetric.duration => '${latest.toStringAsFixed(1)} min',
       ProfileActivityMetric.score => '${latest.toStringAsFixed(1)}%',
       ProfileActivityMetric.sessions => latest.toStringAsFixed(0),
     };
+  }
+
+  double _latestNonZeroValue(List<ProfileActivityPoint> points) {
+    const epsilon = 0.0001;
+    for (var i = points.length - 1; i >= 0; i--) {
+      if (points[i].value.abs() > epsilon) {
+        return points[i].value;
+      }
+    }
+    return points.last.value;
   }
 
   String _metricSubtitle(ProfileActivityMetric metric) {

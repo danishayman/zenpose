@@ -105,6 +105,41 @@ void main() {
     expect(headline(), '88.0%');
   });
 
+  testWidgets(
+    'profile activity headline uses latest active day when trailing days are empty',
+    (tester) async {
+      _setLargeSurface(tester);
+      await tester.pumpWidget(
+        _app(
+          ProfileScreen(
+            loadUserStats: () async => stats,
+            loadBadgeCount: () async => 1,
+            loadAllResults: () async => results,
+            loadBadgeDefinitions: () async => definitions,
+            loadUnlockedBadges: () async => unlocked,
+            loadChallenges: () async => const <ChallengeProgressSnapshot>[],
+            nowBuilder: () => DateTime(2026, 4, 12, 12),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      String headline() => tester
+          .widget<Text>(find.byKey(const Key('profile-activity-headline')))
+          .data!;
+
+      expect(headline(), '1.0 min');
+
+      await tester.tap(find.byKey(const Key('profile-activity-tab-sessions')));
+      await tester.pumpAndSettle();
+      expect(headline(), '1');
+
+      await tester.tap(find.byKey(const Key('profile-activity-tab-score')));
+      await tester.pumpAndSettle();
+      expect(headline(), '88.0%');
+    },
+  );
+
   testWidgets('profile achievements preview opens achievements screen', (
     tester,
   ) async {

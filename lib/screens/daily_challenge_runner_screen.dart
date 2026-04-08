@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/daily_challenge.dart';
@@ -85,6 +87,63 @@ class _DailyChallengeRunnerScreenState
     }
   }
 
+  bool _isReorderEnabled(DailyChallengeBundle bundle) {
+    return !bundle.challenge.isCompleted &&
+        !bundle.hasStarted &&
+        bundle.pendingStepsCount == bundle.steps.length;
+  }
+
+  List<DailyChallengeStep> _reindexedSteps(
+    List<DailyChallengeStep> orderedSteps,
+    String dateKey,
+  ) {
+    return <DailyChallengeStep>[
+      for (var i = 0; i < orderedSteps.length; i++)
+        DailyChallengeStep(
+          dateKey: dateKey,
+          stepIndex: i,
+          poseName: orderedSteps[i].poseName,
+          status: orderedSteps[i].status,
+          bestScore: orderedSteps[i].bestScore,
+          holdDuration: orderedSteps[i].holdDuration,
+          updatedAt: orderedSteps[i].updatedAt,
+        ),
+    ];
+  }
+
+  Future<void> _onReorder(int oldIndex, int newIndex) async {
+    final bundle = _bundle;
+    if (bundle == null || !_isReorderEnabled(bundle)) return;
+    if (newIndex > oldIndex) newIndex -= 1;
+    if (oldIndex == newIndex) return;
+
+    final reordered = List<DailyChallengeStep>.from(bundle.steps);
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, moved);
+    final reorderedPoses = reordered
+        .map((step) => step.poseName)
+        .toList(growable: false);
+
+    setState(() {
+      _bundle = DailyChallengeBundle(
+        challenge: bundle.challenge.copyWith(sequence: reorderedPoses),
+        steps: _reindexedSteps(reordered, bundle.challenge.dateKey),
+      );
+    });
+
+    try {
+      final refreshed = await _challengeService.reorderSteps(
+        dateKey: widget.dateKey,
+        orderedSteps: reordered,
+      );
+      if (!mounted) return;
+      setState(() => _bundle = refreshed);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _bundle = bundle);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bundle = _bundle;
@@ -115,6 +174,7 @@ class _DailyChallengeRunnerScreenState
             DailyChallengeService.challengeRestDuration.inSeconds);
     final durationMins = (durationSecs / 60).ceil();
     final isCompleted = bundle.pendingStepsCount == 0;
+    final canReorder = _isReorderEnabled(bundle);
 
     return Column(
       children: [
@@ -142,12 +202,40 @@ class _DailyChallengeRunnerScreenState
               const SizedBox(height: 20),
               Text('Exercises', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 10),
-              ...bundle.steps.map(
-                (step) => _exerciseTile(
-                  step,
-                  targetHoldSeconds: challengeHoldSeconds,
+              if (canReorder)
+                ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  buildDefaultDragHandles: false,
+                  itemCount: bundle.steps.length,
+                  onReorder: (oldIndex, newIndex) {
+                    unawaited(_onReorder(oldIndex, newIndex));
+                  },
+                  itemBuilder: (context, index) {
+                    final step = bundle.steps[index];
+                    return _exerciseTile(
+                      step,
+                      key: ValueKey(
+                        'challenge-step-${step.poseName}-${step.stepIndex}',
+                      ),
+                      targetHoldSeconds: challengeHoldSeconds,
+                      reorderHandle: ReorderableDelayedDragStartListener(
+                        index: index,
+                        child: const Icon(
+                          Icons.drag_indicator_rounded,
+                          color: ZenColors.textMuted,
+                        ),
+                      ),
+                    );
+                  },
+                )
+              else
+                ...bundle.steps.map(
+                  (step) => _exerciseTile(
+                    step,
+                    targetHoldSeconds: challengeHoldSeconds,
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -204,7 +292,9 @@ class _DailyChallengeRunnerScreenState
 
   Widget _exerciseTile(
     DailyChallengeStep step, {
+    Key? key,
     required int targetHoldSeconds,
+    Widget? reorderHandle,
   }) {
     final template = _templateForPose(step.poseName);
     final statusIcon = switch (step.status) {
@@ -219,13 +309,14 @@ class _DailyChallengeRunnerScreenState
     };
 
     return Container(
+      key: key,
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: ZenColors.surface2)),
       ),
       child: Row(
         children: [
-          Icon(statusIcon, color: statusColor),
+          reorderHandle ?? Icon(statusIcon, color: statusColor),
           const SizedBox(width: 10),
           if (template != null)
             ClipRRect(

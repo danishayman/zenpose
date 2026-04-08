@@ -198,6 +198,51 @@ class DailyChallengeService {
     return DailyChallengeBundle(challenge: challenge, steps: steps);
   }
 
+  Future<DailyChallengeBundle> reorderSteps({
+    required String dateKey,
+    required List<DailyChallengeStep> orderedSteps,
+  }) async {
+    final bundle = await getOrCreateChallenge(dateKey: dateKey);
+    if (bundle.challenge.isCompleted || bundle.hasStarted) {
+      return bundle;
+    }
+    if (orderedSteps.length != bundle.steps.length) {
+      return bundle;
+    }
+    final currentPoses = bundle.steps
+        .map((step) => step.poseName)
+        .toList(growable: false);
+    final reorderedPoses = orderedSteps
+        .map((step) => step.poseName)
+        .toList(growable: false);
+    if (!_hasSamePoseSet(currentPoses, reorderedPoses)) {
+      return bundle;
+    }
+
+    final now = DateTime.now();
+    final reindexedSteps = <DailyChallengeStep>[
+      for (var i = 0; i < orderedSteps.length; i++)
+        DailyChallengeStep(
+          dateKey: dateKey,
+          stepIndex: i,
+          poseName: orderedSteps[i].poseName,
+          status: orderedSteps[i].status,
+          bestScore: orderedSteps[i].bestScore,
+          holdDuration: orderedSteps[i].holdDuration,
+          updatedAt: now,
+        ),
+    ];
+
+    await _databaseService.reorderDailyChallengeSteps(
+      dateKey: dateKey,
+      orderedSteps: reindexedSteps,
+    );
+    await _databaseService.updateDailyChallenge(
+      bundle.challenge.copyWith(sequence: reorderedPoses, updatedAt: now),
+    );
+    return _refreshBundle(dateKey);
+  }
+
   Future<DailyChallengeStepProcessResult> skipStep({
     required String dateKey,
     required int stepIndex,
@@ -477,5 +522,21 @@ class DailyChallengeService {
       seconds += step.holdDuration ?? fallbackHoldSeconds.toDouble();
     }
     return seconds.round();
+  }
+
+  static bool _hasSamePoseSet(List<String> source, List<String> other) {
+    if (source.length != other.length) return false;
+    final counts = <String, int>{};
+    for (final pose in source) {
+      counts[pose] = (counts[pose] ?? 0) + 1;
+    }
+    for (final pose in other) {
+      final remaining = counts[pose];
+      if (remaining == null || remaining == 0) {
+        return false;
+      }
+      counts[pose] = remaining - 1;
+    }
+    return counts.values.every((count) => count == 0);
   }
 }
