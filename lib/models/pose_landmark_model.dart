@@ -29,7 +29,9 @@ class PoseLandmark {
   });
 
   /// Minimum confidence threshold to consider a landmark reliable.
-  static const double confidenceThreshold = 0.5;
+  // Slightly lower than the default ML Kit confidence tolerance so side-view
+  // poses (for example plank/downward dog) do not drop out too aggressively.
+  static const double confidenceThreshold = 0.35;
 
   /// Whether this landmark is reliable enough for angle calculations.
   bool get isValid => confidence >= confidenceThreshold;

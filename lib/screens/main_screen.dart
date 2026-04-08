@@ -77,7 +77,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final PoseCorrectionService _poseCorrectionService = PoseCorrectionService();
   final PoseDistanceSimilarityService _distanceSimilarityService =
       PoseDistanceSimilarityService();
-  final PoseStabilityService _poseStabilityService = PoseStabilityService();
+  final PoseStabilityService _poseStabilityService = PoseStabilityService(
+    stabilityThreshold: 0.015,
+  );
   final WorkoutGuidanceService _guidanceService = WorkoutGuidanceService();
   final ScoreSmoothingService _scoreSmoothingService = ScoreSmoothingService(
     windowSize: 5,
@@ -181,6 +183,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   static const Duration _hudScoreCadence = Duration(milliseconds: 250);
   static const Duration _hudProgressCadence = Duration(milliseconds: 200);
+  static const Duration _normalizedFallbackGrace = Duration(milliseconds: 450);
+
+  List<double>? _lastReliableNormalizedVector;
+  DateTime? _lastReliableNormalizedAt;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -325,28 +331,45 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         _anglesNotifier.value = angles;
 
         // ── Normalize pose vector (translation + scale invariant) ────
-        final normalized = _normalizationService.normalize(smoothedLandmarks);
+        final normalized = _normalizedForScoring(
+          _normalizationService.normalize(smoothedLandmarks),
+          now,
+        );
         _normalizedVectorNotifier.value = normalized;
 
         // ── Distance + angle similarity against reference pose ──────
+        final hasDistanceScore = normalized != null;
+        final maxDistance = _distanceMaxDistanceForPose();
         final distanceScore = _distanceSimilarityService.computeScore(
           normalized,
           widget.poseTemplate.meanVector,
+          maxDistance: maxDistance,
         );
         final mirroredDistanceScore = _distanceSimilarityService.computeScore(
           normalized,
           _mirroredTemplateVector,
+          maxDistance: maxDistance,
         );
-        final angleScore = normalized == null
+        final cosineScore = normalized == null
             ? null
-            : _poseCorrectionService.computeAngleScore(angles);
-        final mirroredAngleScore = normalized == null
+            : _similarityService.compareToPose(normalized);
+        final mirroredCosineScore = normalized == null
             ? null
-            : _mirroredPoseCorrectionService.computeAngleScore(angles);
-        final similarity = _combineScores(distanceScore, angleScore);
+            : _mirroredSimilarityService.compareToPose(normalized);
+        final angleScore = _poseCorrectionService.computeAngleScore(angles);
+        final mirroredAngleScore = _mirroredPoseCorrectionService
+            .computeAngleScore(angles);
+        final similarity = _combineScores(
+          distanceScore: distanceScore,
+          cosineScore: cosineScore,
+          angleScore: angleScore,
+          hasDistanceScore: hasDistanceScore,
+        );
         final mirroredSimilarity = _combineScores(
-          mirroredDistanceScore,
-          mirroredAngleScore,
+          distanceScore: mirroredDistanceScore,
+          cosineScore: mirroredCosineScore,
+          angleScore: mirroredAngleScore,
+          hasDistanceScore: hasDistanceScore,
         );
         final useMirrored = mirroredSimilarity > similarity;
         final selectedSimilarity = useMirrored
@@ -360,13 +383,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
         // ── Pose stability check ────────────────────────────────────────
         final stabilityResult = _poseStabilityService.update(smoothedLandmarks);
-        _poseStableNotifier.value = stabilityResult.poseStable;
+        final poseStable =
+            stabilityResult.movementScore > 0 &&
+            stabilityResult.movementScore < _stabilityThresholdForPose();
+        _poseStableNotifier.value = poseStable;
         _movementScoreNotifier.value = stabilityResult.movementScore;
 
         // ── Pose hold timer ───────────────────────────────────────────
         final poseResult = _poseSessionService.update(
           smoothedScore,
-          poseStable: stabilityResult.poseStable,
+          poseStable: poseStable,
         );
         if (poseResult != null) {
           if (_isTimedMode) {
@@ -408,7 +434,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         final guidance = _guidanceService.evaluate(
           cameraReady: _isCameraReady,
           hasPose: true,
-          poseStable: stabilityResult.poseStable,
+          poseStable: poseStable,
           poseCompleted: _poseSessionService.poseCompleted,
           score: smoothedScore,
           holdProgress: _isTimedMode
@@ -434,11 +460,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           );
           debugPrint(
             '[PoseScore] distance=${distanceScore.toStringAsFixed(1)} '
+            'cos=${cosineScore?.toStringAsFixed(1) ?? '-'} '
             'angle=${angleScore?.toStringAsFixed(1) ?? '-'} '
             'mirrorDist=${mirroredDistanceScore.toStringAsFixed(1)} '
+            'mirrorCos=${mirroredCosineScore?.toStringAsFixed(1) ?? '-'} '
             'mirrorAngle=${mirroredAngleScore?.toStringAsFixed(1) ?? '-'} '
             'raw=${selectedSimilarity.toStringAsFixed(1)}% '
             'smooth=${smoothedScore.toStringAsFixed(1)}% '
+            'maxDist=${maxDistance.toStringAsFixed(2)} '
+            'hasDistance=$hasDistanceScore '
             'mirrored=$useMirrored',
           );
         }
@@ -504,6 +534,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             !_isTimedMode) {
           _anglesNotifier.value = {};
           _normalizedVectorNotifier.value = null;
+          _lastReliableNormalizedVector = null;
+          _lastReliableNormalizedAt = null;
           _rawSimilarityNotifier.value = 0.0;
           _smoothedSimilarityNotifier.value = 0.0;
           _scoreSmoothingService.reset();
@@ -548,6 +580,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _poseSessionService.reset();
     _poseStabilityService.reset();
     _guidanceService.reset();
+    _lastReliableNormalizedVector = null;
+    _lastReliableNormalizedAt = null;
     _rawSimilarityNotifier.value = 0.0;
     _smoothedSimilarityNotifier.value = 0.0;
     _holdProgressNotifier.value = 0.0;
@@ -1376,10 +1410,122 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   /// Blend distance and angle scores into a single 0–100 score.
-  double _combineScores(double distanceScore, double? angleScore) {
-    if (angleScore == null) return distanceScore;
-    const double distanceWeight = 0.6;
-    const double angleWeight = 0.4;
-    return (distanceScore * distanceWeight) + (angleScore * angleWeight);
+  ///
+  /// Downward dog and plank are more reliable when angle similarity carries
+  /// more weight and distance tolerance is slightly wider.
+  double _combineScores({
+    required double distanceScore,
+    required double? cosineScore,
+    required double? angleScore,
+    required bool hasDistanceScore,
+  }) {
+    final (distanceWeight, cosineWeight, angleWeight) =
+        _scoreBlendWeightsForPose();
+    final weighted = <(double, double)>[];
+    if (hasDistanceScore) {
+      weighted.add((distanceScore, distanceWeight));
+    }
+    if (cosineScore != null) {
+      weighted.add((cosineScore, cosineWeight));
+    }
+    if (angleScore != null) {
+      weighted.add((angleScore, angleWeight));
+    }
+
+    if (weighted.isEmpty) {
+      return 0.0;
+    }
+
+    final totalWeight = weighted.fold<double>(
+      0.0,
+      (sum, item) => sum + item.$2,
+    );
+    if (totalWeight <= 0.0) {
+      return weighted.last.$1;
+    }
+
+    final weightedScore = weighted.fold<double>(
+      0.0,
+      (sum, item) => sum + (item.$1 * item.$2),
+    );
+    return weightedScore / totalWeight;
+  }
+
+  (double, double, double) _scoreBlendWeightsForPose() {
+    // (distance, cosine, angle)
+    switch (widget.poseTemplate.templateKey.toLowerCase()) {
+      case 'downdog':
+      case 'plank':
+      case 'chair':
+      case 'half-moon':
+      case 'halfmoon':
+      case 'half moon':
+        return (0.05, 0.60, 0.35);
+      default:
+        return (0.20, 0.50, 0.30);
+    }
+  }
+
+  double _distanceMaxDistanceForPose() {
+    switch (widget.poseTemplate.templateKey.toLowerCase()) {
+      case 'downdog':
+        return 5.2;
+      case 'plank':
+        return 5.2;
+      case 'chair':
+        return 5.2;
+      case 'half-moon':
+      case 'halfmoon':
+      case 'half moon':
+        return 6.4;
+      default:
+        return PoseDistanceSimilarityService.defaultMaxDistance;
+    }
+  }
+
+  double _stabilityThresholdForPose() {
+    switch (widget.poseTemplate.templateKey.toLowerCase()) {
+      case 'downdog':
+      case 'plank':
+        return 0.020;
+      case 'chair':
+        return 0.022;
+      case 'half-moon':
+      case 'halfmoon':
+      case 'half moon':
+        return 0.028;
+      default:
+        return 0.015;
+    }
+  }
+
+  Duration _normalizedFallbackGraceForPose() {
+    switch (widget.poseTemplate.templateKey.toLowerCase()) {
+      case 'chair':
+        return const Duration(milliseconds: 700);
+      case 'half-moon':
+      case 'halfmoon':
+      case 'half moon':
+        return const Duration(milliseconds: 900);
+      default:
+        return _normalizedFallbackGrace;
+    }
+  }
+
+  List<double>? _normalizedForScoring(List<double>? normalized, DateTime at) {
+    if (normalized != null) {
+      _lastReliableNormalizedVector = normalized;
+      _lastReliableNormalizedAt = at;
+      return normalized;
+    }
+
+    final lastReliableAt = _lastReliableNormalizedAt;
+    if (lastReliableAt == null) return null;
+    if (at.difference(lastReliableAt) > _normalizedFallbackGraceForPose()) {
+      _lastReliableNormalizedVector = null;
+      _lastReliableNormalizedAt = null;
+      return null;
+    }
+    return _lastReliableNormalizedVector;
   }
 }

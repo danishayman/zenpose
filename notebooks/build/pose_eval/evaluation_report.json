@@ -1,0 +1,572 @@
+{
+  "createdAtUtc": "2026-04-08T06:50:24.281543+00:00",
+  "datasetDir": "C:\\Users\\danis\\Documents\\FYP\\zenpose\\dataset",
+  "outputFile": "assets\\pose_templates.json",
+  "splitManifestFile": "build\\pose_eval\\split_manifest.json",
+  "ratios": {
+    "train": 0.7,
+    "validation": 0.15,
+    "test": 0.15
+  },
+  "seed": 42,
+  "extractionSummary": {
+    "bySplit": {
+      "train": {
+        "total": 1372,
+        "valid": 640,
+        "invalid": 732
+      },
+      "validation": {
+        "total": 294,
+        "valid": 138,
+        "invalid": 156
+      },
+      "test": {
+        "total": 293,
+        "valid": 132,
+        "invalid": 161
+      }
+    },
+    "invalidReasonsBySplit": {
+      "train": {
+        "lowConfidenceOrDegenerate": 684,
+        "poseNotDetected": 48
+      },
+      "validation": {
+        "lowConfidenceOrDegenerate": 147,
+        "poseNotDetected": 9
+      },
+      "test": {
+        "poseNotDetected": 12,
+        "lowConfidenceOrDegenerate": 149
+      }
+    }
+  },
+  "numTemplates": 7,
+  "evaluation": {
+    "euclidean": {
+      "validation": {
+        "metric": "euclidean",
+        "split": "validation",
+        "numValidExamples": 138,
+        "numEvaluatedExamples": 138,
+        "accuracy": 0.710145,
+        "precision": 0.67709,
+        "recall": 0.611405,
+        "f1": 0.639872,
+        "perClass": {
+          "chair": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "downdog": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "goddess": {
+            "precision": 0.925926,
+            "recall": 0.757576,
+            "f1": 0.833333,
+            "support": 33
+          },
+          "half-moon": {
+            "precision": 0.285714,
+            "recall": 0.333333,
+            "f1": 0.307692,
+            "support": 6
+          },
+          "plank": {
+            "precision": 0.52381,
+            "recall": 0.52381,
+            "f1": 0.52381,
+            "support": 21
+          },
+          "tree": {
+            "precision": 0.75,
+            "recall": 0.576923,
+            "f1": 0.652174,
+            "support": 26
+          },
+          "warrior2": {
+            "precision": 0.9,
+            "recall": 0.865385,
+            "f1": 0.882353,
+            "support": 52
+          }
+        },
+        "confusionMatrix": {
+          "labels": [
+            "chair",
+            "downdog",
+            "goddess",
+            "half-moon",
+            "plank",
+            "tree",
+            "warrior2"
+          ],
+          "rows": {
+            "chair": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 0,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "downdog": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 0,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "goddess": {
+              "chair": 1,
+              "downdog": 0,
+              "goddess": 25,
+              "half-moon": 0,
+              "plank": 0,
+              "tree": 4,
+              "warrior2": 3
+            },
+            "half-moon": {
+              "chair": 0,
+              "downdog": 3,
+              "goddess": 0,
+              "half-moon": 2,
+              "plank": 1,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "plank": {
+              "chair": 0,
+              "downdog": 2,
+              "goddess": 0,
+              "half-moon": 5,
+              "plank": 11,
+              "tree": 1,
+              "warrior2": 2
+            },
+            "tree": {
+              "chair": 7,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 4,
+              "tree": 15,
+              "warrior2": 0
+            },
+            "warrior2": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 2,
+              "half-moon": 0,
+              "plank": 5,
+              "tree": 0,
+              "warrior2": 45
+            }
+          }
+        }
+      },
+      "test": {
+        "metric": "euclidean",
+        "split": "test",
+        "numValidExamples": 132,
+        "numEvaluatedExamples": 132,
+        "accuracy": 0.651515,
+        "precision": 0.457966,
+        "recall": 0.412166,
+        "f1": 0.429065,
+        "perClass": {
+          "chair": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "downdog": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1
+          },
+          "goddess": {
+            "precision": 0.821429,
+            "recall": 0.741935,
+            "f1": 0.779661,
+            "support": 31
+          },
+          "half-moon": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 8
+          },
+          "plank": {
+            "precision": 0.272727,
+            "recall": 0.272727,
+            "f1": 0.272727,
+            "support": 22
+          },
+          "tree": {
+            "precision": 0.785714,
+            "recall": 0.5,
+            "f1": 0.611111,
+            "support": 22
+          },
+          "warrior2": {
+            "precision": 0.867925,
+            "recall": 0.958333,
+            "f1": 0.910891,
+            "support": 48
+          }
+        },
+        "confusionMatrix": {
+          "labels": [
+            "chair",
+            "downdog",
+            "goddess",
+            "half-moon",
+            "plank",
+            "tree",
+            "warrior2"
+          ],
+          "rows": {
+            "chair": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 0,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "downdog": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 1,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "goddess": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 23,
+              "half-moon": 0,
+              "plank": 4,
+              "tree": 2,
+              "warrior2": 2
+            },
+            "half-moon": {
+              "chair": 0,
+              "downdog": 3,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 5,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "plank": {
+              "chair": 0,
+              "downdog": 1,
+              "goddess": 0,
+              "half-moon": 9,
+              "plank": 6,
+              "tree": 1,
+              "warrior2": 5
+            },
+            "tree": {
+              "chair": 2,
+              "downdog": 0,
+              "goddess": 5,
+              "half-moon": 0,
+              "plank": 4,
+              "tree": 11,
+              "warrior2": 0
+            },
+            "warrior2": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 2,
+              "tree": 0,
+              "warrior2": 46
+            }
+          }
+        }
+      }
+    },
+    "cosine": {
+      "validation": {
+        "metric": "cosine",
+        "split": "validation",
+        "numValidExamples": 138,
+        "numEvaluatedExamples": 138,
+        "accuracy": 0.731884,
+        "precision": 0.75236,
+        "recall": 0.63285,
+        "f1": 0.682751,
+        "perClass": {
+          "chair": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "downdog": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "goddess": {
+            "precision": 0.928571,
+            "recall": 0.787879,
+            "f1": 0.852459,
+            "support": 33
+          },
+          "half-moon": {
+            "precision": 0.4,
+            "recall": 0.333333,
+            "f1": 0.363636,
+            "support": 6
+          },
+          "plank": {
+            "precision": 0.846154,
+            "recall": 0.52381,
+            "f1": 0.647059,
+            "support": 21
+          },
+          "tree": {
+            "precision": 0.62963,
+            "recall": 0.653846,
+            "f1": 0.641509,
+            "support": 26
+          },
+          "warrior2": {
+            "precision": 0.957447,
+            "recall": 0.865385,
+            "f1": 0.909091,
+            "support": 52
+          }
+        },
+        "confusionMatrix": {
+          "labels": [
+            "chair",
+            "downdog",
+            "goddess",
+            "half-moon",
+            "plank",
+            "tree",
+            "warrior2"
+          ],
+          "rows": {
+            "chair": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 0,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "downdog": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 0,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "goddess": {
+              "chair": 1,
+              "downdog": 0,
+              "goddess": 26,
+              "half-moon": 0,
+              "plank": 0,
+              "tree": 4,
+              "warrior2": 2
+            },
+            "half-moon": {
+              "chair": 0,
+              "downdog": 3,
+              "goddess": 0,
+              "half-moon": 2,
+              "plank": 0,
+              "tree": 1,
+              "warrior2": 0
+            },
+            "plank": {
+              "chair": 4,
+              "downdog": 2,
+              "goddess": 0,
+              "half-moon": 3,
+              "plank": 11,
+              "tree": 1,
+              "warrior2": 0
+            },
+            "tree": {
+              "chair": 8,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 1,
+              "tree": 17,
+              "warrior2": 0
+            },
+            "warrior2": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 2,
+              "half-moon": 0,
+              "plank": 1,
+              "tree": 4,
+              "warrior2": 45
+            }
+          }
+        }
+      },
+      "test": {
+        "metric": "cosine",
+        "split": "test",
+        "numValidExamples": 132,
+        "numEvaluatedExamples": 132,
+        "accuracy": 0.659091,
+        "precision": 0.476256,
+        "recall": 0.424141,
+        "f1": 0.438353,
+        "perClass": {
+          "chair": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "downdog": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1
+          },
+          "goddess": {
+            "precision": 0.913043,
+            "recall": 0.677419,
+            "f1": 0.777778,
+            "support": 31
+          },
+          "half-moon": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 8
+          },
+          "plank": {
+            "precision": 0.285714,
+            "recall": 0.090909,
+            "f1": 0.137931,
+            "support": 22
+          },
+          "tree": {
+            "precision": 0.72,
+            "recall": 0.818182,
+            "f1": 0.765957,
+            "support": 22
+          },
+          "warrior2": {
+            "precision": 0.938776,
+            "recall": 0.958333,
+            "f1": 0.948454,
+            "support": 48
+          }
+        },
+        "confusionMatrix": {
+          "labels": [
+            "chair",
+            "downdog",
+            "goddess",
+            "half-moon",
+            "plank",
+            "tree",
+            "warrior2"
+          ],
+          "rows": {
+            "chair": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 0,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "downdog": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 1,
+              "half-moon": 0,
+              "plank": 0,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "goddess": {
+              "chair": 1,
+              "downdog": 0,
+              "goddess": 21,
+              "half-moon": 0,
+              "plank": 2,
+              "tree": 4,
+              "warrior2": 3
+            },
+            "half-moon": {
+              "chair": 1,
+              "downdog": 5,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 2,
+              "tree": 0,
+              "warrior2": 0
+            },
+            "plank": {
+              "chair": 8,
+              "downdog": 1,
+              "goddess": 1,
+              "half-moon": 9,
+              "plank": 2,
+              "tree": 1,
+              "warrior2": 0
+            },
+            "tree": {
+              "chair": 3,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 1,
+              "tree": 18,
+              "warrior2": 0
+            },
+            "warrior2": {
+              "chair": 0,
+              "downdog": 0,
+              "goddess": 0,
+              "half-moon": 0,
+              "plank": 0,
+              "tree": 2,
+              "warrior2": 46
+            }
+          }
+        }
+      }
+    }
+  }
+}

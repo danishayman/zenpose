@@ -29,7 +29,7 @@ class _DailyChallengeRunnerScreenState
     extends State<DailyChallengeRunnerScreen> {
   late final DailyChallengeService _challengeService;
   DailyChallengeBundle? _bundle;
-  Map<String, PoseTemplate> _templatesByName = <String, PoseTemplate>{};
+  Map<String, PoseTemplate> _templateLookup = <String, PoseTemplate>{};
   bool _loading = true;
 
   @override
@@ -45,10 +45,27 @@ class _DailyChallengeRunnerScreenState
       dateKey: widget.dateKey,
     );
     final templates = await _challengeService.loadPoseTemplates();
-    _templatesByName = {for (final t in templates) t.name: t};
+    _templateLookup = _buildTemplateLookup(templates);
     _bundle = bundle;
     if (!mounted) return;
     setState(() => _loading = false);
+  }
+
+  Map<String, PoseTemplate> _buildTemplateLookup(List<PoseTemplate> templates) {
+    final lookup = <String, PoseTemplate>{};
+    for (final template in templates) {
+      lookup[_normalizePoseKey(template.name)] = template;
+      lookup[_normalizePoseKey(template.templateKey)] = template;
+    }
+    return lookup;
+  }
+
+  String _normalizePoseKey(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
+  PoseTemplate? _templateForPose(String poseName) {
+    return _templateLookup[_normalizePoseKey(poseName)];
   }
 
   Future<void> _startFlow() async {
@@ -189,7 +206,7 @@ class _DailyChallengeRunnerScreenState
     DailyChallengeStep step, {
     required int targetHoldSeconds,
   }) {
-    final template = _templatesByName[step.poseName];
+    final template = _templateForPose(step.poseName);
     final statusIcon = switch (step.status) {
       DailyChallengeStepStatus.completed => Icons.check_circle_rounded,
       DailyChallengeStepStatus.skipped => Icons.skip_next_rounded,

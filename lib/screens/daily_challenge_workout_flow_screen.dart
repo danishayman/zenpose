@@ -39,7 +39,7 @@ class _DailyChallengeWorkoutFlowScreenState
 
   late final DailyChallengeService _challengeService;
   DailyChallengeBundle? _bundle;
-  Map<String, PoseTemplate> _templatesByName = <String, PoseTemplate>{};
+  Map<String, PoseTemplate> _templateLookup = <String, PoseTemplate>{};
   bool _loading = true;
   bool _launching = false;
   int? _currentStepIndex;
@@ -77,7 +77,7 @@ class _DailyChallengeWorkoutFlowScreenState
       dateKey: widget.dateKey,
     );
     final templates = await _challengeService.loadPoseTemplates();
-    _templatesByName = {for (final t in templates) t.name: t};
+    _templateLookup = _buildTemplateLookup(templates);
     _bundle = bundle;
     _currentStepIndex = _firstPendingStepIndex(bundle);
     _phase = _currentStepIndex == null
@@ -89,6 +89,23 @@ class _DailyChallengeWorkoutFlowScreenState
     if (_currentStepIndex == null) {
       unawaited(_openSummary());
     }
+  }
+
+  Map<String, PoseTemplate> _buildTemplateLookup(List<PoseTemplate> templates) {
+    final lookup = <String, PoseTemplate>{};
+    for (final template in templates) {
+      lookup[_normalizePoseKey(template.name)] = template;
+      lookup[_normalizePoseKey(template.templateKey)] = template;
+    }
+    return lookup;
+  }
+
+  String _normalizePoseKey(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
+  PoseTemplate? _templateForPose(String poseName) {
+    return _templateLookup[_normalizePoseKey(poseName)];
   }
 
   int? _firstPendingStepIndex(DailyChallengeBundle bundle) {
@@ -170,7 +187,7 @@ class _DailyChallengeWorkoutFlowScreenState
       await _openSummary();
       return;
     }
-    final template = _templatesByName[step.poseName];
+    final template = _templateForPose(step.poseName);
     if (template == null) {
       _returnToReadyPhase();
       return;
@@ -476,7 +493,7 @@ class _DailyChallengeWorkoutFlowScreenState
       unawaited(_openSummary());
       return const Center(child: CircularProgressIndicator());
     }
-    final template = _templatesByName[step.poseName];
+    final template = _templateForPose(step.poseName);
     if (template == null) {
       return const Center(child: Text('Missing exercise template.'));
     }
@@ -515,7 +532,7 @@ class _DailyChallengeWorkoutFlowScreenState
     final nextStep = _upcomingPendingStep;
     final nextTemplate = nextStep == null
         ? null
-        : _templatesByName[nextStep.poseName];
+        : _templateForPose(nextStep.poseName);
     final showPreview =
         nextTemplate != null && MediaQuery.of(context).size.height >= 760;
     return Column(

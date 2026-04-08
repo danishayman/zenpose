@@ -48,8 +48,9 @@ class PoseTemplate {
   /// display name.  [value] is the inner map containing `meanVector`.
   factory PoseTemplate.fromEntry(String key, Map<String, dynamic> value) {
     // Derive a human-friendly display name from the key.
-    // e.g. "downdog" → "Downdog", "warrior2" → "Warrior2"
-    final displayName = key[0].toUpperCase() + key.substring(1);
+    // e.g. "downdog" → "Downdog", "warrior2" → "Warrior II",
+    //      "half-moon" → "Half Moon"
+    final displayName = _toDisplayName(key);
 
     return PoseTemplate(
       templateKey: key,
@@ -59,6 +60,29 @@ class PoseTemplate {
           .toList(),
       description: (value['description'] as String?) ?? '',
     );
+  }
+
+  static String _toDisplayName(String key) {
+    final raw = key.trim();
+    if (raw.isEmpty) return key;
+
+    const displayOverrides = <String, String>{'warrior2': 'Warrior II'};
+    final override = displayOverrides[raw.toLowerCase()];
+    if (override != null) return override;
+
+    final normalized = raw.replaceAll(RegExp(r'[-_]+'), ' ');
+    if (normalized.isEmpty) return key;
+
+    final words = normalized
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .map((word) {
+          final first = word[0].toUpperCase();
+          final rest = word.length > 1 ? word.substring(1) : '';
+          return '$first$rest';
+        });
+
+    return words.join(' ');
   }
 
   /// Serialise back to a JSON-compatible map (useful for debugging/export).

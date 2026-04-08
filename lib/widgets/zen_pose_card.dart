@@ -36,6 +36,11 @@ PoseDifficulty inferDifficulty(String poseName) {
       lower.contains('handstand') ||
       lower.contains('scorpion') ||
       lower.contains('wheel') ||
+      lower.contains('downdog') ||
+      lower.contains('down dog') ||
+      lower.contains('half-moon') ||
+      lower.contains('half moon') ||
+      lower.contains('halfmoon') ||
       lower.contains('lotus')) {
     return PoseDifficulty.advanced;
   }
