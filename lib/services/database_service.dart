@@ -11,6 +11,7 @@ import '../models/badge_definition.dart';
 import '../models/body_measurement.dart';
 import '../models/pose_result.dart';
 import '../models/profile_challenge_models.dart';
+import '../models/punishment_models.dart';
 import '../models/session_history_entry.dart';
 import '../models/unlocked_badge.dart';
 import '../models/user_stats.dart';
@@ -32,7 +33,7 @@ class DatabaseService {
     _databaseNameOverrideForTesting = fileName;
   }
 
-  static const int databaseVersion = 9;
+  static const int databaseVersion = 10;
 
   static const String tablePoseResults = 'pose_results';
   static const String columnId = 'id';
@@ -71,6 +72,7 @@ class DatabaseService {
   static const String tableWeeklyWorkoutGoals = 'weekly_workout_goals';
   static const String tableBodyMeasurements = 'body_measurements';
   static const String tableUserProfileChallenges = 'user_profile_challenges';
+  static const String tableXpPenaltyLedger = 'xp_penalty_ledger';
   static const String columnDateKey = 'date_key';
   static const String columnMonthKey = 'month_key';
   static const String columnChallengeId = 'challenge_id';
@@ -94,6 +96,9 @@ class DatabaseService {
   static const String columnValue = 'value';
   static const String columnUnit = 'unit';
   static const String columnMeasuredAt = 'measured_at';
+  static const String columnReason = 'reason';
+  static const String columnSourceKey = 'source_key';
+  static const String columnXpDelta = 'xp_delta';
   static const int singleUserStatsRowId = 1;
 
   Database? _database;
@@ -143,6 +148,7 @@ class DatabaseService {
     await _createGamificationTables(db);
     await _createDailyChallengeTables(db);
     await _createProgressTrackingTables(db);
+    await _createPenaltyTables(db);
     await _ensureUserStatsRow(db);
     await _ensureWeeklyGoalRow(db);
     await _seedBadges(db);
@@ -178,9 +184,13 @@ class DatabaseService {
     if (oldVersion < 9) {
       await _migrateToV9(db);
     }
+    if (oldVersion < 10) {
+      await _migrateToV10(db);
+    }
     await _createGamificationTables(db);
     await _createDailyChallengeTables(db);
     await _createProgressTrackingTables(db);
+    await _createPenaltyTables(db);
     await _ensureDailyChallengeSummaryColumns(db);
     await _ensureDailyChallengeTargetHoldSecondsColumn(db);
     await _ensureUserStatsRow(db);
@@ -215,6 +225,10 @@ class DatabaseService {
 
   Future<void> _migrateToV9(Database db) async {
     await _ensureDailyChallengeTargetHoldSecondsColumn(db);
+  }
+
+  Future<void> _migrateToV10(Database db) async {
+    await _createPenaltyTables(db);
   }
 
   Future<void> _migrateToV4(Database db) async {
@@ -402,6 +416,21 @@ class DatabaseService {
         $columnUpdatedAt TEXT NOT NULL,
         $columnIsSynced INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY($columnUserId, $columnMonthKey, $columnChallengeId)
+      )
+    ''');
+  }
+
+  Future<void> _createPenaltyTables(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableXpPenaltyLedger (
+        $columnUserId TEXT NOT NULL,
+        $columnDateKey TEXT NOT NULL,
+        $columnReason TEXT NOT NULL,
+        $columnSourceKey TEXT NOT NULL DEFAULT '',
+        $columnXpDelta INTEGER NOT NULL,
+        $columnUpdatedAt TEXT NOT NULL,
+        $columnIsSynced INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY($columnUserId, $columnDateKey, $columnReason, $columnSourceKey)
       )
     ''');
   }
@@ -971,8 +1000,10 @@ class DatabaseService {
     return WeeklyWorkoutGoal.fromMap(rows.first);
   }
 
-  Future<void> incrementTotalXp(int delta) async {
-    if (delta == 0) return;
+  Future<XpAdjustmentSnapshot> adjustTotalXp(
+    int delta, {
+    String? reason,
+  }) async {
     final db = await database;
     await _ensureUserStatsRow(db);
     final rows = await db.query(
@@ -985,7 +1016,10 @@ class DatabaseService {
     final currentXp = rows.isEmpty
         ? 0
         : (rows.first[columnTotalXp] as num?)?.toInt() ?? 0;
-    final nextXp = currentXp + delta;
+    final nextXp = math.max(0, currentXp + delta);
+    if (nextXp == currentXp) {
+      return XpAdjustmentSnapshot(xpBefore: currentXp, xpAfter: currentXp);
+    }
     await db.update(
       tableUserStats,
       <String, Object?>{
@@ -997,6 +1031,95 @@ class DatabaseService {
       whereArgs: <Object?>[_activeUserId],
     );
     notifyLocalMutation();
+    return XpAdjustmentSnapshot(xpBefore: currentXp, xpAfter: nextXp);
+  }
+
+  Future<void> incrementTotalXp(int delta) async {
+    await adjustTotalXp(delta);
+  }
+
+  Future<bool> hasPenaltyLedgerEntry({
+    required String dateKey,
+    required PenaltyReason reason,
+    String sourceKey = '',
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      tableXpPenaltyLedger,
+      columns: <String>[columnUserId],
+      where:
+          '$columnUserId = ? AND $columnDateKey = ? AND $columnReason = ? AND $columnSourceKey = ?',
+      whereArgs: <Object?>[_activeUserId, dateKey, reason.dbValue, sourceKey],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
+  Future<int> countPenaltyLedgerEntriesForDay({
+    required String dateKey,
+    required List<PenaltyReason> reasons,
+  }) async {
+    if (reasons.isEmpty) return 0;
+    final db = await database;
+    final placeholders = List<String>.filled(reasons.length, '?').join(', ');
+    final rows = await db.rawQuery(
+      '''
+      SELECT COUNT(*) AS count
+      FROM $tableXpPenaltyLedger
+      WHERE $columnUserId = ?
+        AND $columnDateKey = ?
+        AND $columnReason IN ($placeholders)
+      ''',
+      <Object?>[
+        _activeUserId,
+        dateKey,
+        ...reasons.map((reason) => reason.dbValue),
+      ],
+    );
+    if (rows.isEmpty) return 0;
+    final value = rows.first['count'];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  Future<void> insertPenaltyLedgerEntry({
+    required String dateKey,
+    required PenaltyReason reason,
+    required String sourceKey,
+    required int xpDelta,
+    DateTime? updatedAt,
+  }) async {
+    final db = await database;
+    final iso = (updatedAt ?? DateTime.now()).toUtc().toIso8601String();
+    await db.insert(tableXpPenaltyLedger, <String, Object?>{
+      columnUserId: _activeUserId,
+      columnDateKey: dateKey,
+      columnReason: reason.dbValue,
+      columnSourceKey: sourceKey,
+      columnXpDelta: xpDelta,
+      columnUpdatedAt: iso,
+      columnIsSynced: 0,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+    notifyLocalMutation();
+  }
+
+  Future<DailyChallenge?> getAnyIncompleteChallengeByDateKey(
+    String dateKey,
+  ) async {
+    final db = await database;
+    final rows = await db.query(
+      tableDailyChallenges,
+      where: '$columnUserId = ? AND $columnDateKey = ? AND $columnStatus != ?',
+      whereArgs: <Object?>[
+        _activeUserId,
+        dateKey,
+        DailyChallengeStatus.completed.dbValue,
+      ],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return DailyChallenge.fromMap(rows.first);
   }
 
   Future<void> upsertWeeklyWorkoutGoal({required int targetWorkouts}) async {
@@ -1263,6 +1386,13 @@ class DatabaseService {
         return <String>[columnUserId, columnMetricKey, columnMeasuredAt];
       case tableUserProfileChallenges:
         return <String>[columnUserId, columnMonthKey, columnChallengeId];
+      case tableXpPenaltyLedger:
+        return <String>[
+          columnUserId,
+          columnDateKey,
+          columnReason,
+          columnSourceKey,
+        ];
       default:
         throw ArgumentError('Unsupported sync table: $tableName');
     }

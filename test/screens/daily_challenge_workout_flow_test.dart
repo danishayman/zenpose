@@ -3,11 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zenpose/models/challenge_step_result.dart';
 import 'package:zenpose/models/daily_challenge.dart';
 import 'package:zenpose/models/daily_challenge_step.dart';
+import 'package:zenpose/models/pose_result.dart';
 import 'package:zenpose/models/pose_template.dart';
+import 'package:zenpose/models/punishment_models.dart';
 import 'package:zenpose/models/unlocked_badge.dart';
 import 'package:zenpose/models/user_rank.dart';
 import 'package:zenpose/screens/daily_challenge_workout_flow_screen.dart';
 import 'package:zenpose/services/daily_challenge_service.dart';
+import 'package:zenpose/services/punishment_service.dart';
 import 'package:zenpose/widgets/pre_session_countdown_widgets.dart';
 
 const int _readyCountdownSeconds = 10;
@@ -105,6 +108,29 @@ class _FakeDailyChallengeService extends DailyChallengeService {
   }
 }
 
+class _NoOpPunishmentService extends PunishmentService {
+  _NoOpPunishmentService();
+
+  @override
+  Future<PunishmentEvaluationResult> evaluate({
+    required PenaltyApplicationTrigger trigger,
+    DateTime? now,
+    PoseResult? practiceResult,
+    double? qualityGateScore,
+  }) async {
+    return const PunishmentEvaluationResult(
+      applied: false,
+      xpDeducted: 0,
+      xpBefore: 0,
+      xpAfter: 0,
+      rankBefore: UserRankTier.bronze,
+      rankAfter: UserRankTier.bronze,
+      didRankDown: false,
+      breakdown: <PenaltyBreakdownItem>[],
+    );
+  }
+}
+
 PoseTemplate _template(String key, String name) {
   return PoseTemplate(
     templateKey: key,
@@ -198,6 +224,7 @@ void main() {
           home: DailyChallengeWorkoutFlowScreen(
             dateKey: '2026-03-27',
             challengeService: service,
+            punishmentService: _NoOpPunishmentService(),
             evaluatorBuilder: (_) => const _EvaluatorStub(
               action: ChallengeStepNavigationAction.completed,
             ),
@@ -266,6 +293,7 @@ void main() {
         home: DailyChallengeWorkoutFlowScreen(
           dateKey: '2026-03-27',
           challengeService: service,
+          punishmentService: _NoOpPunishmentService(),
           evaluatorBuilder: (_) => const _EvaluatorStub(
             action: ChallengeStepNavigationAction.completed,
           ),
@@ -323,6 +351,7 @@ void main() {
         home: DailyChallengeWorkoutFlowScreen(
           dateKey: '2026-03-27',
           challengeService: service,
+          punishmentService: _NoOpPunishmentService(),
           evaluatorBuilder: (_) => const _EvaluatorStub(
             action: ChallengeStepNavigationAction.completed,
           ),
@@ -387,6 +416,7 @@ void main() {
         home: DailyChallengeWorkoutFlowScreen(
           dateKey: '2026-03-27',
           challengeService: service,
+          punishmentService: _NoOpPunishmentService(),
           evaluatorBuilder: (_) => const _EvaluatorStub(
             action: ChallengeStepNavigationAction.completed,
           ),
@@ -464,6 +494,7 @@ void main() {
           home: DailyChallengeWorkoutFlowScreen(
             dateKey: '2026-03-27',
             challengeService: service,
+            punishmentService: _NoOpPunishmentService(),
             evaluatorBuilder: (_) => const _EvaluatorStub(
               action: ChallengeStepNavigationAction.next,
             ),
@@ -547,6 +578,7 @@ void main() {
           home: DailyChallengeWorkoutFlowScreen(
             dateKey: '2026-03-27',
             challengeService: service,
+            punishmentService: _NoOpPunishmentService(),
             evaluatorBuilder: (_) {
               final action = launchCount == 0
                   ? ChallengeStepNavigationAction.previous
@@ -616,6 +648,7 @@ void main() {
           home: DailyChallengeWorkoutFlowScreen(
             dateKey: '2026-03-27',
             challengeService: service,
+            punishmentService: _NoOpPunishmentService(),
             evaluatorBuilder: (_) => const _EvaluatorStub(
               action: ChallengeStepNavigationAction.completed,
             ),
@@ -683,6 +716,7 @@ void main() {
           home: DailyChallengeWorkoutFlowScreen(
             dateKey: '2026-03-27',
             challengeService: service,
+            punishmentService: _NoOpPunishmentService(),
             evaluatorBuilder: (_) => const _EvaluatorStub(
               action: ChallengeStepNavigationAction.next,
             ),
@@ -733,6 +767,7 @@ void main() {
         home: DailyChallengeWorkoutFlowScreen(
           dateKey: '2026-03-27',
           challengeService: service,
+          punishmentService: _NoOpPunishmentService(),
           evaluatorBuilder: (_) => const _EvaluatorStub(
             action: ChallengeStepNavigationAction.completed,
           ),

@@ -11,6 +11,7 @@ import '../models/challenge_step_result.dart';
 import '../models/unlocked_badge.dart';
 import '../models/pose_session_config.dart';
 import '../models/pose_template.dart';
+import '../models/punishment_models.dart';
 import '../models/workout_guidance_snapshot.dart';
 import '../services/angle_calculation_service.dart';
 import '../services/camera_service.dart';
@@ -31,9 +32,11 @@ import '../models/landmark.dart';
 import '../painters/skeleton_overlay_painter.dart';
 import '../services/database_service.dart';
 import '../services/gamification_service.dart';
+import '../services/punishment_service.dart';
 import '../theme/zen_theme.dart';
 import '../widgets/rank_up_dialog.dart';
 import '../widgets/workout_session_widgets.dart';
+import '../widgets/xp_deduction_dialog.dart';
 
 /// MainScreen composes the camera preview and skeleton overlay.
 ///
@@ -87,6 +90,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   );
   final DatabaseService _databaseService = DatabaseService.instance;
   final GamificationService _gamificationService = GamificationService();
+  final PunishmentService _punishmentService = PunishmentService();
   late final VoiceCueService _voiceCueService;
 
   // CosineSimilarityService and LimbSimilarityService are initialised
@@ -681,6 +685,20 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           rankAfter: gamificationResult.rankAfter,
           xpAfter: gamificationResult.xpAfter,
         );
+        try {
+          final punishmentResult = await _punishmentService.evaluate(
+            trigger: PenaltyApplicationTrigger.postSession,
+            practiceResult: persistedResult,
+            qualityGateScore: _sessionConfig.scoreThreshold + 10.0,
+          );
+          if (!mounted) return;
+          await XpDeductionDialog.showIfNeeded(
+            context,
+            result: punishmentResult,
+          );
+        } catch (error) {
+          debugPrint('Failed to evaluate practice penalties: $error');
+        }
       }
     } catch (e) {
       _lastXpGainedNotifier.value = 0;

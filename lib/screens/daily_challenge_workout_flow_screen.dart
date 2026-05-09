@@ -9,9 +9,12 @@ import '../models/pose_session_config.dart';
 import '../models/pose_template.dart';
 import '../models/unlocked_badge.dart';
 import '../services/daily_challenge_service.dart';
+import '../services/punishment_service.dart';
 import '../theme/zen_theme.dart';
 import '../widgets/pre_session_countdown_widgets.dart';
 import '../widgets/rank_up_dialog.dart';
+import '../widgets/xp_deduction_dialog.dart';
+import '../models/punishment_models.dart';
 import 'daily_challenge_summary_screen.dart';
 import 'main_screen.dart';
 
@@ -20,12 +23,14 @@ enum _WorkoutPhase { ready, exercise, rest, completed }
 class DailyChallengeWorkoutFlowScreen extends StatefulWidget {
   final String dateKey;
   final DailyChallengeService? challengeService;
+  final PunishmentService? punishmentService;
   final Widget Function(PoseTemplate template)? evaluatorBuilder;
 
   const DailyChallengeWorkoutFlowScreen({
     super.key,
     required this.dateKey,
     this.challengeService,
+    this.punishmentService,
     this.evaluatorBuilder,
   });
 
@@ -39,6 +44,7 @@ class _DailyChallengeWorkoutFlowScreenState
   static const int _readyCountdownSeconds = 10;
 
   late final DailyChallengeService _challengeService;
+  late final PunishmentService _punishmentService;
   DailyChallengeBundle? _bundle;
   Map<String, PoseTemplate> _templateLookup = <String, PoseTemplate>{};
   bool _loading = true;
@@ -62,6 +68,7 @@ class _DailyChallengeWorkoutFlowScreenState
   void initState() {
     super.initState();
     _challengeService = widget.challengeService ?? DailyChallengeService();
+    _punishmentService = widget.punishmentService ?? PunishmentService();
     _sessionStart = DateTime.now();
     _load();
   }
@@ -272,6 +279,18 @@ class _DailyChallengeWorkoutFlowScreenState
             rankAfter: process.rankAfter,
             xpAfter: process.xpAfter,
           );
+          try {
+            final punishmentResult = await _punishmentService.evaluate(
+              trigger: PenaltyApplicationTrigger.postSession,
+            );
+            if (!mounted) return;
+            await XpDeductionDialog.showIfNeeded(
+              context,
+              result: punishmentResult,
+            );
+          } catch (error) {
+            debugPrint('Failed to evaluate post-session penalties: $error');
+          }
         }
       }
     } catch (error) {

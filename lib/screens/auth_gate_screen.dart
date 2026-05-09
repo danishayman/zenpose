@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/punishment_service.dart';
 import '../services/sync_service.dart';
+import '../models/punishment_models.dart';
+import '../widgets/xp_deduction_dialog.dart';
 import 'app_shell_screen.dart';
 import 'auth_screen.dart';
 
@@ -59,12 +62,16 @@ class _AuthenticatedRoot extends StatefulWidget {
 class _AuthenticatedRootState extends State<_AuthenticatedRoot>
     with WidgetsBindingObserver {
   final SyncService _syncService = SyncService.instance;
+  final PunishmentService _punishmentService = PunishmentService();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(_syncService.scheduleAutoSync());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_evaluatePunishments(PenaltyApplicationTrigger.appOpen));
+    });
   }
 
   @override
@@ -77,7 +84,14 @@ class _AuthenticatedRootState extends State<_AuthenticatedRoot>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_syncService.syncNow());
+      unawaited(_evaluatePunishments(PenaltyApplicationTrigger.appOpen));
     }
+  }
+
+  Future<void> _evaluatePunishments(PenaltyApplicationTrigger trigger) async {
+    final result = await _punishmentService.evaluate(trigger: trigger);
+    if (!mounted) return;
+    await XpDeductionDialog.showIfNeeded(context, result: result);
   }
 
   @override
