@@ -39,6 +39,30 @@ void main() {
       timestamp: DateTime(2026, 3, 24, 9, 0),
     ),
   ];
+  final homeNow = DateTime(2026, 3, 31, 9, 0);
+  final homeWeeklyResults = <PoseResult>[
+    PoseResult(
+      poseName: 'Tree',
+      bestScore: 86,
+      holdDuration: 45,
+      completed: true,
+      timestamp: DateTime(2026, 3, 30, 8, 30),
+    ),
+    PoseResult(
+      poseName: 'Plank',
+      bestScore: 81,
+      holdDuration: 45,
+      completed: true,
+      timestamp: DateTime(2026, 3, 29, 8, 30),
+    ),
+    PoseResult(
+      poseName: 'Downdog',
+      bestScore: 78,
+      holdDuration: 45,
+      completed: true,
+      timestamp: DateTime(2026, 3, 24, 8, 30),
+    ),
+  ];
   final homeHistory = <SessionHistoryEntry>[
     SessionHistoryEntry(
       sessionId: 'challenge:2026-03-29',
@@ -91,21 +115,37 @@ void main() {
         nowBuilder: () => DateTime(2026, 3, 29),
       );
 
+  HomeScreen buildHome({
+    Future<List<SessionHistoryEntry>> Function()? loadSessionHistory,
+    Future<List<PoseResult>> Function()? loadAllResults,
+    Future<WeeklyWorkoutGoal> Function()? loadWeeklyGoal,
+    Future<void> Function(int targetWorkouts)? saveWeeklyGoal,
+  }) {
+    return HomeScreen(
+      loadTodayChallenge: () async => challengeBundle,
+      loadUserStats: () async => baseStats,
+      loadBadgeCount: () async => 1,
+      loadSessionHistory: loadSessionHistory ?? () async => homeHistory,
+      loadPoseTemplates: () async => const <PoseTemplate>[],
+      loadAllResults: loadAllResults ?? () async => homeWeeklyResults,
+      loadWeeklyGoal:
+          loadWeeklyGoal ??
+          () async => WeeklyWorkoutGoal(
+            userId: 'u1',
+            targetWorkouts: 3,
+            updatedAt: homeNow,
+            isSynced: true,
+          ),
+      saveWeeklyGoal: saveWeeklyGoal,
+      nowBuilder: () => homeNow,
+      streakCalendarBuilder: testStreakBuilder(),
+    );
+  }
+
   testWidgets('tapping Home Day Streak opens streak calendar', (tester) async {
     _setLargeSurface(tester);
 
-    await tester.pumpWidget(
-      _app(
-        HomeScreen(
-          loadTodayChallenge: () async => challengeBundle,
-          loadUserStats: () async => baseStats,
-          loadBadgeCount: () async => 1,
-          loadSessionHistory: () async => homeHistory,
-          loadPoseTemplates: () async => const <PoseTemplate>[],
-          streakCalendarBuilder: testStreakBuilder(),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(buildHome()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Day Streak'));
@@ -142,18 +182,7 @@ void main() {
   testWidgets('home screen shows recent session history', (tester) async {
     _setLargeSurface(tester);
 
-    await tester.pumpWidget(
-      _app(
-        HomeScreen(
-          loadTodayChallenge: () async => challengeBundle,
-          loadUserStats: () async => baseStats,
-          loadBadgeCount: () async => 1,
-          loadSessionHistory: () async => homeHistory,
-          loadPoseTemplates: () async => const <PoseTemplate>[],
-          streakCalendarBuilder: testStreakBuilder(),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(buildHome()));
     await tester.pumpAndSettle();
 
     expect(find.text('Session History'), findsOneWidget);
@@ -172,13 +201,8 @@ void main() {
 
     await tester.pumpWidget(
       _app(
-        HomeScreen(
-          loadTodayChallenge: () async => challengeBundle,
-          loadUserStats: () async => baseStats,
-          loadBadgeCount: () async => 1,
+        buildHome(
           loadSessionHistory: () async => const <SessionHistoryEntry>[],
-          loadPoseTemplates: () async => const <PoseTemplate>[],
-          streakCalendarBuilder: testStreakBuilder(),
         ),
       ),
     );
@@ -296,24 +320,92 @@ void main() {
   testWidgets('non-tappable stat cards still do not navigate', (tester) async {
     _setLargeSurface(tester);
 
-    await tester.pumpWidget(
-      _app(
-        HomeScreen(
-          loadTodayChallenge: () async => challengeBundle,
-          loadUserStats: () async => baseStats,
-          loadBadgeCount: () async => 1,
-          loadSessionHistory: () async => homeHistory,
-          loadPoseTemplates: () async => const <PoseTemplate>[],
-          streakCalendarBuilder: testStreakBuilder(),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(buildHome()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Total XP'));
     await tester.pumpAndSettle();
 
     expect(find.byType(StreakCalendarScreen), findsNothing);
+  });
+
+  testWidgets('home screen shows weekly goal progress above stats', (
+    tester,
+  ) async {
+    _setLargeSurface(tester);
+
+    await tester.pumpWidget(_app(buildHome()));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('home-goal-progress-card')), findsOneWidget);
+    expect(find.text('Weekly Goal'), findsOneWidget);
+    expect(find.text('2 / 3 workouts completed'), findsOneWidget);
+    expect(find.text('1 left'), findsOneWidget);
+
+    final goalY = tester
+        .getTopLeft(find.byKey(const Key('home-goal-progress-card')))
+        .dy;
+    final statsY = tester.getTopLeft(find.text('Your Stats')).dy;
+    expect(goalY, lessThan(statsY));
+  });
+
+  testWidgets('home screen shows congrats when weekly goal is met', (
+    tester,
+  ) async {
+    _setLargeSurface(tester);
+
+    await tester.pumpWidget(
+      _app(
+        buildHome(
+          loadWeeklyGoal: () async => WeeklyWorkoutGoal(
+            userId: 'u1',
+            targetWorkouts: 2,
+            updatedAt: homeNow,
+            isSynced: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 2 workouts completed'), findsOneWidget);
+    expect(find.text('Congrats! Goal met 🎉'), findsOneWidget);
+  });
+
+  testWidgets('home set goal editor updates weekly target on save', (
+    tester,
+  ) async {
+    _setLargeSurface(tester);
+    var goal = 3;
+
+    await tester.pumpWidget(
+      _app(
+        buildHome(
+          loadWeeklyGoal: () async => WeeklyWorkoutGoal(
+            userId: 'u1',
+            targetWorkouts: goal,
+            updatedAt: homeNow,
+            isSynced: true,
+          ),
+          saveWeeklyGoal: (targetWorkouts) async {
+            goal = targetWorkouts;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('home-edit-goal-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('home-goal-target-input')),
+      '5',
+    );
+    await tester.tap(find.byKey(const Key('home-goal-save-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 5 workouts completed'), findsOneWidget);
+    expect(find.text('3 left'), findsOneWidget);
   });
 }
 

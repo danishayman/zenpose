@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 import '../services/auth_service.dart';
 import '../theme/zen_theme.dart';
@@ -18,10 +19,56 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _loading = false;
   String? _error;
 
-  String _formatError(Object error) {
+  String _formatError(Object error, {required bool isRegisterMode}) {
     if (error is StateError) {
       return error.message.toString();
     }
+
+    if (error is supa.AuthWeakPasswordException) {
+      return 'Password is too weak. Use at least 6 characters with a mix of letters and numbers.';
+    }
+
+    if (error is supa.AuthException) {
+      final code = (error.code ?? '').toLowerCase();
+      final message = error.message.toLowerCase();
+
+      if (code == 'invalid_credentials') {
+        return 'Incorrect email or password. Please try again.';
+      }
+
+      if (code == 'email_not_confirmed') {
+        return 'Please verify your email address before signing in.';
+      }
+
+      if (code == 'over_request_rate_limit' ||
+          code == 'too_many_requests' ||
+          code == 'rate_limit_exceeded') {
+        return 'Too many attempts. Please wait a moment and try again.';
+      }
+
+      if (code == 'user_already_exists' ||
+          code == 'email_exists' ||
+          (isRegisterMode && message.contains('already'))) {
+        return 'An account with this email already exists. Please sign in instead.';
+      }
+
+      if (code == 'user_not_found' ||
+          (!isRegisterMode && message.contains('not found'))) {
+        return 'No account was found for this email. Please sign up first.';
+      }
+
+      if (code == 'email_address_invalid' ||
+          code == 'validation_failed' ||
+          message.contains('invalid email')) {
+        return 'Please enter a valid email address.';
+      }
+
+      final safeMessage = error.message.trim();
+      if (safeMessage.isNotEmpty) {
+        return safeMessage;
+      }
+    }
+
     final raw = error.toString();
     return raw.startsWith('Exception: ') ? raw.substring(11) : raw;
   }
@@ -34,24 +81,31 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _submitEmailAuth() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty) {
+      setState(() => _error = 'Please enter your email address.');
+      return;
+    }
+
+    if (password.isEmpty) {
+      setState(() => _error = 'Please enter your password.');
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       if (_isRegisterMode) {
-        await _authService.signUpWithEmail(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+        await _authService.signUpWithEmail(email: email, password: password);
       } else {
-        await _authService.signInWithEmail(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+        await _authService.signInWithEmail(email: email, password: password);
       }
     } catch (e) {
-      setState(() => _error = _formatError(e));
+      setState(() => _error = _formatError(e, isRegisterMode: _isRegisterMode));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -65,7 +119,7 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       await _authService.signInWithGoogle();
     } catch (e) {
-      setState(() => _error = _formatError(e));
+      setState(() => _error = _formatError(e, isRegisterMode: false));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

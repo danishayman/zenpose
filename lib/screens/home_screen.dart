@@ -1,14 +1,19 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../models/daily_challenge.dart';
 import '../models/pose_template.dart';
+import '../models/pose_result.dart';
 import '../models/session_history_entry.dart';
 import '../models/user_stats.dart';
+import '../models/weekly_workout_goal.dart';
 import '../services/auth_service.dart';
 import '../services/daily_challenge_service.dart';
 import '../services/database_service.dart';
 import '../services/pose_demo_asset_resolver.dart';
 import '../services/pose_template_service.dart';
+import '../services/progress_analytics_service.dart';
 import '../theme/zen_theme.dart';
 import '../widgets/zen_loading_shimmer.dart';
 import '../widgets/zen_section_header.dart';
@@ -22,6 +27,10 @@ class HomeScreen extends StatefulWidget {
   final Future<int> Function()? loadBadgeCount;
   final Future<List<SessionHistoryEntry>> Function()? loadSessionHistory;
   final Future<List<PoseTemplate>> Function()? loadPoseTemplates;
+  final Future<List<PoseResult>> Function()? loadAllResults;
+  final Future<WeeklyWorkoutGoal> Function()? loadWeeklyGoal;
+  final Future<void> Function(int targetWorkouts)? saveWeeklyGoal;
+  final DateTime Function()? nowBuilder;
   final WidgetBuilder? streakCalendarBuilder;
 
   const HomeScreen({
@@ -31,6 +40,10 @@ class HomeScreen extends StatefulWidget {
     this.loadBadgeCount,
     this.loadSessionHistory,
     this.loadPoseTemplates,
+    this.loadAllResults,
+    this.loadWeeklyGoal,
+    this.saveWeeklyGoal,
+    this.nowBuilder,
     this.streakCalendarBuilder,
   });
 
@@ -57,6 +70,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final DailyChallengeService _challengeService = DailyChallengeService();
   final DatabaseService _databaseService = DatabaseService.instance;
   final PoseTemplateService _poseTemplateService = PoseTemplateService();
+  final ProgressAnalyticsService _analyticsService =
+      const ProgressAnalyticsService();
   final AuthService _authService = AuthService.instance;
 
   late Future<_HomeData> _future;
@@ -79,6 +94,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final sessionHistory =
         await (widget.loadSessionHistory?.call() ??
             _databaseService.getHomeSessionHistory());
+    final allResults =
+        await (widget.loadAllResults?.call() ??
+            _databaseService.getAllResults());
+    final weeklyGoal =
+        await (widget.loadWeeklyGoal?.call() ??
+            _databaseService.getWeeklyWorkoutGoal());
+    final weeklyCompleted = _analyticsService.countWeeklyCompleted(
+      results: allResults,
+      anchorDate: _now(),
+    );
 
     List<PoseTemplate> templates;
     try {
@@ -97,8 +122,12 @@ class _HomeScreenState extends State<HomeScreen> {
       sessionHistory: List<SessionHistoryEntry>.from(sessionHistory)
         ..sort((a, b) => b.activityAt.compareTo(a.activityAt)),
       templateLookup: _buildTemplateLookup(templates),
+      weeklyGoalTarget: weeklyGoal.targetWorkouts,
+      weeklyCompleted: weeklyCompleted,
     );
   }
+
+  DateTime _now() => widget.nowBuilder?.call() ?? DateTime.now();
 
   Map<String, PoseTemplate> _buildTemplateLookup(List<PoseTemplate> templates) {
     final lookup = <String, PoseTemplate>{};
@@ -133,7 +162,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _load());
+    setState(() {
+      _future = _load();
+    });
     await _future;
   }
 
@@ -154,6 +185,68 @@ class _HomeScreenState extends State<HomeScreen> {
         builder:
             widget.streakCalendarBuilder ?? (_) => const StreakCalendarScreen(),
       ),
+    );
+  }
+
+  Future<void> _saveWeeklyGoal(int targetWorkouts) async {
+    await (widget.saveWeeklyGoal?.call(targetWorkouts) ??
+        _databaseService.upsertWeeklyWorkoutGoal(
+          targetWorkouts: targetWorkouts,
+        ));
+    await _refresh();
+  }
+
+  Future<void> _showGoalEditor(int currentTarget) async {
+    final controller = TextEditingController(text: '$currentTarget');
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            8,
+            20,
+            MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Set Weekly Goal',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('home-goal-target-input'),
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Workouts per week',
+                  hintText: 'e.g. 3',
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  key: const Key('home-goal-save-button'),
+                  onPressed: () async {
+                    final parsed = int.tryParse(controller.text.trim());
+                    if (parsed == null || parsed <= 0) return;
+                    await _saveWeeklyGoal(parsed);
+                    if (!context.mounted) return;
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Save Goal'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -188,6 +281,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildGreeting(),
                 const SizedBox(height: 20),
                 _buildChallengeHero(data),
+                const SizedBox(height: 20),
+                _buildGoalProgress(data),
                 const SizedBox(height: 20),
                 _buildQuickStats(data),
                 const SizedBox(height: 24),
@@ -406,6 +501,71 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildGoalProgress(_HomeData data) {
+    final weeklyGoal = data.weeklyGoalTarget;
+    final weeklyCompleted = data.weeklyCompleted;
+    final remaining = math.max(0, weeklyGoal - weeklyCompleted);
+    final progress = weeklyGoal == 0
+        ? 0.0
+        : (weeklyCompleted / weeklyGoal).clamp(0.0, 1.0);
+    final isGoalMet = remaining == 0;
+
+    return Container(
+      key: const Key('home-goal-progress-card'),
+      decoration: ZenDecor.elevatedCard(),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Weekly Goal',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$weeklyCompleted / $weeklyGoal workouts completed',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isGoalMet ? 'Congrats! Goal met 🎉' : '$remaining left',
+                  style: TextStyle(
+                    fontFamily: 'Manrope',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isGoalMet ? ZenColors.success : ZenColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: ZenDecor.pillRadius,
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 8,
+                    backgroundColor: ZenColors.surface2,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      ZenColors.teal,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton(
+            key: const Key('home-edit-goal-button'),
+            onPressed: () => _showGoalEditor(weeklyGoal),
+            child: const Text('Set Goal'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -834,6 +994,8 @@ class _HomeData {
   final String actorName;
   final List<SessionHistoryEntry> sessionHistory;
   final Map<String, PoseTemplate> templateLookup;
+  final int weeklyGoalTarget;
+  final int weeklyCompleted;
 
   const _HomeData({
     required this.challenge,
@@ -842,5 +1004,7 @@ class _HomeData {
     required this.actorName,
     required this.sessionHistory,
     required this.templateLookup,
+    required this.weeklyGoalTarget,
+    required this.weeklyCompleted,
   });
 }
