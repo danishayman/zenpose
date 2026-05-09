@@ -32,6 +32,7 @@ import '../painters/skeleton_overlay_painter.dart';
 import '../services/database_service.dart';
 import '../services/gamification_service.dart';
 import '../theme/zen_theme.dart';
+import '../widgets/rank_up_dialog.dart';
 import '../widgets/workout_session_widgets.dart';
 
 /// MainScreen composes the camera preview and skeleton overlay.
@@ -673,6 +674,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         'xp=+${gamificationResult.xpGained} '
         'badges=${gamificationResult.unlockedBadges.length}',
       );
+      if (mounted) {
+        await RankUpDialog.showIfRankedUp(
+          context,
+          didRankUp: gamificationResult.didRankUp,
+          rankAfter: gamificationResult.rankAfter,
+          xpAfter: gamificationResult.xpAfter,
+        );
+      }
     } catch (e) {
       _lastXpGainedNotifier.value = 0;
       _lastUnlockedBadgesNotifier.value = const <UnlockedBadge>[];

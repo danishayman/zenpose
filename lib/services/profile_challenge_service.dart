@@ -2,7 +2,9 @@ import 'dart:math';
 
 import '../models/pose_result.dart';
 import '../models/profile_challenge_models.dart';
+import '../models/user_rank.dart';
 import 'database_service.dart';
+import 'user_rank_service.dart';
 
 class ProfileChallengeService {
   final DatabaseService _databaseService;
@@ -204,6 +206,9 @@ class ProfileChallengeService {
     required String challengeId,
     DateTime? now,
   }) async {
+    final currentStats = await _databaseService.getUserStats();
+    final xpBefore = currentStats.totalXp;
+    final rankBefore = UserRankService.rankForXp(xpBefore);
     final snapshots = await loadMonthlyChallenges(now: now, monthKey: monthKey);
     ChallengeProgressSnapshot? snapshot;
     for (final item in snapshots) {
@@ -216,6 +221,11 @@ class ProfileChallengeService {
       return const ChallengeClaimResult(
         applied: false,
         xpGranted: 0,
+        xpBefore: 0,
+        xpAfter: 0,
+        rankBefore: UserRankTier.bronze,
+        rankAfter: UserRankTier.bronze,
+        didRankUp: false,
         badgeLabel: '',
         message: 'Challenge not found.',
       );
@@ -224,6 +234,11 @@ class ProfileChallengeService {
       return ChallengeClaimResult(
         applied: false,
         xpGranted: 0,
+        xpBefore: xpBefore,
+        xpAfter: xpBefore,
+        rankBefore: rankBefore,
+        rankAfter: rankBefore,
+        didRankUp: false,
         badgeLabel: snapshot.definition.rewardBadgeLabel,
         message: 'Reward already claimed.',
       );
@@ -232,6 +247,11 @@ class ProfileChallengeService {
       return ChallengeClaimResult(
         applied: false,
         xpGranted: 0,
+        xpBefore: xpBefore,
+        xpAfter: xpBefore,
+        rankBefore: rankBefore,
+        rankAfter: rankBefore,
+        didRankUp: false,
         badgeLabel: snapshot.definition.rewardBadgeLabel,
         message: 'Challenge target not reached yet.',
       );
@@ -245,6 +265,11 @@ class ProfileChallengeService {
       return ChallengeClaimResult(
         applied: false,
         xpGranted: 0,
+        xpBefore: xpBefore,
+        xpAfter: xpBefore,
+        rankBefore: rankBefore,
+        rankAfter: rankBefore,
+        didRankUp: false,
         badgeLabel: snapshot.definition.rewardBadgeLabel,
         message: 'Join this challenge first.',
       );
@@ -253,6 +278,11 @@ class ProfileChallengeService {
       return ChallengeClaimResult(
         applied: false,
         xpGranted: 0,
+        xpBefore: xpBefore,
+        xpAfter: xpBefore,
+        rankBefore: rankBefore,
+        rankAfter: rankBefore,
+        didRankUp: false,
         badgeLabel: snapshot.definition.rewardBadgeLabel,
         message: 'Reward already claimed.',
       );
@@ -260,6 +290,13 @@ class ProfileChallengeService {
 
     final claimedAt = now ?? DateTime.now();
     await _databaseService.incrementTotalXp(snapshot.definition.rewardXp);
+    final updatedStats = await _databaseService.getUserStats();
+    final xpAfter = updatedStats.totalXp;
+    final rankAfter = UserRankService.rankForXp(xpAfter);
+    final didRankUp = UserRankService.didRankUp(
+      previousRank: rankBefore,
+      currentRank: rankAfter,
+    );
     await _databaseService.upsertProfileChallengeState(
       existing.copyWith(
         status: UserProfileChallengeStatus.completed,
@@ -274,6 +311,11 @@ class ProfileChallengeService {
     return ChallengeClaimResult(
       applied: true,
       xpGranted: snapshot.definition.rewardXp,
+      xpBefore: xpBefore,
+      xpAfter: xpAfter,
+      rankBefore: rankBefore,
+      rankAfter: rankAfter,
+      didRankUp: didRankUp,
       badgeLabel: snapshot.definition.rewardBadgeLabel,
       message: 'Claimed ${snapshot.definition.rewardBadgeLabel}',
     );

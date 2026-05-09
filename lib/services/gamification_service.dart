@@ -4,21 +4,33 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/pose_result.dart';
 import '../models/unlocked_badge.dart';
+import '../models/user_rank.dart';
 import '../models/user_stats.dart';
 import 'auth_context.dart';
 import 'badge_catalog.dart';
 import 'database_service.dart';
+import 'user_rank_service.dart';
 
 /// Result of processing a completed session through local gamification rules.
 class GamificationProcessResult {
   final bool alreadyProcessed;
   final int xpGained;
+  final int xpBefore;
+  final int xpAfter;
+  final UserRankTier rankBefore;
+  final UserRankTier rankAfter;
+  final bool didRankUp;
   final UserStats userStats;
   final List<UnlockedBadge> unlockedBadges;
 
   const GamificationProcessResult({
     required this.alreadyProcessed,
     required this.xpGained,
+    required this.xpBefore,
+    required this.xpAfter,
+    required this.rankBefore,
+    required this.rankAfter,
+    required this.didRankUp,
     required this.userStats,
     required this.unlockedBadges,
   });
@@ -56,6 +68,11 @@ class GamificationService {
       return GamificationProcessResult(
         alreadyProcessed: true,
         xpGained: 0,
+        xpBefore: 0,
+        xpAfter: 0,
+        rankBefore: UserRankTier.bronze,
+        rankAfter: UserRankTier.bronze,
+        didRankUp: false,
         userStats: await _databaseService.getUserStats(),
         unlockedBadges: const <UnlockedBadge>[],
       );
@@ -97,12 +114,18 @@ class GamificationService {
         return GamificationProcessResult(
           alreadyProcessed: true,
           xpGained: 0,
+          xpBefore: 0,
+          xpAfter: 0,
+          rankBefore: UserRankTier.bronze,
+          rankAfter: UserRankTier.bronze,
+          didRankUp: false,
           userStats: await _readUserStats(tx),
           unlockedBadges: const <UnlockedBadge>[],
         );
       }
 
       final currentStats = await _readUserStats(tx);
+      final xpBefore = currentStats.totalXp;
       final activityDate = _dateOnly(result.timestamp ?? DateTime.now());
       final streakUpdate = computeStreakUpdate(
         currentStreak: currentStats.currentStreak,
@@ -112,6 +135,12 @@ class GamificationService {
       );
       final xpGained = calculateXpGain(result.bestScore);
       final totalXp = currentStats.totalXp + xpGained;
+      final rankBefore = UserRankService.rankForXp(xpBefore);
+      final rankAfter = UserRankService.rankForXp(totalXp);
+      final didRankUp = UserRankService.didRankUp(
+        previousRank: rankBefore,
+        currentRank: rankAfter,
+      );
 
       await tx.update(
         DatabaseService.tableUserStats,
@@ -184,6 +213,11 @@ class GamificationService {
       return GamificationProcessResult(
         alreadyProcessed: false,
         xpGained: xpGained,
+        xpBefore: xpBefore,
+        xpAfter: totalXp,
+        rankBefore: rankBefore,
+        rankAfter: rankAfter,
+        didRankUp: didRankUp,
         userStats: updatedStats,
         unlockedBadges: unlockedBadges,
       );

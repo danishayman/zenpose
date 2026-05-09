@@ -6,6 +6,7 @@ import 'package:zenpose/models/pose_result.dart';
 import 'package:zenpose/models/profile_challenge_models.dart';
 import 'package:zenpose/services/database_service.dart';
 import 'package:zenpose/services/profile_challenge_service.dart';
+import 'package:zenpose/services/user_rank_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -190,6 +191,17 @@ void main() {
 
     expect(firstClaim.applied, isTrue);
     expect(firstClaim.xpGranted, greaterThan(0));
+    expect(firstClaim.xpBefore, equals(beforeXp.totalXp));
+    expect(firstClaim.xpAfter, equals(beforeXp.totalXp + firstClaim.xpGranted));
+    expect(
+      firstClaim.didRankUp,
+      equals(
+        UserRankService.didRankUp(
+          previousRank: firstClaim.rankBefore,
+          currentRank: firstClaim.rankAfter,
+        ),
+      ),
+    );
     expect(
       afterFirstXp.totalXp - beforeXp.totalXp,
       equals(firstClaim.xpGranted),

@@ -5,6 +5,7 @@ import 'package:zenpose/models/daily_challenge.dart';
 import 'package:zenpose/models/daily_challenge_step.dart';
 import 'package:zenpose/models/pose_template.dart';
 import 'package:zenpose/models/unlocked_badge.dart';
+import 'package:zenpose/models/user_rank.dart';
 import 'package:zenpose/screens/daily_challenge_workout_flow_screen.dart';
 import 'package:zenpose/services/daily_challenge_service.dart';
 import 'package:zenpose/widgets/pre_session_countdown_widgets.dart';
@@ -71,6 +72,11 @@ class _FakeDailyChallengeService extends DailyChallengeService {
     return DailyChallengeStepProcessResult(
       bundle: _bundle,
       xpGained: allowOverwrite ? 0 : 10,
+      xpBefore: allowOverwrite ? 110 : 900,
+      xpAfter: allowOverwrite ? 110 : 910,
+      rankBefore: UserRankTier.bronze,
+      rankAfter: UserRankTier.bronze,
+      didRankUp: false,
       unlockedBadges: const <UnlockedBadge>[],
       applied: true,
     );

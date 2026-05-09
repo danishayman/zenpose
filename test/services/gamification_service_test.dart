@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:zenpose/models/user_rank.dart';
 import 'package:zenpose/services/badge_catalog.dart';
 import 'package:zenpose/services/gamification_service.dart';
+import 'package:zenpose/services/user_rank_service.dart';
 
 void main() {
   group('GamificationService.computeStreakUpdate', () {
@@ -69,6 +71,44 @@ void main() {
       expect(unlocked, isNot(contains(BadgeCatalog.firstCompletionId)));
       expect(unlocked, isNot(contains(BadgeCatalog.streak14Id)));
       expect(unlocked, isNot(contains(BadgeCatalog.highScore98Id)));
+    });
+  });
+
+  group('UserRankService rank thresholds', () {
+    test('maps XP boundaries to expected tiers', () {
+      expect(UserRankService.rankForXp(0), UserRankTier.bronze);
+      expect(UserRankService.rankForXp(999), UserRankTier.bronze);
+      expect(UserRankService.rankForXp(1000), UserRankTier.silver);
+      expect(UserRankService.rankForXp(2999), UserRankTier.silver);
+      expect(UserRankService.rankForXp(3000), UserRankTier.gold);
+      expect(UserRankService.rankForXp(6999), UserRankTier.gold);
+      expect(UserRankService.rankForXp(7000), UserRankTier.emerald);
+      expect(UserRankService.rankForXp(11999), UserRankTier.emerald);
+      expect(UserRankService.rankForXp(12000), UserRankTier.diamond);
+    });
+
+    test('detects rank-up transitions only when tier order increases', () {
+      expect(
+        UserRankService.didRankUp(
+          previousRank: UserRankTier.bronze,
+          currentRank: UserRankTier.silver,
+        ),
+        isTrue,
+      );
+      expect(
+        UserRankService.didRankUp(
+          previousRank: UserRankTier.gold,
+          currentRank: UserRankTier.gold,
+        ),
+        isFalse,
+      );
+      expect(
+        UserRankService.didRankUp(
+          previousRank: UserRankTier.emerald,
+          currentRank: UserRankTier.gold,
+        ),
+        isFalse,
+      );
     });
   });
 }

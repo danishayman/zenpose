@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zenpose/models/badge_definition.dart';
 import 'package:zenpose/models/pose_result.dart';
 import 'package:zenpose/models/profile_challenge_models.dart';
+import 'package:zenpose/models/user_rank.dart';
 import 'package:zenpose/models/user_stats.dart';
 import 'package:zenpose/screens/all_challenges_screen.dart';
 import 'package:zenpose/screens/profile_screen.dart';
@@ -135,12 +136,93 @@ void main() {
       expect(find.text('Completed'), findsOneWidget);
     },
   );
+
+  testWidgets('claim shows rank-up popup when rank tier increases', (
+    tester,
+  ) async {
+    _setLargeSurface(tester);
+    final fakeService = _FakeProfileChallengeService(
+      rankUpOnClaim: true,
+      snapshots: [
+        _buildSnapshot(
+          challengeId: 'score_90_x5',
+          title: 'April 90+ Score Challenge',
+          metricType: ChallengeMetricType.scoreCount,
+          status: ChallengeLifecycleStatus.claimable,
+          buttonLabel: 'Claim',
+          currentValue: 5,
+          targetValue: 5,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _app(
+        AllChallengesScreen(
+          monthKey: '2026-04',
+          challengeService: fakeService,
+          nowBuilder: () => DateTime(2026, 4, 20, 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('challenge-action-score_90_x5')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rank Up!'), findsOneWidget);
+    expect(find.text('Silver'), findsOneWidget);
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(find.text('Completed'), findsOneWidget);
+  });
+
+  testWidgets('claim does not show rank-up popup without rank transition', (
+    tester,
+  ) async {
+    _setLargeSurface(tester);
+    final fakeService = _FakeProfileChallengeService(
+      rankUpOnClaim: false,
+      snapshots: [
+        _buildSnapshot(
+          challengeId: 'score_90_x5',
+          title: 'April 90+ Score Challenge',
+          metricType: ChallengeMetricType.scoreCount,
+          status: ChallengeLifecycleStatus.claimable,
+          buttonLabel: 'Claim',
+          currentValue: 5,
+          targetValue: 5,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _app(
+        AllChallengesScreen(
+          monthKey: '2026-04',
+          challengeService: fakeService,
+          nowBuilder: () => DateTime(2026, 4, 20, 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('challenge-action-score_90_x5')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rank Up!'), findsNothing);
+    expect(find.text('Completed'), findsOneWidget);
+  });
 }
 
 class _FakeProfileChallengeService extends ProfileChallengeService {
   List<ChallengeProgressSnapshot> snapshots;
+  final bool rankUpOnClaim;
 
-  _FakeProfileChallengeService({required this.snapshots});
+  _FakeProfileChallengeService({
+    required this.snapshots,
+    this.rankUpOnClaim = false,
+  });
 
   @override
   Future<List<ChallengeProgressSnapshot>> loadMonthlyChallenges({
@@ -189,9 +271,14 @@ class _FakeProfileChallengeService extends ProfileChallengeService {
               : item,
         )
         .toList(growable: false);
-    return const ChallengeClaimResult(
+    return ChallengeClaimResult(
       applied: true,
       xpGranted: 120,
+      xpBefore: 900,
+      xpAfter: rankUpOnClaim ? 1020 : 980,
+      rankBefore: UserRankTier.bronze,
+      rankAfter: rankUpOnClaim ? UserRankTier.silver : UserRankTier.bronze,
+      didRankUp: rankUpOnClaim,
       badgeLabel: 'Claimed Badge',
       message: 'Claimed',
     );

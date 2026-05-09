@@ -211,6 +211,32 @@ void main() {
     );
     expect(find.text('3 of 5'), findsOneWidget);
   });
+
+  testWidgets('profile shows rank badge label from XP tier', (tester) async {
+    _setLargeSurface(tester);
+    final goldStats = UserStats(
+      currentStreak: 5,
+      longestStreak: 9,
+      totalXp: 4500,
+      lastActiveDate: DateTime(2026, 4, 10),
+    );
+    await tester.pumpWidget(
+      _app(
+        ProfileScreen(
+          loadUserStats: () async => goldStats,
+          loadBadgeCount: () async => 1,
+          loadAllResults: () async => results,
+          loadBadgeDefinitions: () async => definitions,
+          loadUnlockedBadges: () async => unlocked,
+          loadChallenges: () async => const <ChallengeProgressSnapshot>[],
+          nowBuilder: () => DateTime(2026, 4, 10, 12),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Gold Rank'), findsOneWidget);
+  });
 }
 
 Widget _app(Widget child) {

@@ -8,6 +8,7 @@ import '../models/pose_result.dart';
 import '../models/profile_challenge_models.dart';
 import '../models/profile_activity_models.dart';
 import '../models/unlocked_badge.dart';
+import '../models/user_rank.dart';
 import '../models/user_stats.dart';
 import '../services/achievements_service.dart';
 import '../services/auth_service.dart';
@@ -15,9 +16,11 @@ import '../services/badge_catalog.dart';
 import '../services/database_service.dart';
 import '../services/profile_challenge_service.dart';
 import '../services/profile_activity_service.dart';
+import '../services/user_rank_service.dart';
 import '../theme/zen_theme.dart';
 import '../widgets/zen_badge_medallion.dart';
 import '../widgets/zen_loading_shimmer.dart';
+import '../widgets/rank_up_dialog.dart';
 import '../widgets/zen_section_header.dart';
 import '../widgets/zen_stat_card.dart';
 import 'achievements_screen.dart';
@@ -154,6 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final auth = _authService.authState.value;
     final displayName = _resolveDisplayName(auth);
+    final rankTier = UserRankService.rankForXp(stats.totalXp);
     final email = auth.email?.trim();
     final unlockedCountFromSnapshots = badgeSnapshots
         .where((badge) => badge.isUnlocked)
@@ -171,6 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       subtitle: (email != null && email.isNotEmpty)
           ? email
           : 'ZenPose practitioner',
+      rankTier: rankTier,
       avatarInitial: _avatarInitial(displayName),
       statusText: auth.status == AuthStatus.authenticated
           ? 'Active Practitioner'
@@ -261,6 +266,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           now: widget.nowBuilder?.call() ?? DateTime.now(),
         );
         if (!mounted) return;
+        await RankUpDialog.showIfRankedUp(
+          context,
+          didRankUp: result.didRankUp,
+          rankAfter: result.rankAfter,
+          xpAfter: result.xpAfter,
+        );
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -318,6 +330,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildAvatar(BuildContext context, _ProfileData? data) {
     final displayName = data?.displayName ?? 'ZenPose User';
     final subtitle = data?.subtitle ?? 'ZenPose practitioner';
+    final rankTier = data?.rankTier ?? UserRankTier.bronze;
     final initial = data?.avatarInitial ?? 'Z';
     final statusText = data?.statusText ?? 'Active Practitioner';
 
@@ -357,6 +370,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 14),
+          Image.asset(
+            rankTier.badgeAssetPath,
+            width: 64,
+            height: 64,
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => const Icon(
+              Icons.workspace_premium_rounded,
+              size: 48,
+              color: ZenColors.forest,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${rankTier.label} Rank',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: ZenColors.forest,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
           Text(displayName, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
           Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
@@ -1161,6 +1194,7 @@ class _ProfileData {
   final int totalSessions;
   final String displayName;
   final String subtitle;
+  final UserRankTier rankTier;
   final String avatarInitial;
   final String statusText;
   final bool isAuthenticated;
@@ -1178,6 +1212,7 @@ class _ProfileData {
     required this.totalSessions,
     required this.displayName,
     required this.subtitle,
+    required this.rankTier,
     required this.avatarInitial,
     required this.statusText,
     required this.isAuthenticated,

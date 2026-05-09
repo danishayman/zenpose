@@ -7,6 +7,7 @@ import '../models/daily_challenge_step.dart';
 import '../models/pose_result.dart';
 import '../models/pose_template.dart';
 import '../models/unlocked_badge.dart';
+import '../models/user_rank.dart';
 import 'database_service.dart';
 import 'gamification_service.dart';
 import 'pose_template_service.dart';
@@ -14,12 +15,22 @@ import 'pose_template_service.dart';
 class DailyChallengeStepProcessResult {
   final DailyChallengeBundle bundle;
   final int xpGained;
+  final int xpBefore;
+  final int xpAfter;
+  final UserRankTier rankBefore;
+  final UserRankTier rankAfter;
+  final bool didRankUp;
   final List<UnlockedBadge> unlockedBadges;
   final bool applied;
 
   const DailyChallengeStepProcessResult({
     required this.bundle,
     required this.xpGained,
+    required this.xpBefore,
+    required this.xpAfter,
+    required this.rankBefore,
+    required this.rankAfter,
+    required this.didRankUp,
     required this.unlockedBadges,
     required this.applied,
   });
@@ -253,6 +264,11 @@ class DailyChallengeService {
       return DailyChallengeStepProcessResult(
         bundle: bundle,
         xpGained: 0,
+        xpBefore: 0,
+        xpAfter: 0,
+        rankBefore: UserRankTier.bronze,
+        rankAfter: UserRankTier.bronze,
+        didRankUp: false,
         unlockedBadges: const <UnlockedBadge>[],
         applied: false,
       );
@@ -261,6 +277,11 @@ class DailyChallengeService {
       return DailyChallengeStepProcessResult(
         bundle: bundle,
         xpGained: 0,
+        xpBefore: 0,
+        xpAfter: 0,
+        rankBefore: UserRankTier.bronze,
+        rankAfter: UserRankTier.bronze,
+        didRankUp: false,
         unlockedBadges: const <UnlockedBadge>[],
         applied: false,
       );
@@ -283,6 +304,11 @@ class DailyChallengeService {
     return DailyChallengeStepProcessResult(
       bundle: refreshed,
       xpGained: 0,
+      xpBefore: 0,
+      xpAfter: 0,
+      rankBefore: UserRankTier.bronze,
+      rankAfter: UserRankTier.bronze,
+      didRankUp: false,
       unlockedBadges: const <UnlockedBadge>[],
       applied: true,
     );
@@ -305,6 +331,11 @@ class DailyChallengeService {
       return DailyChallengeStepProcessResult(
         bundle: bundle,
         xpGained: 0,
+        xpBefore: 0,
+        xpAfter: 0,
+        rankBefore: UserRankTier.bronze,
+        rankAfter: UserRankTier.bronze,
+        didRankUp: false,
         unlockedBadges: const <UnlockedBadge>[],
         applied: false,
       );
@@ -316,6 +347,11 @@ class DailyChallengeService {
       return DailyChallengeStepProcessResult(
         bundle: bundle,
         xpGained: 0,
+        xpBefore: 0,
+        xpAfter: 0,
+        rankBefore: UserRankTier.bronze,
+        rankAfter: UserRankTier.bronze,
+        didRankUp: false,
         unlockedBadges: const <UnlockedBadge>[],
         applied: false,
       );
@@ -332,6 +368,11 @@ class DailyChallengeService {
     );
 
     int xpGained = 0;
+    int xpBefore = 0;
+    int xpAfter = 0;
+    var rankBefore = UserRankTier.bronze;
+    var rankAfter = UserRankTier.bronze;
+    var didRankUp = false;
     List<UnlockedBadge> unlockedBadges = const <UnlockedBadge>[];
     if (isPending) {
       final poseResult = PoseResult(
@@ -347,6 +388,11 @@ class DailyChallengeService {
         poseResult.copyWith(id: insertedId),
       );
       xpGained = gamification.xpGained;
+      xpBefore = gamification.xpBefore;
+      xpAfter = gamification.xpAfter;
+      rankBefore = gamification.rankBefore;
+      rankAfter = gamification.rankAfter;
+      didRankUp = gamification.didRankUp;
       unlockedBadges = gamification.unlockedBadges;
     }
 
@@ -356,6 +402,11 @@ class DailyChallengeService {
     return DailyChallengeStepProcessResult(
       bundle: refreshed,
       xpGained: xpGained,
+      xpBefore: xpBefore,
+      xpAfter: xpAfter,
+      rankBefore: rankBefore,
+      rankAfter: rankAfter,
+      didRankUp: didRankUp,
       unlockedBadges: unlockedBadges,
       applied: true,
     );
@@ -374,6 +425,11 @@ class DailyChallengeService {
       return DailyChallengeStepProcessResult(
         bundle: bundle,
         xpGained: 0,
+        xpBefore: 0,
+        xpAfter: 0,
+        rankBefore: UserRankTier.bronze,
+        rankAfter: UserRankTier.bronze,
+        didRankUp: false,
         unlockedBadges: const <UnlockedBadge>[],
         applied: false,
       );
@@ -390,6 +446,11 @@ class DailyChallengeService {
     );
 
     int xpGained = 0;
+    int xpBefore = 0;
+    int xpAfter = 0;
+    var rankBefore = UserRankTier.bronze;
+    var rankAfter = UserRankTier.bronze;
+    var didRankUp = false;
     List<UnlockedBadge> unlockedBadges = const <UnlockedBadge>[];
     if (isPending) {
       final poseResult = PoseResult(
@@ -405,6 +466,11 @@ class DailyChallengeService {
         poseResult.copyWith(id: insertedId),
       );
       xpGained = gamification.xpGained;
+      xpBefore = gamification.xpBefore;
+      xpAfter = gamification.xpAfter;
+      rankBefore = gamification.rankBefore;
+      rankAfter = gamification.rankAfter;
+      didRankUp = gamification.didRankUp;
       unlockedBadges = gamification.unlockedBadges;
     }
 
@@ -413,6 +479,11 @@ class DailyChallengeService {
     return DailyChallengeStepProcessResult(
       bundle: refreshed,
       xpGained: xpGained,
+      xpBefore: xpBefore,
+      xpAfter: xpAfter,
+      rankBefore: rankBefore,
+      rankAfter: rankAfter,
+      didRankUp: didRankUp,
       unlockedBadges: unlockedBadges,
       applied: true,
     );

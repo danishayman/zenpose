@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/profile_challenge_models.dart';
 import '../services/profile_challenge_service.dart';
 import '../theme/zen_theme.dart';
+import '../widgets/rank_up_dialog.dart';
 
 class AllChallengesScreen extends StatefulWidget {
   final String monthKey;
@@ -63,6 +64,13 @@ class _AllChallengesScreenState extends State<AllChallengesScreen> {
           monthKey: snapshot.monthKey,
           challengeId: snapshot.definition.challengeId,
           now: widget.nowBuilder?.call() ?? DateTime.now(),
+        );
+        if (!mounted) return;
+        await RankUpDialog.showIfRankedUp(
+          context,
+          didRankUp: result.didRankUp,
+          rankAfter: result.rankAfter,
+          xpAfter: result.xpAfter,
         );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

@@ -11,6 +11,7 @@ import '../models/unlocked_badge.dart';
 import '../services/daily_challenge_service.dart';
 import '../theme/zen_theme.dart';
 import '../widgets/pre_session_countdown_widgets.dart';
+import '../widgets/rank_up_dialog.dart';
 import 'daily_challenge_summary_screen.dart';
 import 'main_screen.dart';
 
@@ -264,6 +265,14 @@ class _DailyChallengeWorkoutFlowScreenState
       if (process.applied) {
         _sessionXpEarned += process.xpGained;
         _sessionBadges.addAll(process.unlockedBadges);
+        if (mounted) {
+          await RankUpDialog.showIfRankedUp(
+            context,
+            didRankUp: process.didRankUp,
+            rankAfter: process.rankAfter,
+            xpAfter: process.xpAfter,
+          );
+        }
       }
     } catch (error) {
       debugPrint('Failed to save exercise result: $error');

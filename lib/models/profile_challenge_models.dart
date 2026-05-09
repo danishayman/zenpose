@@ -1,3 +1,5 @@
+import 'user_rank.dart';
+
 enum ChallengeMetricType { sessions, minutes, scoreCount }
 
 enum ChallengeLifecycleStatus { notJoined, joined, claimable, completed, ended }
@@ -180,12 +182,22 @@ class ChallengeProgressSnapshot {
 class ChallengeClaimResult {
   final bool applied;
   final int xpGranted;
+  final int xpBefore;
+  final int xpAfter;
+  final UserRankTier rankBefore;
+  final UserRankTier rankAfter;
+  final bool didRankUp;
   final String badgeLabel;
   final String message;
 
   const ChallengeClaimResult({
     required this.applied,
     required this.xpGranted,
+    required this.xpBefore,
+    required this.xpAfter,
+    required this.rankBefore,
+    required this.rankAfter,
+    required this.didRankUp,
     required this.badgeLabel,
     required this.message,
   });
