@@ -102,6 +102,103 @@ void main() {
     expect(trends.first.deltaScore, equals(4));
   });
 
+  test(
+    'buildExerciseTrends computes last5 vs previous5 trend for 10 sessions',
+    () {
+      final results = List<PoseResult>.generate(10, (i) {
+        final scores = <double>[60, 62, 64, 66, 68, 70, 72, 74, 76, 78];
+        return PoseResult(
+          poseName: 'Tree',
+          bestScore: scores[i],
+          holdDuration: 30 + i.toDouble(),
+          completed: true,
+          timestamp: DateTime(2026, 4, i + 1, 8, 0),
+        );
+      });
+
+      final trends = service.buildExerciseTrends(results);
+      final tree = trends.single;
+
+      expect(tree.sessionCount, equals(10));
+      expect(tree.trendWindowSize, equals(5));
+      expect(tree.recentWindowAverage, closeTo(74, 0.001));
+      expect(tree.previousWindowAverage, closeTo(64, 0.001));
+      expect(tree.windowTrendDelta, closeTo(10, 0.001));
+      expect(tree.hasEnoughTrendData, isTrue);
+      expect(
+        tree.recentScores,
+        equals(<double>[60, 62, 64, 66, 68, 70, 72, 74, 76, 78]),
+      );
+    },
+  );
+
+  test(
+    'buildExerciseTrends computes trend with partial previous window for 6-9 sessions',
+    () {
+      final results = List<PoseResult>.generate(7, (i) {
+        final scores = <double>[60, 62, 64, 66, 68, 70, 72];
+        return PoseResult(
+          poseName: 'Tree',
+          bestScore: scores[i],
+          holdDuration: 40,
+          completed: true,
+          timestamp: DateTime(2026, 4, i + 1, 8, 0),
+        );
+      });
+
+      final trends = service.buildExerciseTrends(results);
+      final tree = trends.single;
+
+      expect(tree.sessionCount, equals(7));
+      expect(tree.hasEnoughTrendData, isTrue);
+      expect(tree.recentWindowAverage, closeTo(68, 0.001));
+      expect(tree.previousWindowAverage, closeTo(61, 0.001));
+      expect(tree.windowTrendDelta, closeTo(7, 0.001));
+    },
+  );
+
+  test('buildExerciseTrends marks sparse data under 6 sessions', () {
+    final results = List<PoseResult>.generate(5, (i) {
+      return PoseResult(
+        poseName: 'Tree',
+        bestScore: 70 + i.toDouble(),
+        holdDuration: 35,
+        completed: true,
+        timestamp: DateTime(2026, 4, i + 1, 8, 0),
+      );
+    });
+
+    final trends = service.buildExerciseTrends(results);
+    final tree = trends.single;
+
+    expect(tree.sessionCount, equals(5));
+    expect(tree.hasEnoughTrendData, isFalse);
+    expect(tree.previousWindowAverage, isNull);
+    expect(tree.windowTrendDelta, isNull);
+  });
+
+  test(
+    'buildExerciseTrends keeps recentScores chronological for plotted last 10',
+    () {
+      final results = List<PoseResult>.generate(12, (i) {
+        return PoseResult(
+          poseName: 'Tree',
+          bestScore: 50 + i.toDouble(),
+          holdDuration: 30,
+          completed: true,
+          timestamp: DateTime(2026, 4, i + 1, 8, 0),
+        );
+      });
+
+      final trends = service.buildExerciseTrends(results);
+      final tree = trends.single;
+
+      expect(tree.recentScores.length, equals(10));
+      expect(tree.recentScores.first, equals(52));
+      expect(tree.recentScores.last, equals(61));
+    },
+  );
+
   test('buildMeasureTrend returns latest and delta', () {
     final history = <BodyMeasurement>[
       BodyMeasurement(

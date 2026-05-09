@@ -11,6 +11,12 @@ class ExerciseTrendSnapshot {
   final String poseName;
   final DateTime? lastPerformedAt;
   final List<double> recentScores;
+  final int sessionCount;
+  final int trendWindowSize;
+  final double recentWindowAverage;
+  final double? previousWindowAverage;
+  final double? windowTrendDelta;
+  final bool hasEnoughTrendData;
   final double latestScore;
   final double bestScore;
   final double deltaScore;
@@ -20,6 +26,12 @@ class ExerciseTrendSnapshot {
     required this.poseName,
     required this.lastPerformedAt,
     required this.recentScores,
+    required this.sessionCount,
+    required this.trendWindowSize,
+    required this.recentWindowAverage,
+    required this.previousWindowAverage,
+    required this.windowTrendDelta,
+    required this.hasEnoughTrendData,
     required this.latestScore,
     required this.bestScore,
     required this.deltaScore,

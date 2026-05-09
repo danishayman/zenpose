@@ -4,6 +4,7 @@ import '../models/progress_analytics_models.dart';
 
 class ProgressAnalyticsService {
   const ProgressAnalyticsService();
+  static const int _exerciseTrendWindowSize = 5;
 
   MonthlyWorkoutSummary buildMonthlySummary({
     required List<PoseResult> results,
@@ -88,12 +89,31 @@ class ProgressAnalyticsService {
           .reduce((a, b) => a > b ? a : b);
       final averageHold =
           rows.map((e) => e.holdDuration).reduce((a, b) => a + b) / rows.length;
+      final recentWindow = rows.take(_exerciseTrendWindowSize).toList();
+      final previousWindow = rows
+          .skip(_exerciseTrendWindowSize)
+          .take(_exerciseTrendWindowSize)
+          .toList();
+      final recentWindowAverage = _averageScore(recentWindow);
+      final previousWindowAverage = previousWindow.isEmpty
+          ? null
+          : _averageScore(previousWindow);
+      final windowTrendDelta = previousWindowAverage == null
+          ? null
+          : recentWindowAverage - previousWindowAverage;
+      final hasEnoughTrendData = rows.length >= 6;
       final recent = rows.take(10).toList().reversed;
       snapshots.add(
         ExerciseTrendSnapshot(
           poseName: entry.key,
           lastPerformedAt: latest.timestamp?.toLocal(),
           recentScores: recent.map((e) => e.bestScore).toList(growable: false),
+          sessionCount: rows.length,
+          trendWindowSize: _exerciseTrendWindowSize,
+          recentWindowAverage: recentWindowAverage,
+          previousWindowAverage: previousWindowAverage,
+          windowTrendDelta: windowTrendDelta,
+          hasEnoughTrendData: hasEnoughTrendData,
           latestScore: latestScore,
           bestScore: bestScore,
           deltaScore: latestScore - previousScore,
@@ -144,5 +164,10 @@ class ProgressAnalyticsService {
     final month = local.month.toString().padLeft(2, '0');
     final day = local.day.toString().padLeft(2, '0');
     return '$year-$month-$day';
+  }
+
+  double _averageScore(List<PoseResult> items) {
+    final total = items.map((e) => e.bestScore).reduce((a, b) => a + b);
+    return total / items.length;
   }
 }

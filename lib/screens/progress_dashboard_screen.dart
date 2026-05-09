@@ -358,8 +358,10 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
               ),
           };
           final templateByPoseName = <String, PoseTemplate>{
-            for (final template in data.poseTemplates)
+            for (final template in data.poseTemplates) ...{
               _normalizeName(template.name): template,
+              _normalizeName(template.templateKey): template,
+            },
           };
 
           return DefaultTabController(
@@ -751,10 +753,14 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
     ExerciseTrendSnapshot exercise,
     PoseTemplate? template,
   ) {
-    final deltaColor = exercise.deltaScore >= 0
-        ? ZenColors.success
-        : ZenColors.error;
-    final deltaPrefix = exercise.deltaScore >= 0 ? '+' : '';
+    final trendDelta = exercise.windowTrendDelta;
+    final trendColor = !exercise.hasEnoughTrendData || trendDelta == null
+        ? ZenColors.textMuted
+        : (trendDelta >= 0 ? ZenColors.success : ZenColors.error);
+    final trendPrefix = trendDelta != null && trendDelta >= 0 ? '+' : '';
+    final trendText = exercise.hasEnoughTrendData && trendDelta != null
+        ? '${exercise.trendWindowSize}-session trend $trendPrefix${trendDelta.toStringAsFixed(1)}% · ${exercise.sessionCount} sessions · Avg hold ${exercise.averageHoldDuration.toStringAsFixed(1)}s'
+        : 'Not enough data · ${exercise.sessionCount} sessions · Avg hold ${exercise.averageHoldDuration.toStringAsFixed(1)}s';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -781,12 +787,12 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Δ $deltaPrefix${exercise.deltaScore.toStringAsFixed(1)}% · Avg hold ${exercise.averageHoldDuration.toStringAsFixed(1)}s',
+                  trendText,
                   style: TextStyle(
                     fontFamily: 'Manrope',
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: deltaColor,
+                    color: trendColor,
                   ),
                 ),
               ],
@@ -794,12 +800,19 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: 110,
-            height: 54,
+            width: 132,
+            height: 64,
             child: _MiniSparkline(
               values: exercise.recentScores,
               color: ZenColors.teal,
-              fillColor: Colors.transparent,
+              fillColor: ZenColors.teal.withValues(alpha: 0.14),
+              minValue: 0,
+              maxValue: 100,
+              showEndpoint: true,
+              showPointMarkers: true,
+              showGrid: true,
+              showFrame: true,
+              showAxisLabels: true,
             ),
           ),
         ],
@@ -951,11 +964,25 @@ class _MiniSparkline extends StatelessWidget {
   final List<double> values;
   final Color color;
   final Color fillColor;
+  final double? minValue;
+  final double? maxValue;
+  final bool showEndpoint;
+  final bool showPointMarkers;
+  final bool showGrid;
+  final bool showFrame;
+  final bool showAxisLabels;
 
   const _MiniSparkline({
     required this.values,
     required this.color,
     required this.fillColor,
+    this.minValue,
+    this.maxValue,
+    this.showEndpoint = false,
+    this.showPointMarkers = false,
+    this.showGrid = false,
+    this.showFrame = false,
+    this.showAxisLabels = false,
   });
 
   @override
@@ -965,6 +992,13 @@ class _MiniSparkline extends StatelessWidget {
         values: values,
         color: color,
         fillColor: fillColor,
+        minValue: minValue,
+        maxValue: maxValue,
+        showEndpoint: showEndpoint,
+        showPointMarkers: showPointMarkers,
+        showGrid: showGrid,
+        showFrame: showFrame,
+        showAxisLabels: showAxisLabels,
       ),
       child: const SizedBox.expand(),
     );
@@ -975,15 +1009,75 @@ class _MiniSparklinePainter extends CustomPainter {
   final List<double> values;
   final Color color;
   final Color fillColor;
+  final double? minValue;
+  final double? maxValue;
+  final bool showEndpoint;
+  final bool showPointMarkers;
+  final bool showGrid;
+  final bool showFrame;
+  final bool showAxisLabels;
 
   _MiniSparklinePainter({
     required this.values,
     required this.color,
     required this.fillColor,
+    required this.minValue,
+    required this.maxValue,
+    required this.showEndpoint,
+    required this.showPointMarkers,
+    required this.showGrid,
+    required this.showFrame,
+    required this.showAxisLabels,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    final leftGutter = showAxisLabels ? 22.0 : 0.0;
+    final frameRect = Rect.fromLTWH(
+      leftGutter + 1,
+      1,
+      size.width - leftGutter - 2,
+      size.height - 2,
+    );
+    final frameRRect = RRect.fromRectAndRadius(
+      frameRect,
+      const Radius.circular(6),
+    );
+    final chartRect = Rect.fromLTWH(
+      leftGutter + 4,
+      4,
+      size.width - leftGutter - 8,
+      size.height - 8,
+    );
+
+    if (showAxisLabels) {
+      _drawAxisLabel(canvas, text: '100', x: 0, y: chartRect.top - 6);
+      _drawAxisLabel(canvas, text: '50', x: 4, y: chartRect.center.dy - 6);
+      _drawAxisLabel(canvas, text: '0', x: 10, y: chartRect.bottom - 6);
+    }
+
+    if (showFrame) {
+      final framePaint = Paint()
+        ..color = ZenColors.surface2
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1;
+      canvas.drawRRect(frameRRect, framePaint);
+    }
+
+    if (showGrid) {
+      final gridPaint = Paint()
+        ..color = ZenColors.surface2.withValues(alpha: 0.9)
+        ..strokeWidth = 1;
+      for (final ratio in const <double>[0.25, 0.5, 0.75]) {
+        final y = chartRect.bottom - (chartRect.height * ratio);
+        canvas.drawLine(
+          Offset(chartRect.left, y),
+          Offset(chartRect.right, y),
+          gridPaint,
+        );
+      }
+    }
+
     final strokePaint = Paint()
       ..color = color
       ..strokeWidth = 2
@@ -992,26 +1086,35 @@ class _MiniSparklinePainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     if (values.isEmpty) {
-      final y = size.height * 0.5;
+      final y = chartRect.center.dy;
       canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
+        Offset(chartRect.left, y),
+        Offset(chartRect.right, y),
         strokePaint..color = ZenColors.surface2,
       );
       return;
     }
 
-    final minValue = values.reduce(math.min);
-    final maxValue = values.reduce(math.max);
-    final range = (maxValue - minValue).abs();
+    final lowerBound = minValue ?? values.reduce(math.min);
+    final upperBound = maxValue ?? values.reduce(math.max);
+    final range = (upperBound - lowerBound).abs();
     final effectiveRange = range < 0.0001 ? 1.0 : range;
-    final xStep = values.length == 1 ? 0.0 : size.width / (values.length - 1);
+    final xStep = values.length == 1
+        ? 0.0
+        : chartRect.width / (values.length - 1);
     final path = Path();
+    var lastX = chartRect.left;
+    var lastY = chartRect.center.dy;
+    final points = <Offset>[];
 
     for (var i = 0; i < values.length; i++) {
-      final normalizedY = (values[i] - minValue) / effectiveRange;
-      final x = i * xStep;
-      final y = size.height - (normalizedY * (size.height - 4)) - 2;
+      final clamped = values[i].clamp(lowerBound, upperBound).toDouble();
+      final normalizedY = (clamped - lowerBound) / effectiveRange;
+      final x = chartRect.left + (i * xStep);
+      final y = chartRect.bottom - (normalizedY * chartRect.height);
+      lastX = x;
+      lastY = y;
+      points.add(Offset(x, y));
       if (i == 0) {
         path.moveTo(x, y);
       } else {
@@ -1021,8 +1124,8 @@ class _MiniSparklinePainter extends CustomPainter {
 
     if (fillColor.a > 0) {
       final fillPath = Path.from(path)
-        ..lineTo(size.width, size.height)
-        ..lineTo(0, size.height)
+        ..lineTo(chartRect.right, chartRect.bottom)
+        ..lineTo(chartRect.left, chartRect.bottom)
         ..close();
       final fillPaint = Paint()
         ..color = fillColor
@@ -1031,11 +1134,38 @@ class _MiniSparklinePainter extends CustomPainter {
     }
 
     canvas.drawPath(path, strokePaint);
+    if (showPointMarkers) {
+      final pointFill = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+      final pointStroke = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4;
+      for (final point in points) {
+        canvas.drawCircle(point, 2.2, pointFill);
+        canvas.drawCircle(point, 2.2, pointStroke);
+      }
+    }
+    if (showEndpoint && values.isNotEmpty) {
+      final pointPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(Offset(lastX, lastY), 2.6, pointPaint);
+    }
   }
 
   @override
   bool shouldRepaint(covariant _MiniSparklinePainter oldDelegate) {
-    if (oldDelegate.color != color || oldDelegate.fillColor != fillColor) {
+    if (oldDelegate.color != color ||
+        oldDelegate.fillColor != fillColor ||
+        oldDelegate.minValue != minValue ||
+        oldDelegate.maxValue != maxValue ||
+        oldDelegate.showEndpoint != showEndpoint ||
+        oldDelegate.showPointMarkers != showPointMarkers ||
+        oldDelegate.showGrid != showGrid ||
+        oldDelegate.showFrame != showFrame ||
+        oldDelegate.showAxisLabels != showAxisLabels) {
       return true;
     }
     if (oldDelegate.values.length != values.length) return true;
@@ -1043,6 +1173,28 @@ class _MiniSparklinePainter extends CustomPainter {
       if (oldDelegate.values[i] != values[i]) return true;
     }
     return false;
+  }
+
+  void _drawAxisLabel(
+    Canvas canvas, {
+    required String text,
+    required double x,
+    required double y,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          fontFamily: 'Manrope',
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: ZenColors.textMuted,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    painter.paint(canvas, Offset(x, y));
   }
 }
 

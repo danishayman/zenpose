@@ -91,6 +91,57 @@ void main() {
     expect(find.text('Plank'), findsNothing);
   });
 
+  testWidgets('shows trend insight and sparse-data insight in Exercises tab', (
+    tester,
+  ) async {
+    _setLargeSurface(tester);
+    final results = <PoseResult>[
+      ...List<PoseResult>.generate(10, (i) {
+        final scores = <double>[60, 62, 64, 66, 68, 70, 72, 74, 76, 78];
+        return PoseResult(
+          poseName: 'Tree',
+          bestScore: scores[i],
+          holdDuration: 40,
+          completed: true,
+          timestamp: DateTime(2026, 4, i + 1, 8, 0),
+        );
+      }),
+      ...List<PoseResult>.generate(4, (i) {
+        return PoseResult(
+          poseName: 'Plank',
+          bestScore: 70 + i.toDouble(),
+          holdDuration: 30,
+          completed: true,
+          timestamp: DateTime(2026, 4, i + 1, 9, 0),
+        );
+      }),
+    ];
+
+    await tester.pumpWidget(
+      _app(
+        ProgressDashboardScreen(
+          loadAllResults: () async => results,
+          loadWeeklyGoal: () async => WeeklyWorkoutGoal(
+            userId: 'u1',
+            targetWorkouts: 3,
+            updatedAt: DateTime(2026, 4, 10),
+            isSynced: true,
+          ),
+          loadMeasurementHistory: (_) async => const <BodyMeasurement>[],
+          loadPoseTemplates: () async => const <PoseTemplate>[],
+          nowBuilder: () => DateTime(2026, 4, 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('progress-tab-exercises')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('5-session trend +10.0%'), findsOneWidget);
+    expect(find.textContaining('10 sessions'), findsOneWidget);
+    expect(find.textContaining('Not enough data · 4 sessions'), findsOneWidget);
+  });
+
   testWidgets('updates weekly goal from editor', (tester) async {
     _setLargeSurface(tester);
     var goal = 3;
