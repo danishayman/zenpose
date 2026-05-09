@@ -5,6 +5,8 @@ import '../models/progress_analytics_models.dart';
 class ProgressAnalyticsService {
   const ProgressAnalyticsService();
   static const int _exerciseTrendWindowSize = 5;
+  static const double _maxPracticeHoldSeconds = 120.0;
+  static const double _maxChallengeHoldSeconds = 45.0;
 
   MonthlyWorkoutSummary buildMonthlySummary({
     required List<PoseResult> results,
@@ -87,8 +89,10 @@ class ProgressAnalyticsService {
       final bestScore = rows
           .map((e) => e.bestScore)
           .reduce((a, b) => a > b ? a : b);
-      final averageHold =
-          rows.map((e) => e.holdDuration).reduce((a, b) => a + b) / rows.length;
+      final averageHold = rows
+              .map(_normalizedHoldSeconds)
+              .reduce((a, b) => a + b) /
+          rows.length;
       final recentWindow = rows.take(_exerciseTrendWindowSize).toList();
       final previousWindow = rows
           .skip(_exerciseTrendWindowSize)
@@ -169,5 +173,37 @@ class ProgressAnalyticsService {
   double _averageScore(List<PoseResult> items) {
     final total = items.map((e) => e.bestScore).reduce((a, b) => a + b);
     return total / items.length;
+  }
+
+  double _normalizedHoldSeconds(PoseResult result) {
+    final raw = result.holdDuration;
+    if (!raw.isFinite || raw <= 0) return 0;
+
+    final ceiling = _expectedHoldCeiling(result);
+    if (raw <= ceiling) {
+      return raw;
+    }
+
+    // Legacy/demo rows may persist hold as approximate frame counts.
+    // Example: 30 FPS * 35 seconds ≈ 1050 stored in hold_duration.
+    final looksLikeFrames = raw <= ceiling * 60;
+    if (looksLikeFrames) {
+      final asFrames = raw / 30.0;
+      return asFrames.clamp(0.0, ceiling).toDouble();
+    }
+
+    // Legacy rows may also store milliseconds instead of seconds.
+    final asMilliseconds = raw / 1000.0;
+    if (asMilliseconds > 0) {
+      return asMilliseconds.clamp(0.0, ceiling).toDouble();
+    }
+
+    return ceiling;
+  }
+
+  double _expectedHoldCeiling(PoseResult result) {
+    return result.sessionType == PoseResultSessionType.challenge
+        ? _maxChallengeHoldSeconds
+        : _maxPracticeHoldSeconds;
   }
 }

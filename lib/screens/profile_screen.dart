@@ -177,9 +177,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : 'ZenPose practitioner',
       rankTier: rankTier,
       avatarInitial: _avatarInitial(displayName),
-      statusText: auth.status == AuthStatus.authenticated
-          ? 'Active Practitioner'
-          : 'Offline Practitioner',
       isAuthenticated: auth.status == AuthStatus.authenticated,
       accountLabel: (email != null && email.isNotEmpty)
           ? email
@@ -332,7 +329,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final subtitle = data?.subtitle ?? 'ZenPose practitioner';
     final rankTier = data?.rankTier ?? UserRankTier.bronze;
     final initial = data?.avatarInitial ?? 'Z';
-    final statusText = data?.statusText ?? 'Active Practitioner';
 
     return Container(
       decoration: ZenDecor.elevatedCard(),
@@ -393,34 +389,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(displayName, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
           Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: ZenColors.teal100,
-              borderRadius: ZenDecor.pillRadius,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.verified_rounded,
-                  size: 13,
-                  color: ZenColors.teal,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  statusText,
-                  style: const TextStyle(
-                    fontFamily: 'Manrope',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: ZenColors.teal,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -1196,7 +1164,6 @@ class _ProfileData {
   final String subtitle;
   final UserRankTier rankTier;
   final String avatarInitial;
-  final String statusText;
   final bool isAuthenticated;
   final String accountLabel;
   final List<BadgeProgressSnapshot> badgeSnapshots;
@@ -1214,7 +1181,6 @@ class _ProfileData {
     required this.subtitle,
     required this.rankTier,
     required this.avatarInitial,
-    required this.statusText,
     required this.isAuthenticated,
     required this.accountLabel,
     required this.badgeSnapshots,

@@ -102,6 +102,56 @@ void main() {
     expect(trends.first.deltaScore, equals(4));
   });
 
+  test('buildExerciseTrends keeps average hold in seconds for normal rows', () {
+    final results = <PoseResult>[
+      PoseResult(
+        poseName: 'Tree',
+        bestScore: 80,
+        holdDuration: 30,
+        completed: true,
+        timestamp: DateTime(2026, 4, 1, 10, 0),
+      ),
+      PoseResult(
+        poseName: 'Tree',
+        bestScore: 85,
+        holdDuration: 36,
+        completed: true,
+        timestamp: DateTime(2026, 4, 2, 10, 0),
+      ),
+    ];
+
+    final trends = service.buildExerciseTrends(results);
+    final tree = trends.single;
+    expect(tree.averageHoldDuration, closeTo(33.0, 0.001));
+  });
+
+  test(
+    'buildExerciseTrends normalizes legacy frame-count and millisecond holds',
+    () {
+      final results = <PoseResult>[
+        PoseResult(
+          poseName: 'Tree',
+          bestScore: 80,
+          holdDuration: 1020, // ~34s at ~30 FPS
+          completed: true,
+          timestamp: DateTime(2026, 4, 1, 10, 0),
+        ),
+        PoseResult(
+          poseName: 'Tree',
+          bestScore: 84,
+          holdDuration: 45000, // 45s in milliseconds
+          completed: true,
+          timestamp: DateTime(2026, 4, 2, 10, 0),
+          sessionType: PoseResultSessionType.challenge,
+        ),
+      ];
+
+      final trends = service.buildExerciseTrends(results);
+      final tree = trends.single;
+      expect(tree.averageHoldDuration, closeTo(39.5, 0.001));
+    },
+  );
+
   test(
     'buildExerciseTrends computes last5 vs previous5 trend for 10 sessions',
     () {
