@@ -28,6 +28,7 @@ import '../services/pose_stability_service.dart';
 import '../services/score_smoothing_service.dart';
 import '../services/workout_guidance_service.dart';
 import '../services/voice_cue_service.dart';
+import '../services/voice_instruction_composer.dart';
 import '../models/landmark.dart';
 import '../painters/skeleton_overlay_painter.dart';
 import '../services/database_service.dart';
@@ -92,6 +93,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final GamificationService _gamificationService = GamificationService();
   final PunishmentService _punishmentService = PunishmentService();
   late final VoiceCueService _voiceCueService;
+  final VoiceInstructionComposer _voiceInstructionComposer =
+      const VoiceInstructionComposer();
 
   // CosineSimilarityService and LimbSimilarityService are initialised
   // lazily in initState() so we can inject the selected pose's meanVector.
@@ -575,9 +578,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   void _speakPrimaryCue(WorkoutGuidanceSnapshot snapshot) {
-    final cue = snapshot.primaryCue;
-    if (cue == null || cue.isEmpty) return;
-    unawaited(_voiceCueService.speakIfAllowed(cue, snapshot.state));
+    final spokenCue = _voiceInstructionComposer.compose(
+      snapshot: snapshot,
+      baseCue: snapshot.primaryCue,
+    );
+    if (spokenCue == null || spokenCue.isEmpty) return;
+    unawaited(_voiceCueService.speakIfAllowed(spokenCue, snapshot.state));
   }
 
   void _resetSession() {

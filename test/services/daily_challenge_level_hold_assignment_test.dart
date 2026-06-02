@@ -51,7 +51,7 @@ void main() {
     await deleteDatabase(path);
   });
 
-  test('new daily challenge snapshots hold seconds from XP band', () async {
+  test('new daily challenge snapshots hold seconds from rank tier', () async {
     final db = DatabaseService.instance;
     await db.database;
     final service = DailyChallengeService(
@@ -63,18 +63,26 @@ void main() {
       ]),
     );
 
-    final beginner = await service.getOrCreateChallenge(dateKey: '2026-04-10');
-    expect(beginner.challenge.targetHoldSeconds, equals(20));
+    final bronze = await service.getOrCreateChallenge(dateKey: '2026-04-10');
+    expect(bronze.challenge.targetHoldSeconds, equals(20));
 
     await db.incrementTotalXp(1000);
-    final intermediate = await service.getOrCreateChallenge(
+    final silver = await service.getOrCreateChallenge(
       dateKey: '2026-04-11',
     );
-    expect(intermediate.challenge.targetHoldSeconds, equals(35));
+    expect(silver.challenge.targetHoldSeconds, equals(30));
 
     await db.incrementTotalXp(2000);
-    final advanced = await service.getOrCreateChallenge(dateKey: '2026-04-12');
-    expect(advanced.challenge.targetHoldSeconds, equals(45));
+    final gold = await service.getOrCreateChallenge(dateKey: '2026-04-12');
+    expect(gold.challenge.targetHoldSeconds, equals(35));
+
+    await db.incrementTotalXp(4000);
+    final emerald = await service.getOrCreateChallenge(dateKey: '2026-04-13');
+    expect(emerald.challenge.targetHoldSeconds, equals(40));
+
+    await db.incrementTotalXp(5000);
+    final diamond = await service.getOrCreateChallenge(dateKey: '2026-04-14');
+    expect(diamond.challenge.targetHoldSeconds, equals(45));
   });
 
   test(

@@ -1,0 +1,3363 @@
+
+
+===== PAGE 1 =====
+
+   
+ 
+   
+ 
+ 
+ 
+School of Computer Sciences 
+CAT405 Intelligent Computing Major Project 
+Final Report 
+IC24250078: Fast-Fit App  
+FATIN AQILAH BINTI ZUKRI 
+155330 
+ 
+ Supervisor: NUR INTAN RAIHANA RUHAIYEM, DR. 
+Examiner: CHEW XINYING, TS. DR. 
+ 
+ 
+Academic Session 
+2024/2025 
+
+
+===== PAGE 2 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+ii 
+ 
+DECLARATION 
+“I declare that the following is my own work and does not contain any unacknowledged 
+work from any other sources. This report was undertaken to fulfill the requirements of 
+the Undergraduate Major Project for the Bachelor of Science in Computer Science 
+(Honors) program at Universiti Sains Malaysia”. 
+ 
+Signature :    
+Name  :   FATIN AQILAH BINTI ZUKRI 
+Date  :  26/05/2025 
+ 
+
+
+===== PAGE 3 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+iii 
+ 
+ABSTRAK 
+Aplikasi mudah alih Fast-Fit bertujuan untuk membantu pengguna dalam mengamalkan 
+berpuasa secara berkala (IF)  yang ditujukan khusus kepada pemula,  dengan 
+menyediakan cadangan puasa yang diperibadikan dan alat penjejakan yang mesra 
+pengguna. Sebagai versi yang dipertingkatkan daripada projek sebelumnya, aplikasi ini 
+menggabungkan sistem cadangan berasaskan AI yang mencadangkan pelan IF yang 
+optimum yang disesuaikan dengan ciri-ciri individu, seperti umur, berat badan, tinggi 
+badan, dan gaya hidup. Ia akan dibangunkan menggunakan Android Studio dengan Java 
+dan Firebase sebagai pangkalan data belakang, Fast -Fit menawarkan 3 pelan IF iaitu 
+12:12, 14:10 dan 16:8, yang sesuai untuk pengguna dengan tahap pemula. Selain itu, 
+aplikasi ini membolehkan pengguna menyesuaikan jadual puasa mereka, menetapkan 
+notifikasi, dan memantau status puasa mereka se lari dengan masa sebenar untuk 
+membantu mereka mengekalkan konsistensi. Komponen pembelajaran mesin, yang 
+dibangunkan dalam Python, dengan menggunakan set data yang berkaitan untuk 
+memastikan cadangan yang tepat, menjadikan lebih mudah bagi pengguna untuk 
+mencari pelan puasa yang sesuai dengan keperluan mereka. Fast-Fit akhirnya bertujuan 
+untuk mempermudahkan proses mengikuti pelan IF, mempromosikan tabiat pemakanan 
+yang lebih sihat, dan pengguna dapat memperkasakan dalam  mencapai matlamat 
+kesejahteraan mereka dengan lebih berkesan. 
+ 
+ 
+
+===== PAGE 4 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+iv 
+ 
+ABSTRACT 
+The Fast -Fit mobile application aims to support users who is beginner  in adopting 
+intermittent fasting (IF) by providing personalized fasting recommendations and users-
+friendly tracking tools. As an enhanced version of a previous project, this app 
+incorporates a new AI -driven recommendation system that suggests optimal IF plans 
+tailored to individual characteristics, such as age, weight, height, and lifestyle. 
+Developed in Android Studio with Java and Firebase as the backend database, Fast-Fit 
+offers time-restricted IF  plans, which is 12 :12, 14:10 and  16:8, catering to users of 
+beginner levels. Additionally, the app allows users to customize their fasting schedules, 
+set notifications, and monitor their fasting status in real -time to help them maintain 
+consistency. The machine learning component, developed in Python, uses relevant 
+datasets to ensure accurate recommendations, making it easier for users to find a fasting 
+plan that suits their needs. Fast-Fit ultimately seeks to simplify the process of following 
+an IF plan, promoting healthier eating habits and empowering users to achieve their 
+wellness goals more effectively. 
+
+===== PAGE 5 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+v 
+ 
+ACKNOWLEDGEMENTS 
+I would like to express my sincere gratitude to Ts. Dr. Chew Xinying, the coordinator 
+of this course, CAT405 Intelligent Computing Major Project, for providing excellent 
+direction and organization throughout the course. Her support has been instrumental in 
+guiding me through the process and ensuring that all aspects of the project align with 
+the course re quirements. My deepest thanks also go to my supervisor, Dr. Nur Intan 
+Raihana Ruhaiyem, for her continuous support, invaluable guidance, and 
+encouragement throughout the course of this project. Her expertise and insightful 
+advice have been essential in sha ping the direction of my work. I would also like to 
+thank Ts. Dr. Chew Xinying in advance for her role as my examiner, as her anticipated 
+feedback and suggestions will help further refine and enhance the quality of this project. 
+ 
+ 
+
+===== PAGE 6 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+vi 
+ 
+TABLE OF CONTENTS 
+DECLARATION ........................................................................................................... ii 
+ABSTRAK .................................................................................................................... iii 
+ABSTRACT .................................................................................................................. iv 
+ACKNOWLEDGEMENTS ........................................................................................... v 
+TABLE OF CONTENTS .............................................................................................. vi 
+LIST OF TABLES ......................................................................................................... x 
+LIST OF FIGURES ..................................................................................................... xii 
+LIST OF ABBREVIATIONS AND SYMBOLS ....................................................... xiii 
+1 INTRODUCTION ................................................................................................. 1 
+1.1. Background .................................................................................................... 1 
+1.2. Problem Statements ....................................................................................... 2 
+1.3. Motivation ...................................................................................................... 3 
+1.4. System Objectives .......................................................................................... 3 
+1.5. Proposed Solutions ......................................................................................... 4 
+1.6. Benefits and Uniqueness of the Proposed Solutions ...................................... 6 
+1.7. Organization of the Report ............................................................................. 7 
+2 BACKGROUND & RELATED WORK ............................................................... 8 
+2.1. Status of Project ............................................................................................. 8 
+2.2. Relevant projects ............................................................................................ 8 
+2.3. Existing methods ............................................................................................ 9 
+
+===== PAGE 7 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+vii 
+ 
+2.4. Strengths and Weaknesses of Existing System ............................................ 11 
+2.5. Brief Introduction of the Proposed Work .................................................... 13 
+2.5.1. Intermittent Fasting Method for Beginner ........................................... 13 
+2.5.2. Machine Learning Classification Algorithms ...................................... 14 
+3 SYSTEM REQUIREMENTS / ANALYSIS ....................................................... 16 
+3.1. Project Scope ............................................................................................... 16 
+3.2. System Capabilities and limitations ............................................................. 16 
+3.3. Project Management .................................................................................... 18 
+3.3.1. Work Breakdown Structure (WBS) ..................................................... 18 
+3.3.2. Gantt Chart ........................................................................................... 20 
+3.3.3. SWOT Analysis ................................................................................... 21 
+3.4. Development Methodology ......................................................................... 21 
+3.5. Detail Requirement of New System ............................................................ 23 
+3.5.1. Functional Requirements ..................................................................... 23 
+3.5.2. Questionnaire ....................................................................................... 24 
+3.6. Analysis of the New System ........................................................................ 26 
+3.6.1. Flowchart ............................................................................................. 26 
+3.6.2. UML Use Case Diagram ...................................................................... 27 
+3.6.3. Use Case Description ........................................................................... 28 
+3.7. Detail Description of the Proposed System ................................................. 42 
+3.7.1. Module Diagram .................................................................................. 42 
+
+===== PAGE 8 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+viii 
+ 
+3.7.2. Description of Intelligent Method ........................................................ 43 
+3.8. Technology Deployed and Hardware .......................................................... 44 
+4 SYSTEM DESIGN & IMPLEMENTATION ..................................................... 45 
+4.1. System Design Architecture ........................................................................ 45 
+4.2. Implementation of Intelligent Method ......................................................... 47 
+4.2.1. IF Plan Recommendation ..................................................................... 47 
+4.3. Database design ........................................................................................... 54 
+4.4. Users Interface Design ................................................................................. 56 
+4.5. Implementation Strategy .............................................................................. 57 
+4.6. Overview of the Design ............................................................................... 57 
+5 SYSTEM TESTING & EVALUATION ............................................................. 59 
+5.1. Testing Strategy ........................................................................................... 59 
+5.2. Test Cases .................................................................................................... 60 
+5.3. Summary of Test Result ............................................................................... 77 
+5.4. Evidence Requirement Fulfilled .................................................................. 78 
+5.5. Critical Evaluation ....................................................................................... 79 
+6 SDG ALIGNMENT ............................................................................................. 81 
+7 CONCLUSION & FUTURE WORK .................................................................. 82 
+7.1. Conclusion ................................................................................................... 82 
+7.2. Future Work ................................................................................................. 82 
+REFERENCES ............................................................................................................ 84 
+
+===== PAGE 9 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+ix 
+ 
+APPENDICES ............................................................................................................. 86 
+Appendix A: Questionnaire ..................................................................................... 86 
+Appendix B: Summary of Test Result ..................................................................... 91 
+Appendix C: Users Interface Design ....................................................................... 93 
+Appendix D:  UAT Survey Result ......................................................................... 111 
+ 
+
+===== PAGE 10 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+x 
+ 
+LIST OF TABLES 
+Table 1:  Strengths and Weaknesses of Existing System ............................................ 12 
+Table 2: WBS of Fast-fit App ...................................................................................... 19 
+Table 3: Gantt Chart of Fast-fit App ............................................................................ 20 
+Table 4: SWOT Analysis of Fast-fit App .................................................................... 21 
+Table 5: Functional Requirements for Fast-fit App ..................................................... 24 
+Table 6: Use Case Description for Signup Use Case ................................................... 28 
+Table 7: Use Case Description for Login Use Case .................................................... 29 
+Table 8: Use Case Description for View Profile Use Case ......................................... 30 
+Table 9: Use Case Description for Reset Password Use Case ..................................... 31 
+Table 10: Use Case Description for Insert Users Details Use Case ............................ 32 
+Table 11: Use Case Description for View IF Plan Recommendation Use Case ......... 33 
+Table 12: Use Case Description for Select IF Plan Use Case ...................................... 34 
+Table 13: Use Case Description for View IF Progress Use Case ................................ 35 
+Table 14 : Use Case Description for View Fasting Statistics Use Case ...................... 36 
+Table 15: Use Case Description for View Weight Trend Use Case ............................ 37 
+Table 16: Use Case Description for Insert Weight Use Case ...................................... 38 
+Table 17: Use Case Description for View BMI Category Use Case ........................... 39 
+Table 18: Use Case Description for Insert Height Use Case ....................................... 40 
+Table 19: Use Case Description for View Notification Use Case ............................... 41 
+Table 20: Technology Deployed and Hardware .......................................................... 44 
+
+===== PAGE 11 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+xi 
+ 
+Table 21: Test Case TC01 ............................................................................................ 60 
+Table 22: Test Case TC02 ............................................................................................ 61 
+Table 23: Test Case TC03 ............................................................................................ 61 
+Table 24: Test Case TC04 ............................................................................................ 62 
+Table 25: Test Case TC05 ............................................................................................ 63 
+Table 26: Test Case TC06 ............................................................................................ 64 
+Table 27: Test Case TC07 ............................................................................................ 65 
+Table 28: Test Case TC08 ............................................................................................ 66 
+Table 29: Test Case TC09 ............................................................................................ 67 
+Table 30: Test Case TC10 ............................................................................................ 68 
+Table 31: Test Case TC11 ............................................................................................ 69 
+Table 32: Test Case TC12 ............................................................................................ 70 
+Table 33: Test Case TC13 ............................................................................................ 71 
+Table 34: Test Case TC14 ............................................................................................ 72 
+Table 35: Test Case TC15 ............................................................................................ 72 
+Table 36: Test Case TC16 ............................................................................................ 73 
+Table 37: Test Case TC17 ............................................................................................ 74 
+Table 38: Test Case TC18 ............................................................................................ 75 
+Table 39: Test Case TC19 ............................................................................................ 76 
+Table 40: Test Case TC20 ............................................................................................ 76 
+Table 41: Test Case TC21 ............................................................................................ 77 
+
+===== PAGE 12 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+xii 
+ 
+LIST OF FIGURES 
+Figure 1: Easy Fast Intermittent Fasting app ................................................................. 8 
+Figure 2: Fast Track Feature .......................................................................................... 9 
+Figure 3: Journal Feature ............................................................................................. 10 
+Figure 4: Dashboard Feature ........................................................................................ 11 
+Figure 5: Flowchart based on the system flow for users ............................................. 26 
+Figure 6: Use Case Diagram for Fast-fit App .............................................................. 27 
+Figure 7: Module Diagram for Fast-fit App ................................................................ 42 
+Figure 8: Architecture Diagram of Fast-fit App .......................................................... 45 
+Figure 9: DT Model Flow Chart .................................................................................. 48 
+Figure 10: Encoding for Data Preprocessing ............................................................... 50 
+Figure 11: Entropy method in DT ................................................................................ 51 
+Figure 12: Evaluation of DT model ............................................................................. 52 
+Figure 13: Model Extraction ........................................................................................ 53 
+Figure 14: Database Design for Authentication ........................................................... 55 
+Figure 15: Database Design for Realtime Database .................................................... 55 
+Figure 16: Database Design for Firestore Database .................................................... 56 
+ 
+
+===== PAGE 13 =====
+
+CAT405 Final Report Academic Session: 
+2024/2025 
+ 
+xiii 
+ 
+LIST OF ABBREVIATIONS AND SYMBOLS 
+IF - Intermittent Fasting 
+ML - Machine Learning 
+DT - Decision Tree 
+SDGs - United Nations Sustainable Development Goals 
+BMI - Body Mass Index 
+GUI - Graphical User Interface 
+UI - User Interface 
+SDK - Software Development Kit 
+EDA - Exploratory Data Analysis 
+UAT - User Acceptance Testing 
+OMAD  - One Meal a Day
+
+===== PAGE 14 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+1 
+ 
+1 INTRODUCTION 
+1.1. Background 
+Intermittent fasting (IF) has emerged as a highly popular dietary approach for managing 
+weight, enhancing health, and improving lifestyle. Several methods of IF exist, 
+including daily time-restricted eating, periodic fasting, and alternate -day fasting, each 
+offering unique benefits. However, despite its widespread use, many individuals 
+struggle to select the IF method that best aligns with their specific health goals, lifestyle, 
+and personal preferences. This difficulty often leads to inconsistent results, reduced 
+motivation, or even health complications such as nutrient deficiencies or fatigue. 
+Current solutions in the market primarily offer static IF schedules, typically based on 
+generic guidelines, which fail to adapt to the unique needs and goals of users. Many 
+existing IF apps allow users to track their fasting duration but they do not incorporate 
+personalized recommendations based on key users information such as age, weight, 
+height, activity level, eating habits and overall health status. This lack of customization 
+has been identified as a limitation in helping users choose the optimal fasting plan for 
+their individual circumstances. 
+Recent advancements in artificial intelligence (AI) and machine learning (ML) 
+techniques have revolutionized the way personalized recommendations can be 
+delivered in health and wellness apps. AI models such as decision trees, random forests, 
+support vector machines and neural networks, have been widely adopted in applications 
+ranging from personalized fitness plans to nutritional advice. These AI models leverage 
+large datasets containing user profiles and behavioral data to provide dynamic 
+recommendations tailored to an individual’s unique characteristics. 
+In this context, the Fast -Fit application intends to use machine learning to address the 
+gap in the market by offering personalized IF plan recommendations  for the beginner 
+level as some of them might having difficulty in selecting the right IF method as they 
+need to consider few factors like their lifestyle, schedule and comfort level with fasting 
+duration. By collecting key user’s inputs such as age, weight, height, physical activity 
+level, and dietary habits, Fast-Fit aims to train a predictive model capable of suggesting 
+
+===== PAGE 15 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+2 
+ 
+the IF method for each user based on their characteristics . The AI -driven approach 
+ensures that users receive individualized plans that are more likely to align with their 
+goals which will make it easier for them to adopt and sustain the intermittent fasting.. 
+With the ability to personalize fasting recommendations, Fast -Fit aims to aid IF 
+beginners in adopting intermittent fasting routines for the first time. Additionally, the 
+application will utilize a Decision Tree (DT) algorithm, which will learn from a trained 
+dataset and predict the most suitable fasting plan for users.  This approach enables the 
+app to provide more precise and personalized fasting guidance and to enhance the 
+overall user experience. 
+1.2. Problem Statements 
+Despite the growing popularity of intermittent fasting (IF) for weight management and 
+health improvement, many individuals struggle to select the most suitable fasting 
+method for their unique profiles  especially the beginner. Selecting the incorrect IF 
+technique can discourage users from reaching their health objectives by producing 
+inconsistent outcomes, negative health repercussions, and frustration. This challenge is 
+compounded by a lack of personalized guidance in existing IF applications, which 
+typically offer only static tracking of fasting cycles without tailoring recommendations 
+to individual characteristics such as age, weight, height, activity level, or lifestyle.  
+Users are left to explore with numerous fasting strategies without direction, risking 
+inefficient or dangerous fasting cycles in the absence of individualized insights. This 
+disparity emphasizes the necessity for an intelligent approach that uses artificial 
+intelligence (AI) to forecast and recommend appropriate IF approaches based on each 
+user’s individual profile in addition to tracking fasting. By utilizing AI, Fast -Fit will 
+enable users to quickly determine the best fasting regimens suited to their unique needs, 
+enhancing their fasting experience and encouraging healthier results. 
+ 
+
+===== PAGE 16 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+3 
+ 
+1.3. Motivation 
+The motivation for this project is from an intent to assist beginners who desire to 
+implement intermittent fasting (IF) into their lifestyle.  Many people who are new to 
+intermittent fasting have difficulty selecting the best fasting plan since they must 
+evaluate factors such as their lifestyle, daily routine, and degree of comfort with fasting 
+length.  These considerations can make it challenging to select a sustainable and 
+effective approach. 
+Everyone is different when it comes to health and fitness.  Each person has a unique 
+physical and metabolic profile, which implies that diets and exercise work differently 
+for them. For example, not all thin people are free from cholesterol problems, and n ot 
+all overweight people are at risk. This shows that we cannot judge someone’s health 
+just by their appearance. Therefore, it is important to have a customized approach that 
+considers each person's unique characteristics and health goals. 
+This project, Fast-Fit, is designed for beginners who desire to incorporate intermittent 
+fasting into their daily life.  The purpose is to offer a set of common IF plans for 
+beginners while also recommending appropriate plans depending on user’s details like 
+as age, weight, and lifestyle.  The app uses artificial intelligence to forecast which 
+fasting plan is most suited to the user’s input.  This reduces confusion when choosing a 
+plan and increases the chances of success for those who are just starting the ir fasting 
+journey. 
+1.4. System Objectives  
+The main objectives of the Fast-Fit app are as follow:  
+1. To provide a popular of time restricted IF plans option for beginner and display 
+the real time fasting status. We focus on 3 fasting methods which are 12:12, 
+14:10 and 16:8. It allowing users to select options that best match their 
+preferences and capabilities, while promoting effective and sustainable fasting 
+practices. 
+
+===== PAGE 17 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+4 
+ 
+2. To integrate a prediction method to offer IF plans recommendation  based on 
+user’s factors like height, weight, age and lifestyle choices. This would improve 
+the app's customization and efficiency. 
+3. To track and visualize users’ fasting and weight progress by maintaining a 
+history of fasting activity and representing it through informative graphs  that 
+enabling users to monitor their journey and stay motivated. 
+1.5. Proposed Solutions 
+By combining tracking capabilities with intelligent suggestions catered to each user's 
+particular traits, the Fast -Fit app seeks to offer a personalized intermittent fasting 
+experience. The solution comprises several key components and technologies:   
+1. Mobile Application Development: Android Studio and Java will be the main 
+programming languages used in the development of Fast -Fit as an Android 
+application. Java is the best option for creating a dependable and responsive 
+mobile application because of its effectiveness and compatibility with Android 
+smartphones.  
+2. Database Integration: Firebase will be used as the backend database to handle 
+and store important users’ data, such as users’ profiles. Firebase provides safe 
+storage and real -time data synchronization, guaranteeing consistency and 
+enabling smooth device updates.  
+3. Intelligent Fasting Plan Recommendation: The core feature of Fast -Fit is its 
+ability to suggest suitable intermittent fasting plans based on individual user’s 
+data. This will be achieved by incorporating a Machine Learning model  which 
+is Decision Tree (DT) model to train and predict the most appropriate fasting 
+plan. It will be implemented as follows:  
+ 
+• Model Overview: 
+The Decision Tree model is a machine learning algorithm that classifies 
+users into the appropriate IF plans by analyzing key users attributes such 
+as age, weight, height,  and lifestyle. It works by creating a tree -like 
+structure of decision rules, where each branch represents a possible 
+
+===== PAGE 18 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+5 
+ 
+decision based on the users’ data, leading to a final recommendation  
+which is the suggestion of the IF plan. 
+• Training the Model: 
+The DT model will be developed in Python using libraries such as scikit-
+learn. A dataset containing anonymized users’ profiles and their 
+corresponding IF plans will be used for training. The dataset will 
+undergo preprocessing to handle missing values and normalize input 
+data. The training process will focus on optimizing the model’s accuracy 
+through hyperparameter tuning , such as adjusting the maximum depth 
+and minimum samples per leaf. 
+• Integration into the App: 
+After training, the Decision Tree model is manually implemented in the 
+Android app using Java. Instead of using machine learning libraries like 
+TensorFlow Lite, the decision rules from the trained model are extracted 
+and translated into conditional stateme nts (e.g. if-else logic) within the 
+app. This allows the model to process users input such as age, weight, 
+and lifestyle directly on the device, enabling fast and efficient fasting 
+plan recommendations without relying on external servers or additional 
+libraries. 
+• Users Interaction: 
+Users will input their profile details through the app interface. The 
+decision rule will analyze the input data and classify the users into a 
+suitable IF plan and display the result on the app.    
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 19 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+6 
+ 
+1.6. Benefits and Uniqueness of the Proposed Solutions 
+For this project, the uniqueness of the Fast -Fit app leans toward innovation. Although 
+there are other intermittent fasting apps available, the Fast-Fit app stands out due to its 
+significant enhancement in the way IF plans are recommended and tracked for 
+individual users.   
+In contrast with standard IF applications that merely offer static schedules, Fast -Fit 
+takes something different by incorporating machine learning to provide tailored fasting 
+recommendations. In order to provide an IF plan that best suits a user’s health 
+requirements and objectives, a data -driven AI model analyzes the user’s individual 
+attributes, including age, weight, and lifestyle. This customized recommendation 
+system is a substantial positive change from existing solutions, which are typically one-
+size-fits-all and lack adaptive, personalized guidance.   
+In summary, Fast-Fit represents an innovative enhancement to existing IF applications 
+by creating a more effective, tailored fasting experience for beginner level of IF . 
+Through a customized, users-centric approach, the implementation of intelligent 
+recommendations not only boosts the app's value but also promotes healthy habits. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 20 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+7 
+ 
+1.7. Organization of the Report 
+Here are the organization of this report: 
+1. Introduction: This section provides the foundation for the report, detailing the 
+background of the project, problem statements, motivation behind the project, 
+system objectives, proposed solutions, and the benefits and uniqueness of the 
+proposed solution. 
+2. Background and Related Work: This chapter describe the status of the project, 
+reviews relevant projects and existing algorithms, and analyzes the strengths 
+and weaknesses of current systems. It concludes with a brief introduction to the 
+proposed work, situating it within the broader  context of similar systems and 
+technologies. 
+3. System Requirements /Analysis: This chapter focuses on the project scope, 
+system capabilities and limitations, project management strategies, and the 
+development methodology employed. It also includes a detailed description of 
+the new system's requirements and analysis, the design of the proposed solution, 
+and an overview of the technology and hardware deployed for implementation. 
+4. System Design & Implementation : This part is focus on system architecture 
+design, implementation of intelligent method, database design , user interface 
+design, implementation strategy and the overview of system design. 
+5. System Testing & Evaluation : This section discusses more about testing 
+strategy, different test cases, evidence requirement and the critical evaluation 
+for this system. 
+6. SDG Alignment: This section highlights how the project aligns with the United  
+Nations Sustainable Development Goals (SDGs), demonstrating its broader 
+impact and relevance. 
+7. Conclusion & Future Work : The final chapter summarizes the report, 
+reflecting on the system's objectives, achievements and potential future 
+enhancements. 
+ 
+
+===== PAGE 21 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+8 
+ 
+2 BACKGROUND & RELATED WORK 
+2.1. Status of Project 
+The Fast-Fit application is a new project that is being developed completely from the 
+beginning, without using any part of an existing system or code. It is not an update or 
+improvement of a previous app  but a fresh development with its own features and 
+design.  Starting from scratch gives the opportunity to create the app based on the 
+current goals and to include features that are planned specifically for this project. 
+2.2. Relevant projects 
+ 
+ Figure 1: Easy Fast Intermittent Fasting app 
+The Easy Fast Intermittent Fasting app  is a comprehensive and users-friendly tool 
+designed to support individuals in their fasting journeys, helping them achieve their 
+health and wellness goals. Released on February 26, 2024, by Samtark, the app has 
+gained significant popularity, with over 100,000 downloads. It is compati ble with 
+Android devices running version 7.0 and above and is regularly updated, with the latest 
+version (1.1.90) released on December 6, 2024.  Unlike many other fasting apps, all 
+features in Easy Fast are completely free, with no subscriptions, hidden fees, or ads, 
+making it a highly accessible option for users of all levels. 
+The app offers personalized fasting plans, including 16:8 and OMAD  (One Meal A 
+Day), as well as a flexible schedule option to suit various lifestyles. Users can track 
+essential metrics such as weight, mood, and water intake, with visually engaging charts 
+and progress insights to stay motivated. Key features include smart notifications, 
+widgets for quick access, and insights into fasting stages. With a sleek d esign, custom 
+themes, and dark mode, Easy Fast combines functionality and aesthetics. Its popularity 
+and scientifically backed approach make it a preferred choice for both beginners and 
+experienced fasting enthusiasts. 
+
+
+===== PAGE 22 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+9 
+ 
+2.3. Existing methods 
+The Fast Track feature in the app offers a variety of fasting plans, including Beginner, 
+Intermediate, Advanced, Long Fast, and Flexi, allowing users to select the most 
+appropriate plan based on their experience and goals. The system likely employs 
+predefined templates for each fasting plan, where the users select their fasting duration 
+and schedule preferences. The app then tracks fasting periods and provides real-time 
+updates to the user’s interface, ensuring users stay on track with their fasting schedule. 
+Notifications are integrated into the system, using a notification manager that triggers 
+reminders based on the scheduled fasting windows, such as the start and end of each 
+fasting period. To improve users experience, the app also automatically schedules 
+upcoming fasts, using an algorithm that stores users’ preferences and generates future 
+fasting schedules accordingly. 
+ 
+Figure 2: Fast Track Feature 
+The Journal feature is designed to track and store fasting history while also calculating 
+key health metrics such as electrolytes, water intake, body measurements, weight, and 
+blood levels. Users are encouraged to input their health metrics, and the app recalculates 
+and updates these values in real time, creating a comprehensive and up -to-date record 
+of their fasting journey. A database management system is employed to log all users’ 
+inputs, including fasting session details and health metrics, ensuring tha t this 
+
+
+===== PAGE 23 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+10 
+ 
+information is structured and easily retrievable for future use. This system allows users 
+to monitor essential metrics such as weight, body measurements, water intake, mood, 
+and more, providing them with a holistic view of their health and fasting progress. The 
+dynamic updating of values ensures that the data remains accurate and personalized  to 
+the users’ needs, promoting better tracking and decision -making throughout their 
+intermittent fasting experience. 
+ 
+Figure 3: Journal Feature 
+The Dashboard visualizes the users’ progress by displaying graphs that represent 
+various fasting-related metrics, such as weight, hydration levels, and fasting duration. 
+The app aggregates historical data from the Journal and Fast Track features, utilizing 
+time-series databases or arrays to efficiently store and process the information. This 
+aggregation allows for seamless tracking of the users’ journey over time. Graphs are 
+then generated using data visualization tools to visually represent the users’ progress, 
+making it easy to interpret trends and achievements. These graphs provide clear insights 
+into the users’ health metrics and fasting patterns, helping them stay motivated and 
+make informed decisions about their fasting regimen. 
+
+
+===== PAGE 24 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+11 
+ 
+ 
+Figure 4: Dashboard Feature 
+2.4. Strengths and Weaknesses of Existing System 
+Here are some strengths and weakness es of the Easy Fast Intermittent Fasting app 
+that can be highlighted: 
+Strengths Weaknesses 
+Free Premium Features : All premium 
+features, including advanced tracking and 
+customization, are available for free 
+without subscriptions or hidden fees. 
+Non-Interactive Dashboard : The 
+dashboard lacks interactivity, limiting 
+users ability to engage with or manipulate 
+graphs for deeper insights. The color -
+coded plot points can be hard to 
+differentiate for some users. 
+Personalized Fasting Plans : Users can 
+select from various fasting plans (16:8, 
+OMAD, Flexi Plan) tailored to their needs 
+and preferences. 
+Limited Advanced Features : While 
+comprehensive tracking is available, the 
+app lacks advanced features such as 
+detailed recipe suggestions, exercise 
+information, and more complex health 
+analytics. 
+
+
+===== PAGE 25 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+12 
+ 
+Comprehensive Tracking and 
+Journaling: Tracks a variety of health 
+metrics, including weight, body 
+measurements, water intake, mood, and 
+more. 
+Lack of AI -Powered Personalized 
+Recommendations: The app does not 
+offer an AI-driven recommendation system 
+to personalize fasting plans based on user 
+attributes like height, weight, and lifestyle 
+preferences. 
+Smart Notifications & Reminders: Users 
+receive timely reminders for fasting start 
+and end times to stay on track. 
+ 
+Users-Friendly Interface : Easy to use 
+with an intuitive design, making it suitable 
+for both beginners and experienced faster. 
+ 
+Visual Progress Insights : Displays 
+progress in the form of beautiful graphs 
+and charts to motivate users. 
+ 
+Table 1:  Strengths and Weaknesses of Existing System 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 26 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+13 
+ 
+2.5. Brief Introduction of the Proposed Work 
+The proposed work is the Fast-Fit application, an Android-based mobile app designed 
+to assist IF beginner in selecting the suitable Intermittent Fasting plan based on their 
+individual characteristics such as age, weight, height, and lifestyle. In addition to 
+helping user choose the best fasting plan, Fast-Fit also tracks the user's fasting schedule 
+and provides timely alerts to ensure they adhere to their chosen fasting routine. The app 
+offers beginner popular time-restricted eating of the fasting plans such as 12:12, 14:10 
+and 16:8, allowing users to select the plan that best matches their goals and preferences. 
+To achieve this, Fast-Fit will incorporate with Machine learning (ML) Classification 
+algorithm to perform prediction. In this project we will use Decision Tree (DT), which 
+will be trained and tested using a relevant dataset to generate fasting plan 
+recommendation. This model evaluates the user's input data and recommends the 
+appropriate fasting schedules, promoting effective and sustainable fasting practices for 
+beginner. Through this AI-powered recommendation system, Fast-Fit aims to enhance 
+the users experience by providing personalized recommendations and real -time 
+support, making intermittent fasting easier and more accessible for everyone. 
+2.5.1. Intermittent Fasting Method for Beginner 
+There are several IF approaches including time-restricted fasting, alternate-day fasting, 
+the 5:2 method, and the 24-hour weekly fast.  However, these methods might be difficult 
+for beginners because they sometimes demand people to go without eating for long 
+periods of time.  For people new to IF, the rigid schedules may be difficult to follow, 
+resulting in frustration or discontinuation. Therefore, time-restricted fasting is a better 
+option for beginners since it is easier to follow and less challenging  to everyday 
+routines.  The 12:12 plan is the most users-friendly plan for beginners, in which the 
+individual fasts for 12 hours and eats for the remaining 12 hours of each 24-hour cycle.  
+This is because, much of the fasting happens while sleeping, making it easier to handle.  
+For example, a person may choose eating at 8:00 p.m. and resume eating at 8:00 a.m. 
+the following day.  This method allows the users to maintain their normal daily calorie 
+intake while gradually adapting to the fasting pattern. Once the y are comfortable with 
+the 12-hour fast, they can slowly extend the fasting period to 14 hours (14:10) or 16 
+
+===== PAGE 27 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+14 
+ 
+hours (16:8). These gradual changes support a smoother and more sustainable transition 
+into longer fasting windows. 
+In the context of the Fast -Fit app, understanding the suitability of each IF plan is 
+essential.  A one-size-fits-all strategy is not optimal because each user's lifestyle, health 
+objectives, and metabolic demands are unique.  By implementing a personalized 
+suggestion system that predicts the appropriate fasting schedule based on users’ 
+characteristics, the app allows beginners to begin with a plan that matches their ability 
+and subsequently develop at their own pace.  This not only increases users’ satisfaction, 
+but it also improves intermittent fasting adherence and long-term success rates. 
+2.5.2. Machine Learning Classification Algorithms 
+Machine learning classification algorithms fall under supervised learning techniques 
+where a model learns from labeled training data to make predictions on new data. These 
+algorithms are commonly used to predict categorical outcomes by analyzing patterns in 
+input features. In the context of health and fitness applications, classification models 
+can play an important role in offering personalized guidance by categorizing users 
+based on their attributes. 
+One of the most widely used classification algorithms is the Decision Tree. A Decision 
+Tree is a model that makes decisions in the form of a tree structure  that consist of root 
+node, branches, internal node and leaf node. E ach internal node represents a test on a 
+specific feature (e.g., age or weight), each branch represents the outcome of the test, 
+and each leaf node provides the final prediction or classification result. Decision Trees 
+are highly popular due to their simplicity and interpretability. They can be used for both 
+classification and regression tasks where it handles both numerical and categorical data 
+and require minimal data preprocessing. Another advantage is that they are easy to 
+debug, as each decision path can be clearly traced and understood, making it easier to 
+identify errors and improve model performance. 
+In this project, the Fast -Fit app utilizes the Decision Tree algorithm to recommend a 
+suitable IF plan for users based on their personal characteristics. These include features 
+such as gender, age, weight, height, physical activity level, sleep duration, work type,  
+work hour  and fitness goals. The model was trained using a dataset labeled with 
+
+===== PAGE 28 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+15 
+ 
+different fasting plans, specifically focusing on beginner -friendly options  which are 
+12:12, 14:10, and 16:8. After the model was trained and evaluated, its structure was 
+manually implemented in Java within the Android app. Rather than using external 
+libraries like TensorFlow Lite, the decision rules were translated into if-else statements 
+that run locally on the device. 
+By integrating the Decision Tree model in this way, the app is able to provide fast, 
+personalized fasting plan recommendations directly on the user’s device without relying 
+on constant internet access. This enhances the users experience by reducing waiting 
+times and protecting user privacy. Most importantly, it supports the goal of helping 
+beginners adopt intermittent fasting through a plan that best fits their lifestyle and health 
+needs, ultimately increasing their chances of long -term success and healthy habit 
+formation. 
+
+===== PAGE 29 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+16 
+ 
+3 SYSTEM REQUIREMENTS / ANALYSIS 
+3.1. Project Scope 
+The Fast-Fit Application is a mobile app designed to help IF-beginner to manage their 
+IF routines, with a primary focus on offering personalized fasting plan 
+recommendations to them. The app includes modules for secure user authentication, 
+real-time fasting schedule tracking, and AI -powered recommendations based on 
+individual inputs such as weight, height, life activity, and work style. It tracks IF plans 
+according to user selection and incorporates notifications to alert users about fasting 
+start and end times, ensuring consistent adherence to chosen plans. The core feature of 
+the application is its recommendation module, which utilizes a pre -trained machine 
+learning model to suggest the most suitable fasting plans, delivering  a tailored and 
+practical experience for intermittent fasting enthusiasts. 
+The app will be developed using Android Studio with Firebase as the backend to 
+securely manage users’ data. Designed with a user-friendly interface  that provides 
+efficient functionality to users especially IF beginners through their fasting journey. It 
+aims to be a straightforward yet impactful solution for adopting and maintaining healthy 
+IF routines with personalized support. 
+3.2. System Capabilities and limitations 
+The Fast -Fit application provides  4 main  key functionalities to support users in 
+managing their IF routines effectively. It offers a beginner time-restricted fasting plan 
+which are 12:12, 14:10, and 16:8. Users can choose and monitor their IF periods by 
+keeping track the time and also the current phase either fasting or eating. Moreover, this 
+app provides the statistics of users fasting history that enable users to see their fasting 
+progress over the time. It also keeps store and visualizes the users weight trend by using 
+line graph where it helps users to have quick view of their weight changing. The system 
+also includes a BMI category feature where users can know their BMI category after 
+entering their weight and height value. This helps users to gain a clearer view of their 
+current heath condition. Next, this system also has a notification and reminder features. 
+It sends timely alerts of IF progress to ensure users adhere to their fasting schedules that 
+
+===== PAGE 30 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+17 
+ 
+will enhance their consistency and engagement.  The app also features personalized 
+fasting plan recommendations, powered by an AI -driven module that helps beginners 
+identify the most suitable fasting plans. By analyzing users’ inputs such as weight, 
+height, life activity, and work style, the system offers tailored guidance to suit 
+individual needs.  
+While the Fast -Fit application offers practical and useful features, it has certain 
+limitations. One of its primary constraints is the limited scope of recommendations, as 
+the AI module focuses solely on suggesting fasting plans without extending to other 
+areas like meal planning or exercise guidance. Additionally, the application requires an 
+active internet connection to function, resulting in a lack of offline functionality  that 
+might inconvenience users in areas with poor network coverage.  Another limitation is 
+the app’s dependence on users-provided data . The accuracy and relevance of its 
+recommendations heavily rely on the correctness of the information entered by users. 
+Incomplete or inaccurate data may lead to suboptimal fasting plan suggestions. These 
+limitations, while significant, provide opportunities for future improvements to enhance 
+the app's overall functionality and users experience. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 31 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+18 
+ 
+3.3. Project Management 
+3.3.1. Work Breakdown Structure (WBS) 
+Activity Date Duration 
+1. Initial Proposal   
+Proposal Report 26/10/2024 - 06/11/2024 11 
+2. System Requirements and 
+Design (SRD) 
+  
+SRD Report 18/11/2024 - 17/12/2024 29 
+SRD Presentation 06/01/2025 - 17/01/2025 11 
+System Design 30/12/2024 - 11/01/2025 12 
+Prototype Development and Testing 12/01/2025 - 23/03/2025 70 
+3. System Development   
+UI Design Implementation 30/12/2024 - 11/01/2025 12 
+Data Gathering and Analysis 12/01/2025 - 20/01/2025 8 
+Backend Setup 21/01/2025 - 05/02/2025 15 
+Model Training 06/02/2025 - 01/03/2025 23 
+Model Testing and Optimization 02/03/2025 - 23/03/2025 21 
+Project Progress Demo 24/03/2025 - 06/04/2025 13 
+4. System Deployment   
+Feature Integration and Final Development 07/04/2025 - 05/05/2025 28 
+System Integration and Testing 06/05/2025 - 25/05/2025 19 
+
+===== PAGE 32 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+19 
+ 
+Final Report 26/05/2025 - 01/06/2025 6 
+Final Presentation System Demo 02/06/2025 - 15/06/2025 13 
+Pixel 2025 23/06/2025 - 29/06/2025 6 
+Table 2: WBS of Fast-fit App
+
+===== PAGE 33 =====
+
+CAT405 Analysis Report              Academic Session: 2024/2025 
+ 
+20 
+ 
+ 
+3.3.2. Gantt Chart 
+              
+ 
+Table 3: Gantt Chart of Fast-fit App 
+Note: Here is the Gantt  Chart link access for better vie . 
+https://drive.google.com/file/d/1DqOyvREpjniAsDE6Urp9yKDMHLpWA2E5/view?usp=sharing  
+
+
+===== PAGE 34 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+21 
+ 
+ 
+3.3.3. SWOT Analysis 
+STRENGTHS 
+• Fasting schedule tracking 
+• Integrated notification system 
+for reminders 
+• Personalized fasting plan 
+recommendations 
+ 
+WEAKNESSES 
+• Limited scope of 
+recommendations 
+• Lack of offline functionality 
+• Reliance on users-provided 
+data for recommendations 
+OPPORTUNITIES 
+• Expansion to include meal 
+planning or exercise suggestions 
+• Reward features (e.g., badges)  
+Integration with wearables and 
+fitness trackers 
+ 
+THREATS 
+• Competition from established 
+health apps 
+ 
+• Data privacy concerns and 
+users trust issues 
+ 
+Table 4: SWOT Analysis of Fast-fit App 
+3.4. Development Methodology 
+The Fast-Fit app will be developed using Agile Development  methodology that 
+supported by Iterative & Incremental Development  principles. These methodologies 
+have been selected to ensure the app’s flexibility, adaptability, and ability to 
+continuously improve throughout the development process. Given that the Fast-Fit app 
+focuses on delivering personalized fasting plan recommend ations powered by AI, it is 
+crucial to adopt a development approach that allows for iterative testing, constant users 
+feedback, and refinement of the app's features. Agile provides the necessary flexibility 
+to accommodate changes in requirements  which is particularly important for a project 
+
+===== PAGE 35 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+22 
+ 
+that includes dynamic features such as personalized recommendations and AI -driven 
+decision-making. 
+Agile Development will be at the core of the development process with a focus on 
+delivering the app in short cycles called sprints. Each sprint will concentrate on specific 
+features or improvements  that enabling the development team to build and refine the 
+app incrementally. This iterative approach ensures that the app remains aligned with 
+users’ needs and market trends. As the AI-based recommendation system is integral to 
+the app, Agile will also facilitate ongoing adjustments to the algorithms and users’ 
+interface to ensure the recommendations stay relevant and accurate. 
+In addition to Agile, Iterative & Incremental Development will be employed to further 
+break down the development process into smaller  and manageable components. This 
+approach enables the development team to create the app in phases  with each phase 
+delivering a functional subset of features that can be tested, reviewed, and improved 
+upon. Initially, the app will focus on basic functionalities such as user’s authentication, 
+fasting schedule tracking, and notifications. Once these core components are tested and 
+validated, it will be proceeded to integrate more complex features such as the AI-driven 
+fasting plan recommendations. This ensures that each component is thoroughly tested 
+and refined before adding new functionalities. 
+The combination of Agile Development  and Iterative & Incremental Development  
+offers several benefits for the Fast -Fit app. First, it enables continuous users’ 
+engagement by incorporating feedback after each iteration, allowing the app to evolve 
+based on real users’ data. Second, the app’s time -to-market is accelerated since 
+foundational features can be released early, and subsequent improvements can be rolled 
+out incrementally. Finally, these methodologies provide the flexibility to adapt to any 
+changes in the app’s AI models, users’ preferences, or new feature requirements as they 
+arise, ensuring that the app remains responsive to both users’ needs and technological 
+advancements. 
+ 
+
+===== PAGE 36 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+23 
+ 
+3.5. Detail Requirement of New System 
+3.5.1. Functional Requirements 
+Requirement Description 
+FR-01 Users should be able to create an account by providing essential 
+details like email and password. 
+FR-02 Users should be able to login into the application after registering 
+their details. 
+FR-03 Users should be able to reset their password. 
+FR-04 Users have the option to log out of their account from the application. 
+FR-05 Users should be able to view their personal details on the profile 
+page. 
+FR-06 The system must provide input forms for users to enter required data 
+(e.g. weight, height, age, daily activity, work environment) which 
+will be used to determine the suitable IF plan for them. 
+FR-07 The system must integrate the ML model to predict and recommend 
+an IF plan based on users-input data. 
+FR-08 The system must display the result of the prediction to the users 
+clearly. 
+FR-09 The system must display the time restricted IF plans.  
+FR-10 Users should be able to select an IF plan from the provided template. 
+FR-11 The system should be able to track the start and end times of the 
+fasting schedule chosen by the users. 
+FR-12 The system must send timely notifications to alert users at the start 
+and end of their fasting periods to keep them motivated. 
+
+===== PAGE 37 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+24 
+ 
+FR-13 Users should be able to stop the IF period time and restart new IF 
+plan welly. 
+FR-14 The system must store all the data in Firebase for secure and reliable 
+data management. 
+FR-15 The system should able to create the statistics of users’ fasting 
+progress and users’ weight trend based on the users’ history. 
+FR-16 User should be able to key in their weight and height value to see the 
+weight trend over time and BMI category. 
+FR-17 The system manages to calculate users’ BMI and display their 
+category correctly. 
+Table 5: Functional Requirements for Fast-fit App 
+3.5.2. Questionnaire 
+To train the machine learning model for the Fast-Fit app, an online survey will be 
+conducted to gather data from participants who have experience with IF. The primary 
+goal of this questionnaire will be to collect relevant information about users' fasting 
+habits, preferences, and post -IF experiences. This data will be used to train the AI 
+model, enabling it to provide personalized intermittent fasting plan recommendations 
+to users. 
+The survey will target adults aged 20 to 60 years who have practiced intermittent 
+fasting, ensuring that the data collected is pertinent to the app’s focus on providing 
+recommendations based on individual fasting routines. A total of 19 questions will be 
+designed is divided into three key sections as shown in Figure A: 
+I. Section 1: Information Before IF (Questions 1–12) 
+This section will gather essential demographic and lifestyle information from the 
+participants before they begin intermittent fasting. It will ask questions about their age, 
+weight, height, daily physical activity, sleep time, type of work, health problems, and 
+
+===== PAGE 38 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+25 
+ 
+regular mealtimes. These details will help establish a baseline for understanding the 
+participant's health and habits prior to starting IF. 
+II. Section 2: IF Plan Being Followed (Questions 13–14) 
+ In this section, participants will be asked about the specific intermittent fasting plan 
+they follow and their main goals for practicing IF. This information will help categorize 
+the different fasting plans and align them with the participants' objectives , such as 
+weight loss, health improvement, or other reasons for practicing IF. 
+III. Section 3: Information After IF (Questions 15–19) 
+ This section will assess the impact and effectiveness of intermittent fasting on the 
+participants. It will ask questions about the duration of their IF practice, any weight 
+reduction, perceived effectiveness of the IF plan, challenges faced, and overall 
+experiences. This will provide insights into how different fasting plans have worked for 
+individuals, which will be valuable for tailoring the recommendations provided by the 
+app. 
+The survey will aim to gather responses from 50 participants, ensuring a diverse set of 
+data for training the machine learning model. The collected data will be used to train 
+the ML model, with the IF plan as the target variable, enabling personalized fasting 
+recommendations based on users’ inputs such as weight, height, physical activity, and 
+lifestyle. 
+ 
+
+===== PAGE 39 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+26 
+ 
+3.6. Analysis of the New System 
+3.6.1. Flowchart  
+ 
+Figure 5: Flowchart based on the system flow for users 
+ 
+ 
+ 
+
+
+===== PAGE 40 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+27 
+ 
+3.6.2. UML Use Case Diagram 
+ 
+ 
+Figure 6: Use Case Diagram for Fast-fit App 
+ 
+ 
+ 
+
+
+===== PAGE 41 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+28 
+ 
+3.6.3. Use Case Description 
+3.6..1 Register Use Case 
+No.  Section Content 
+1.  Designation UC-01 
+2. Name Registration 
+3. Description The new users will need to register a new account to use the system 
+4. Trigger event Users want to use the application for the first time 
+5. Pre-conditions Users need to fill up their personal information 
+6. Post-conditions Users successfully registered and able to login to the application. 
+7. Main Scenario 1. The new users click the signup button. 
+2. The users fill out all the required information. 
+3. The users submit the information. 
+4. The users able to login as their name already be registered. 
+8. Exception 
+scenario 
+The users are already registered. 
+The system displays error messages. 
+Table 6: Use Case Description for Signup Use Case 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 42 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+29 
+ 
+3.6..2 Login Use Case 
+No.  Section Content 
+1.  Designation UC-02 
+2. Name Login to the application 
+3. Description The existing users can login to the application by entering their email and 
+password. 
+4. Trigger event Users want to access the application. 
+5. Pre-conditions The users must already have a registered account with valid credentials 
+(username/email and password). 
+6. Post-conditions The users are successfully logged in and directed to the profile page of the 
+application. 
+7. Main Scenario 1. The users open the application and clicks the "Login" button. 
+2. The users enter their registered username/email and password. 
+3. The system verifies the credentials. 
+4. If valid, the users are successfully logged in and redirected to the 
+home page. 
+8. Exception 
+scenario 
+The system displays error messages. 
+The users are not registered yet. 
+Table 7: Use Case Description for Login Use Case 
+ 
+ 
+ 
+ 
+
+===== PAGE 43 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+30 
+ 
+3.6..3 View Profile Use Case 
+No.  Section Content 
+1.  Designation UC-03 
+2. Name View Users Profile 
+3. Description Users can view their profile details  such as name, email and their selected 
+IF plan. 
+4. Trigger event Users navigate to Profile page. 
+5. Pre-conditions The users must be logged into the application. 
+6. Post-conditions The user’s profile details are displayed on the screen. 
+7. Main Scenario 1. The users navigate to the "Profile" section from the application 
+menu. 
+2. The system retrieves the user’s profile details from the database. 
+3. The profile details are displayed on the screen. 
+8. Exception 
+scenario 
+The system fails to retrieve the profile details due to a network issue. 
+The users are logged out or the session has expired. 
+Table 8: Use Case Description for View Profile Use Case 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 44 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+31 
+ 
+3.6..4 Reset Password Use Case 
+No.  Section Content 
+1.  Designation UC-04 
+2. Name Reset Password 
+3. Description Users can reset their password if needed. 
+4. Trigger event Users send registered email to reset new password. 
+5. Pre-conditions The users must already register in the application. 
+6. Post-conditions The users can login into the system with new password. 
+7. Main Scenario 1. The users click “Forgot Password” in login page. 
+2. The users need to enter the valid email that same with the email 
+during registration. 
+3. Users will get email to enter new password. 
+4. Users can login into the app with the new password. 
+8. Exception 
+scenario 
+The system fails to send email for reset the password due to a network issue 
+or invalid email address. 
+The users could not login with the new password. 
+Table 9: Use Case Description for Reset Password Use Case 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 45 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+32 
+ 
+3.6..5 Insert Users Details Use Case 
+No.  Section Content 
+1.  Designation UC-05 
+2. Name Insert Users Details  
+3. Description The users provide their personal details and set their fasting goals, which 
+will be used to generate IF recommendations. 
+4. Trigger event Users click on the ‘Recommendation’ option in the application. 
+5. Pre-conditions The users must be logged into the application. 
+6. Post-conditions The users’ details and goals are saved in the system database for use in 
+generating recommendations. 
+7. Main Scenario 1. The users navigate to the homepage and selects the 
+‘Recommendation’ option. 
+2. The users fill in their personal information, such as weight, height, 
+and activity level. 
+3. The users specify their IF goal (e.g., weight loss, health 
+improvement). 
+4. The system validates the entered details and saves them. 
+5. A confirmation message is displayed indicating the information has 
+been successfully saved. 
+8. Exception 
+scenario 
+The users leave the required field empty. 
+A network error prevents the details from being saved. 
+Table 10: Use Case Description for Insert Users Details Use Case 
+ 
+ 
+ 
+
+===== PAGE 46 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+33 
+ 
+3.6..6 View IF Plan Recommendation Use Case 
+No.  Section Content 
+1.  Designation UC-06 
+2. Name View IF Plan Recommendation 
+3. Description Users can view personalized IF plan recommendations based on users input 
+data. 
+4. Trigger event The users request to view the recommended IF plan after entering their 
+details and goals. 
+5. Pre-conditions The users must have already entered their details and fasting goal in the 
+system. 
+6. Post-conditions The users are presented with a recommended IF plan based on their input 
+data. 
+7. Main Scenario 1. The users navigate to the "Recommendation" section of the app. 
+2. The system retrieves the users’ details and goal information from 
+the database. 
+3. The system applies the trained machine learning model to predict 
+the most suitable IF plan. 
+4. The system displays the recommended IF plan with details, such as 
+fasting schedule and expected benefits. 
+8. Exception 
+scenario 
+The system fails to retrieve the users’ information. 
+Table 11: Use Case Description for View IF Plan Recommendation Use Case 
+ 
+ 
+ 
+
+===== PAGE 47 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+34 
+ 
+3.6..7 Select IF Plan Use Case 
+No.  Section Content 
+1.  Designation UC-07 
+2. Name Select IF Plan 
+3. Description Users can select an IF plan from the display of beginner-restricted time IF 
+plan in the system. 
+4. Trigger event The users decide to select the IF plan to begin following it. 
+5. Pre-conditions The users enter the IF selection page or click accept button on the IF plan 
+recommendation display section. 
+6. Post-conditions The users have successfully selected the IF plan to follow, and the system 
+records this choice for future tracking. 
+7. Main Scenario 1. The users select the IF plan that they wish to follow. 
+2. The system confirms the selection and saves the chosen IF plan to 
+the users’ profile. 
+3.  The system updates the users’ fasting schedule based on the 
+selected plan. 
+4. The users can start following the fasting schedule according to the 
+chosen IF plan. 
+8. Exception 
+scenario 
+The system fails to display the type of IF plan. 
+Table 12: Use Case Description for Select IF Plan Use Case 
+ 
+ 
+ 
+
+===== PAGE 48 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+35 
+ 
+3.6..8 View IF Progress Use Case 
+No.  Section Content 
+1.  Designation UC-08 
+2. Name View IF Progress 
+3. Description The users can view the progress of the selected IF plan by having the timer 
+to keep update their IF schedule time and also can see their IF status either 
+Fasting or Eating phase. 
+4. Trigger event The users have selected a fasting plan and the system is set to monitor the 
+progress in real-time. 
+5. Pre-conditions The users have selected an IF plan and click start button to begin the timer. 
+6. Post-conditions Users can view their fasting progress including the start and end times for 
+the fasting periods and also the ‘Fasting’ or ‘Eating phase. 
+7. Main Scenario 1. Users click ‘Start’ button 
+2. The system will count the fasting and the eating time according to 
+the users selected IF schedule. 
+3. The system displays the current fasting status (fasting or eating) and 
+also the start and end time of the IF schedule. 
+4. The system logs the users’ fasting data and provides ongoing 
+updates 
+8. Exception 
+scenario 
+Error in counting the fasting and eating time according to the selected IF 
+plan. 
+Table 13: Use Case Description for View IF Progress Use Case 
+ 
+ 
+ 
+
+===== PAGE 49 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+36 
+ 
+3.6..9 View Fasting Statistics Use Case 
+No.  Section Content 
+1.  Designation UC-09 
+2. Name View Fasting Statistics 
+3. Description The users can see their fasting statistics like the total number of fasting, the 
+longest fasting duration, total fasting hour, days of fasting and also a graph 
+that visualize the fasting hours in weekly and monthly. 
+4. Trigger event The users want to view their  fasting progress by entering the dashboard 
+page. 
+5. Pre-conditions The system needs to keep all the history of the fasting period. 
+6. Post-conditions The users are able to view their fasting statistics. 
+7. Main Scenario 1. The system need s to store all the history data about the fasting 
+period. 
+2. The system will show the statistic of the fasting period such as the 
+total number of fasting, the longest fasting duration, total fasting 
+hour, days of fasting and also graph to visualize the fasting hours in 
+weekly and monthly. 
+3. Users can view the statistic and the graph displayed 
+8. Exception 
+scenario 
+Error in display the fasting statistic due to failing in storing the fasting 
+history 
+Table 14 : Use Case Description for View Fasting Statistics Use Case 
+ 
+ 
+ 
+
+===== PAGE 50 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+37 
+ 
+3.6..10 View Weight Trend Use Case 
+No.  Section Content 
+1.  Designation UC-10 
+2. Name View Weight Trend 
+3. Description The users able to see the line graph visualization to see their weight trend 
+in a month. 
+4. Trigger event The users want to view their  weight progress by entering the dashboard 
+page. 
+5. Pre-conditions The users need to key in their weight value frequently  and the system will 
+store the value. 
+6. Post-conditions The users are able to view the line graph the show their weight trend over 
+a month. 
+7. Main Scenario 1. The users need to enter their weight value and the system will store 
+it to display in the line graph. 
+2. The system will show line graph of the weight value over the dates. 
+3. Users can view the line graph to see their weight trend. 
+8. Exception 
+scenario 
+Error in display the line graph due to failing in storing the weight value. 
+Table 15: Use Case Description for View Weight Trend Use Case 
+ 
+ 
+ 
+ 
+
+===== PAGE 51 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+38 
+ 
+3.6..11 Insert Weight Use Case 
+No.  Section Content 
+1.  Designation UC-11 
+2. Name Insert Weight 
+3. Description The users can key in their weight value and the system will store and 
+display the current value the be entered. 
+4. Trigger event The users want to view weight trend or BMI value. 
+5. Pre-conditions The users need to enter dashboard page. 
+6. Post-conditions The users are able to key in their weight value and the system will display 
+it. 
+7. Main Scenario 1. Users need to navigate to Dashboard Page. 
+2. Users can click add weight button and enter the value. 
+3. The system will store it and display the current value entered. 
+8. Exception 
+scenario 
+Error in key in the weight value. 
+Error in display current weight value. 
+Table 16: Use Case Description for Insert Weight Use Case 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 52 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+39 
+ 
+3.6..12 View BMI Category Use Case 
+No.  Section Content 
+1.  Designation UC-12 
+2. Name View BMI category 
+3. Description The users can see their BMI categories whether underweight, normal, 
+overweight, obese or severely obese. 
+4. Trigger event The users want to view their BMI category. 
+5. Pre-conditions The users need to insert their weight and height value. 
+6. Post-conditions The users are able to view their height value, weight value and BMI value 
+7. Main Scenario 1. Users need to key in their weight and height value. 
+2. The system will calculate the BMI using kg/m² formula. 
+3. The system will display the weight and height value and the BMI 
+category. 
+4. Users able to know their BMI category. 
+8. Exception 
+scenario 
+Error in display the BMI category due to missing weight or height value. 
+Table 17: Use Case Description for View BMI Category Use Case 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 53 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+40 
+ 
+3.6..13 Insert Height Use Case 
+No.  Section Content 
+1.  Designation UC-13 
+2. Name Insert Height Use Case 
+3. Description The users able to key in their height value and the system will display the 
+value and used it to calculate BMI. 
+4. Trigger event The users want to enter their weight value to view their BMI category 
+5. Pre-conditions The users need to enter dashboard page. 
+6. Post-conditions The users are able to key in their height value and the system will display 
+it 
+7. Main Scenario 1. Users need to navigate to Dashboard Page. 
+2. Users can click add height button and enter the value. 
+3. The system will display the value entered. 
+8. Exception 
+scenario 
+Error in key in the weight value. 
+Error in display current weight value. 
+Table 18: Use Case Description for Insert Height Use Case 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 54 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+41 
+ 
+3.6..14 View Notification Use Case 
+No.  Section Content 
+1.  Designation UC-14 
+2. Name View Notification 
+3. Description The users able to view the list of notification message that be send like the 
+IF progress update. 
+4. Trigger event The users want to view the notification 
+5. Pre-conditions The system needs to keep all the history of the notification that been send 
+in the system 
+6. Post-conditions The users are able to view list of history notification 
+7. Main Scenario 1. The system needs to store and display all the history data about the 
+notification message. 
+2. Users click the bell icon in the homepage to view it. 
+3. Users can view the list of notification message available 
+8. Exception 
+scenario 
+Error in store the notification message. 
+Error in display the notification message. 
+Table 19: Use Case Description for View Notification Use Case 
+ 
+ 
+
+===== PAGE 55 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+42 
+ 
+3.7. Detail Description of the Proposed System 
+3.7.1. Module Diagram 
+ 
+                       Figure 7: Module Diagram for Fast-fit App 
+The Fast-Fit mobile application consists of four main modules which are IF Tracking 
+Module, Notification Module, User Module and IF Recommendation Module. Each of 
+these modules plays a critical role in ensuring the functionality of the app works well. 
+The IF Tracking Module is responsible for managing the intermittent fasting plans 
+offered by the application which include 12:12, 14:10 and 16:8 plans. Users can select 
+one of these plans and the system will track the fasting schedule using a cyclic timer. 
+The module displays the current fasting phase  indicating whether the user is in the 
+fasting or eating window and provides the start and end times for the selected plan. This 
+helps users monitor their schedule more easily. Additionally, the module manages 
+fasting progress by storing history data and visualizing it in the form of bar charts  by 
+showing weekly or monthly fasting durations. It also includes a weight tracking feature 
+where users can record their weight regularly. The collected data is then visualized in a 
+line graph which allows users to observe weight changes over time. 
+
+
+===== PAGE 56 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+43 
+ 
+The Notification Module enhances user engagement by delivering real -time alerts and 
+reminders. This includes notifications about fasting progress such as changes in fasting 
+phases and the current percentage of progress according to the selected IF plan. 
+Moreover, the system reminds users to enter their weight regularly to ensure accurate 
+tracking. All notification messages are stored locally and can  be accessed in the 
+notification history page which allows users to review past alerts at any time. 
+The User Module handles core user account management functions, including 
+registration, login and logout. It uses Firebase Authentication to securely manage user 
+credentials and protect sensitive data. User information is stored in the Firebase 
+database and is accessible in the user profile section which contributes to a personalized 
+and secure experience for each user. 
+Lastly, the IF Recommendation Module is responsible for the AI -based 
+recommendation system. This module implements a DT model that is trained using a 
+dataset containing relevant user attributes such as age, weight, height, physical activity 
+level, work type and lifestyle preferences. The module is then manually integrated into 
+the app which allows users to submit their details through a form  and subsequently 
+displays the IF plan recommendation to the user within the app. 
+3.7.2. Description of Intelligent Method 
+The Fast-Fit application will integrate a machine learning (ML) model to provide 
+personalized IF plan recommendations to users. The intelligent method used in this 
+solution involves supervised learning, ideal for predicting outcomes based on input 
+data. The core algorithm will be a Decision Tree (DT) , which will process users’ 
+attributes such as weight, height, lifestyle activity, and work style to determine the most 
+suitable IF plan. The model will be trained using a dataset gathered from a 
+questionnaire, and it will predict the best fasting plan by prioritizing and filtering the 
+attributes based on their influence on the target variable, which is the IF plan 
+recommendation. 
+The DT algorithm will filter and rank the attributes from highest to lowest priority 
+towards the target column (IF plan). By evaluating the relationships between the input 
+features and the target, the model will make data -driven predictions. The decision tree 
+
+===== PAGE 57 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+44 
+ 
+will split the data at each node according to the most important attributes, progressively 
+narrowing down the possible IF plan options for the users. This approach allows the 
+model to deliver accurate and personalized recommendations based on the specific 
+users’ profile, which is especially helpful for beginners looking to find the most suitable 
+intermittent fasting plan for their health goals. 
+3.8. Technology Deployed and Hardware 
+Category Details 
+Operating System Android 
+Applications Microsoft Form s, Microsoft Word, 
+Microsoft Excel, Draw.io, Figma 
+Programming Languages Java (for Android app development ), 
+Python (for ML model development) 
+Development IDE Android Studio  (for mobile app 
+development), Google Colaboratory (for 
+ML model development) 
+Database Firebase 
+Table 20: Technology Deployed and Hardware 
+ 
+
+===== PAGE 58 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+45 
+ 
+4 SYSTEM DESIGN & IMPLEMENTATION 
+4.1. System Design Architecture 
+ 
+Figure 8: Architecture Diagram of Fast-fit App  
+The Figure 8 above provides a n overview of the Fast -Fit application's system 
+architecture. It outlines the interactions between the user, the Android mobile 
+application, the backend Firebase database, the Android SDK, and the Java -based IF 
+plan recommendation module. This architecture illustrates how the system components 
+work together to deliver the core functionalities of the app, including time -restricted 
+fasting plans, personalized IF recommendations, progress tracking, and notification 
+alerts. 
+The user is the primary actor who interacts with the Fast -Fit app through its graphical 
+user interface (GUI). Users can register, log in, select and follow an IF plan, view 
+recommendations, track their progress, and receive reminders. The mobile applicatio n 
+is developed using Android Studio, which supports Java as the primary programming 
+language for logic implementation and XML for defining the interface layout. Android 
+
+
+===== PAGE 59 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+46 
+ 
+Studio is used due to its ability to support the Android development, real-time previews, 
+and integration with essential libraries and SDK tools. 
+The Android SDK is used to build and manage the core functionalities of the app. It 
+includes tools and libraries such as Android Jetpack components, AlarmManager, 
+WorkManager, and SharedPreferences. These components help implement the UI, 
+schedule notifications, and store user preferences and temporary data locally on the 
+device. For example, AlarmManager or WorkManager may be used to trigger 
+scheduled reminders during fasting or eating windows, while SharedPreferences is used 
+to store simple key-value pairs such as user settings. 
+The Firebase platform serves as the backend database and authentication system for the 
+Fast-Fit app. Firebase Authentication is used to manage secure user login and 
+registration processes  by storing  user credentials such as email and password with 
+strong security protocols. This ensures that user data privacy is  protected. Firebase 
+Realtime Database is used to store synchronous and frequently accessed data such as 
+the user’s name, email, and currently selected IF plan. This allows the app to display 
+up-to-date information synchronously, especially on the user’s profile page. 
+Meanwhile, Firebase Firestore is used to store and manage historical data such as the 
+user’s fasting progress over time. This data is later visualized in the form of statistics 
+and trends to help users track their performance and remain motivated. 
+A critical part of the system is the Java -based IF Plan Recommendation Module. This 
+module is responsible for generating personalized fasting plan suggestions based on 
+user inputs such as age, weight, height, lifestyle, and activity levels. Initially, a dataset 
+was prepared and trained using a DT model in Python via Google Colaboratory. The 
+trained model was analyzed to extract decision rules which were then manually 
+implemented in the Android application using nested if -else statements in Java. This 
+approach avoids the complexity of integrating external machine learning frameworks 
+such a s TensorFlow Lite that would  make it more lightweight and easier to debu g 
+especially for early -stage developers. It also ensures that the model remains 
+interpretable and maintains the same level of accuracy as observed during testing.  
+ 
+
+===== PAGE 60 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+47 
+ 
+4.2. Implementation of Intelligent Method  
+4.2.1. IF Plan Recommendation  
+The intelligent component of the Fast -Fit application is the IF  plan recommendation 
+system which is implemented using a DT classification model. This model was 
+developed using the Python programming language within Google Colaboratory, an 
+online platform that supports Jupyter Notebook. Google Colab oratory is particularly 
+useful as it allows code to be executed line by line that making it easier to identify and 
+debug any errors during model development. 
+The DT model is designed to classify users into one of three suitable intermittent fasting 
+plans, 12:12, 14:10, or 16:8. These plans represent different fasting and eating window 
+durations. The classification process is based on various user attributes such as age, 
+weight, height, physical activity level, and lifestyle. These features are used as inpu ts, 
+while the IF plan labels serve as the class outputs in the training dataset.  Before the 
+model can make accurate predictions, it must be trained on a labele d dataset. The 
+training process involves train the model with user data and corresponding IF plan 
+categories that will allow it to learn decision rules that map input features to the correct 
+fasting plan. Once trained, the model is evaluated using a test dataset to assess its 
+accuracy and effectiveness in recommending appropriate IF plans. By analyzing 
+personal attributes and recommending a suitable fasting schedule, the system provides 
+personalized guidance that will make easier for users to start and stick with a plan that 
+matches their lifestyle and health goals. 
+Figure 9 shows the flowchart of the Decision Tree model and will be describe each step 
+of the flow in detail. 
+
+===== PAGE 61 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+48 
+ 
+ 
+Figure 9: DT Model Flow Chart  
+1) Data Preparation 
+The data preparation stage is critical to ensuring that the DT model receives 
+sufficient and balanced input for effective learning. Initially, a dataset consisting 
+of 42 rows and 18 columns was collected through a user questionnaire as 
+described in Section  3.5.2. However, this dataset alone was insufficient for 
+training a reliable model where it results in a low accuracy of only 50% which 
+is not good for reliable recommendations. 
+To address this limitation, synthetic data generation was performed. A total of 
+1998 synthetic rows were programmatically created to expand the dataset while 
+preserving the distribution and characteristics of the original data. Using a 
+Python script, the synthetic data replicated the patterns observed in the original 
+
+
+===== PAGE 62 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+49 
+ 
+dataset by ensuring class balance across all IF_Plan labels and maintained 
+realistic attribute values that align with user profiles. This approach enabled the 
+model to learn from a larger and more diverse dataset  to improve its ability to 
+generalize and provide accurate IF plan recommendations. 
+ 
+2) Data Preprocessing 
+After preparing the dataset, the next critical step is data preprocessing, which 
+ensures the dataset is clean, consistent, and ready for model training. This stage 
+is particularly important because even high-quality data can lead to poor model 
+performance if it is not properly structured and formatted. The preprocessing 
+process began by performing Exploratory Data Analysis (EDA) that starting 
+with loading the dataset from Google Drive into the development environment. 
+Several initial checks were conducted i ncluding confirming the number of 
+records, detecting null or missing values, verifying data types, and filtering out 
+irrelevant or redundant information. 
+After that, ten columns were selected for use in model training based on their 
+relevance to the intermittent fasting recommendation task. These include 
+‘Gender’, ‘Age’, ‘Daily_Physical_Activity’, ‘Daily_Sleeping_Hours’, 
+‘Type_of_Work’, ‘Daily_Work_Hours’, ‘Main_Goal’, ‘Height_group’, and 
+‘Weight_group’ as the attribute columns while ‘IF_Plan’ as the target column 
+for prediction. To ensure the dataset could be interpreted by the DT algorithm, 
+categorical data were converted into numerical form through encodi ng. Label 
+encoding was applied to each column to map textual data to numeric values, 
+which is essential for enabling the machine learning model to process and learn 
+from the data efficiently. Figure 10 illustrates a snippet of the encoding code 
+used during this step. 
+
+===== PAGE 63 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+50 
+ 
+ 
+Figure 10: Encoding for Data Preprocessing 
+3) Data Splitting 
+The next step is splitting the dataset into training and testing datasets which is 
+essential for evaluating the model's ability to generalize to unseen data. In this 
+process, the dataset was divided using an 80:20 ratio where 80% of the data 
+(1,598 rows) was allocated for training and the remaining 20% (400 rows) was 
+set aside for testing. The training set is used to train the DT model to identify 
+patterns and relationships between input attributes and the target label while the 
+testing set is used to assess the model’s performance on new, unseen instances. 
+It is important to ensure that the test data remains hidden during the training 
+phase to simulate real world scenarios where the model must make predictions 
+on data it has not encountered before. This split helps validate that the model is 
+not simply memorizing the training data but is truly capable of making accurate 
+recommendations based on learned patterns. 
+ 
+4) Model Training 
+The model training stage involved fitting the dataset into DT classifier using the 
+entropy criterion. The entropy method is chosen over the Gini index because it 
+provides a more detailed measure of information gain which can lead to better 
+decision making when the dataset contains multiple classes or when the 
+distribution of data is imbalanced. Entropy quantifies the impurity or 
+unpredictability in the dataset and aims to split the data in a way that reduces 
+
+
+===== PAGE 64 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+51 
+ 
+this uncertainty as much as possible. This can result in a more accurate model, 
+especially when used in combination with techniques like class balancing and 
+careful parameter tuning. 
+The training process is implemented using a train_using_entropy3 method that 
+utilizes the ‘DecisionTreeClassifier’ from the ‘sklearn’ library with entropy as 
+the splitting criterion. Key parameters were configured to optimize model 
+performance and avoid overfitting . The ‘max_depth’ was set to 7 to limit the 
+complexity of the tree, ‘min_samples_leaf’ was set to 9 to ensure each leaf node 
+has a sufficient number of samples, and ‘min_samples_split’ was increased to 
+15 to prevent overly specific splits. Additionally, ‘class_weight='balanced'’ was 
+used to compensate for any class imbalances in the dataset, and a fixed 
+‘random_state’ ensured reproducibility. Figure 11 illustrates a snippet of the 
+training cod e that setup  the entropy-based decision tree. This configuration 
+helps the model to generalize better and make more reliable intermittent fasting 
+plan recommendations.        
+ 
+ 
+Figure 11: Entropy method in DT 
+5) Model Evaluation 
+After the model training process is completed using the training dataset, the 
+prediction function is invoked to make predictions on the test dataset based on 
+its attribute values. The performance of this classification model is evaluated 
+using several metrics such as accuracy, confusion matrix, precision, recall, and 
+F1-score. These metrics provide a comprehensive view of how well the model 
+performs in predicting the appropriate IF plans. As shown in Figure 12, the DT 
+
+
+===== PAGE 65 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+52 
+ 
+classifier using the entropy method achieved an accuracy of 85.25%, indicating 
+a strong overall performance. 
+The confusion matrix reveals how well the model distinguishes between the 
+three IF plan classes, labeled as 0, 1, and 2. Class 2 shows the highest F1-score 
+of 0.89 that show the model predicts this class most accurately. Class 1 also 
+performs well with a recall of 0.90  which mean the model correctly identified 
+90% of actual class 1 instances. Meanwhile, class 0 has slightly lower 
+performance with a recall of 0.82. Overall, the macro and weighted averages of 
+the precision, recall, and F1-score are all balanced at 0.85 that further supporting 
+the reliability of the model in producing consistent predictions across all classes. 
+ 
+ 
+Figure 12: Evaluation of DT model 
+ 
+ 
+ 
+ 
+
+
+===== PAGE 66 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+53 
+ 
+6) Model Extraction 
+The final phase in this modeling process is model extraction, where the internal 
+structure of the trained DT is retrieved for further use. This step is essential to 
+understand the logic and flow of decisions learned by the model. Using the tree_ 
+attribute from the DecisionTreeClassifier, key components such as the number 
+of nodes, splitting features, threshold values, and child relationships are 
+accessed. Each node in the tree is analyzed to determine whether it is a decision 
+node where a feature is compared against a threshold  or a leaf node  which 
+represents the final predicted class label. 
+In this project, the entropy-based DT model generated a total of 77 nodes. These 
+nodes define the complete path of decisions used by the model to classify users 
+into appropriate IF plans. By printing out the structure of each node, including 
+its role and a ssociated feature thresholds, the full decision logic becomes 
+transparent. This extracted structure provides the necessary basis for translating 
+the model into a format suitable for integration into the mobile app. 
+ 
+ 
+Figure 13: Model Extraction 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+===== PAGE 67 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+54 
+ 
+7) Model Implementation in App. 
+To integrate th is IF plan recommendation system into the Fast -Fit mobile 
+application, the decision tree that consist of 77 nodes, was manually translated 
+into a series of nested conditional statements (if -else logic) within the 
+application’s code. Each decision node evaluates user -specific attributes such 
+as age, gender, height category, weight category, physical  activity level, sleep 
+duration, work type, work hours, and fitness goal. Based on these features, the 
+logic directs the app to traverse through the decision tree to reach a 
+corresponding leaf node  which contains the predicted probability distribution 
+for three IF plans , 12:12, 14:10, and 16:8. The IF plan with the highest 
+probability is then selected and recommended to the user. This manual 
+implementation ensures that the model runs entirely offline within the app  
+without the need for external server communication  that make the system 
+efficient and suitable for real time mobile usage. 
+ 
+4.3. Database design 
+For this system, Firebase is used as the backend database solution. As a non -relational 
+database, Firebase stores data in a key -value pair format which is well -suited for 
+flexible and hierarchical data structures. Therefore, the database design is illustra ted 
+using tree structures as shown in the figures below. Three separate diagrams are 
+provided where each representing a different Firebase component  such as  Firebase 
+Authentication in Figure 14, Realtime Database in Figure 15, and Firestore Database in 
+Figure 15. Each of these components plays a crucial role in managing data within the 
+Fast-Fit app. Firebase Authentication handles user identity and sign -in credentials, 
+Realtime Database stores frequently accessed and synchronous data such as user profile 
+information and selected IF plans, while Firestore is used to manage historical and 
+structured data like fasting and weight records. These components work together to 
+ensure secure, organized, and efficient data handling. 
+ 
+
+===== PAGE 68 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+55 
+ 
+ 
+Figure 14: Database Design for Authentication  
+ 
+ 
+Figure 15: Database Design for Realtime Database 
+ 
+
+
+===== PAGE 69 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+56 
+ 
+ 
+Figure 16: Database Design for Firestore Database 
+ 
+4.4. Users Interface Design  
+The user interface of the Fast-Fit mobile application is designed to be simple, beginner-
+friendly, and visually clear to ensure an easy and engaging experience for users. 
+Developed using Android Studio with XML layout design, the app applies a consistent 
+and clean style across all pages. Each page is structured to support specific functions 
+such as user registration, fasting plan selection, AI -generated recommendations, and 
+fasting progress tracking. The app uses a bottom navigation bar for smooth transitio ns 
+between main features.  It also supports a clear layout with readable text, soft colors, 
+and visual elements like timers, progress bars, and status indicators. The overall design 
+focuses on usability and motivation especially on the fasting progress scr een which 
+shows real-time updates. Example screens and UI layouts are included in Appendix C 
+to illustrate the design and user flow more clearly. 
+
+
+===== PAGE 70 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+57 
+ 
+4.5. Implementation Strategy 
+The development of the Fast -Fit mobile application followed a top -down 
+implementation strategy. This approach began with a clear definition of the system’s 
+overall objectives, functional requirements, and high -level architecture. Key modules 
+of the application are IF tracking module, notification module, user module, and IF plan 
+recommendation module which were initially designed and documented in the section 
+3.0 of system requirements and analysis. 
+Following this, each module was incrementally developed and integrated into the 
+application according to the planned system structure. The top -down strategy allowed 
+the development to maintain focus on the overall system objectives while ensuring that 
+individual components aligned with the intended user experience and system 
+functionality. It also facilitated  early identification of system dependencies, effective 
+module integration, and streamlined testing processes. As each high-level function was 
+completed, detailed components and interface refinements were added to enhance 
+usability and performance. 
+4.6. Overview of the Design 
+The design of the Fast -Fit application was guided by the objective of delivering a 
+responsive, intelligent and easy -to-use mobile app to support intermittent fasting 
+practices especially for beginners. The overall system integrates several important 
+components including an Android -based front end, Firebase backend services  and a 
+lightweight intelligent recommendation module. 
+A key design decision was the use of Android Studio for mobile development. Although 
+cross platform tools like Flutter and React Native were considered, Android Studio was 
+chosen because of its strong support for Android development, easy integration with 
+Firebase and native compatibility with Java and XML. In addition, prior experience 
+with Android Studio made it the preferred practical and efficient choice. 
+Another important decision involved the development of the IF Plan Recommendation 
+Module. Instead of using machine learning frameworks such as TensorFlow Lite or 
+ONNX, the decision tree model was manually implemented using nested if -else 
+
+===== PAGE 71 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+58 
+ 
+statements in Java. This approach reduced the system's complexity, avoided the need 
+for external libraries and made the logic easier to understand and maintain. To improve 
+the accuracy of the model, synthetic data generation was used to increase the size of the 
+dataset. This helped improve the model’s accuracy from 50% to over 85%  that lead to 
+more accurate and personalized fasting plan suggestions. 
+The system uses several Firebase services to manage data and user authentication. 
+Firebase Authentication is used for secure user login and registration. Firebase Realtime 
+Database stores data that needs to be accessed frequently such as user profiles and 
+selected fasting plans. Firebase Firestore is used to store historical data such as fasting 
+progress and user records. These services were chosen because they are reliable, 
+scalable and work well together in a mobile application environment. The database 
+follows a hierarchical structure which is suitable for Firebase’s NoSQL format and 
+supports efficient data access. 
+The application also uses Android Jetpack components including AlarmManage r for 
+scheduling reminders and SharedPreferences for storing simple user settings locally. 
+These tools help ensure that the app runs smoothly and delivers a good experience for 
+users without needing constant internet access. 
+In terms of user interface design, the app uses a simple and clean layout  to ensure that 
+users can navigate easily. The color scheme uses soft pink and purple tones to create a 
+calm and encouraging look and feel. The interface includes clearly labeled input fields, 
+buttons, and menus, and follows a consistent style across all sc reens. The design aims 
+to make the app suitable for beginner with a focus on clarity, readability, and ease of 
+use. 
+ 
+ 
+
+===== PAGE 72 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+59 
+ 
+5 SYSTEM TESTING & EVALUATION 
+5.1. Testing Strategy 
+The Fast-Fit mobile application was tested using multi-layered testing strategy to ensure 
+the functionality, reliability and usability of the system. The testing process consisted 
+of four levels which are unit testing, integration testing, system testing, and user 
+acceptance testing (UAT). 
+Unit Testing was performed continuously during the development phase to verify the 
+correctness of individual components in isolation. This involved testing specific 
+features such as the login and registration forms, IF plan selection interface, IF plan 
+recommendation module, fasting timer, and input fields for weight and BMI. The aim 
+was to confirm that each module could handle both valid and invalid inputs 
+appropriately. For example, validation tests ensured that registration fields accepted 
+only properly formatted emails and strong passwords. Unit tests were primarily 
+conducted within Android Studio using its built-in debugging and logging tools. 
+Following unit testing, integration testing was conducted to validate the interaction and 
+data exchange between different modules of the application . For example, verifying 
+that the fasting timer accurately calculated and displayed the fasting and eating periods 
+according to the user's selected IF plan.  Integration testing also covered the 
+communication between the frontend interface and the backend services such as 
+verifying that user data was properly stored and retrieved from the Firebase database. 
+Issues such as data transmission errors and improper navigation between screens were 
+identified and resolved during this stage. 
+Next, in s ystem testing, it involved evaluating the entire application as a whole  and 
+simulating real -life usage scenarios to assess the complete workflow. This included 
+processes such as creating a new user account, obtaining a fasting plan 
+recommendation, starting and monitoring the fasting timer and tracking overall fasting 
+progress. These tests were primarily conducted using Android emulators to observe the 
+application's behavior under controlled conditions. 
+
+===== PAGE 73 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+60 
+ 
+Lastly user acceptance testing was carried out by involving a small group of fellow 
+students to evaluate the Fast -Fit app’s functionality , usability and overall experience. 
+Based on their interaction with the app and responses from the survey, users found the 
+app to be user -friendly, visually appealing and effective in tracking their fasting 
+progress. Key features such as the IF tracker and fasting plan selection were especially 
+well received. Overall feedback indicated a high level of satisfaction with sug gestions 
+for improvement including the addition of educational content about intermittent fasting 
+and the inclusion of achievement badges. The insights gained from this testing phase 
+were useful in guiding minor refinements to enhance the app experience in the future. 
+5.2. Test Cases 
+Different test cases are conducted based on the selected test scenarios. The scenarios 
+are selected based on each of the system functional requirements of the system. The test 
+scenarios of the project are listed in the table below. 
+Test Case ID TC01 
+Test Scenario User successfully logs into the system 
+with the correct email and password. 
+Steps 1. The user opens the application. 
+2. The user key in their email and 
+password with correct inputs. 
+3. The user clicks the log in button. 
+Expected Result The system directs to the homepage of 
+Fast-fit application 
+Actual Result Result is as expected 
+Test Status Pass 
+Table 21: Test Case TC01 
+ 
+
+===== PAGE 74 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+61 
+ 
+Test Case ID TC02 
+Test Scenario User unsuccessfully logs into the system 
+with the incorrect email and password. 
+Steps 1. The user opens the application. 
+2. The user  enters their email and 
+password with correct inputs. 
+3. The user clicks the log in button. 
+Expected Result The system prompts incorrect email and 
+password error message 
+Actual Result Result is as expected 
+Test Status Pass 
+Table 22: Test Case TC02 
+ 
+Test Case ID TC03 
+Test Scenario User can register with all field filled 
+correctly 
+Steps 1. The user opens registration page. 
+2. The user fills all required information 
+with correct inputs. 
+3. The user clicks the register button. 
+Expected Result The system successfully registers the 
+user in the database. 
+Actual Result Result is as expected 
+Test Status Pass 
+Table 23: Test Case TC03 
+
+===== PAGE 75 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+62 
+ 
+ 
+Test Case ID TC04 
+Test Scenario User fail to register with empty required 
+fields 
+Steps 1. The user opens registration page. 
+2. The user left all required information 
+with empty inputs. 
+3. The user clicks the register button. 
+Expected Result The system fail to register the user and 
+display an error message 
+Actual Result Result is as expected 
+Test Status Pass 
+Table 24: Test Case TC04 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 76 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+63 
+ 
+ 
+Test Case ID TC05 
+Test Scenario User fail to register with invalid email 
+format 
+Steps 1. The user opens registration page. 
+2. The user enters the invalid email 
+format. 
+3. The user clicks the register button. 
+Expected Result The system fails to register the user and 
+display an error message  of incorrect 
+email format. 
+Actual Result Result is as expected 
+Test Status Pass 
+Table 25: Test Case TC05 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 77 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+64 
+ 
+Test Case ID TC06 
+Test Scenario User fail to register with weak password 
+Steps 1. The user opens registration page. 
+2. The user enters all required 
+information with the weak password. 
+3. The user clicks the register button. 
+Expected Result The system fails to register the user and 
+display an error message  of weak 
+password. 
+Actual Result Result is as expected 
+Test Status Pass 
+Table 26: Test Case TC06 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 78 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+65 
+ 
+Test Case ID TC07 
+Test Scenario User fail to register with an already 
+registered email 
+Steps 1. The user opens registration page. 
+2. The user enters all required 
+information using an already registered 
+email 
+3. The user clicks the register button. 
+Expected Result The system failed to register the user and 
+displayed an error message stating that 
+the email is already registered 
+Actual Result Result is as expected 
+Test Status Pass 
+Table 27: Test Case TC07 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 79 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+66 
+ 
+Test Case ID TC08 
+Test Scenario User can reset the password with valid 
+email 
+Steps 1. The user opens the reset password 
+page. 
+2. The user provides their valid registered 
+email. 
+3. The user clicks submit button. 
+Expected Result The system sends an email to reset the 
+user's password. 
+Actual Result Result is as expected 
+Test Status Pass 
+Table 28: Test Case TC08 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 80 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+67 
+ 
+Test Case ID TC09 
+Test Scenario User fail to reset the password with 
+unregistered email 
+Steps 1. The user opens the reset password 
+page. 
+2. The user provides their invalid email. 
+3. The user clicks submit button. 
+Expected Result The system fails to send an email to reset 
+the user's password. 
+Actual Result Result is as expected 
+Test Status Pass 
+Table 29: Test Case TC09 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 81 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+68 
+ 
+Test Case ID TC10 
+Test Scenario User is able to view and select from the 
+available IF plans. 
+Steps 1. The user click the plus icon to navigate 
+to the IF plan selection page. 
+2. The user is able to see and select an 
+available IF plan. 
+3. The user clicks the select button. 
+Expected Result The system successfully saves the 
+selected IF plan  and navigates to home 
+page 
+Actual Result Result is as expected 
+Test Status Pass 
+Table 30: Test Case TC10 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 82 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+69 
+ 
+Test Case ID TC11 
+Test Scenario User is able to begin the timer according 
+to their selected IF plan 
+Steps 1. The user clicks the Start button after 
+selecting an IF plan 
+2. The user can view the timer is work 
+well 
+Expected Result The system will start counting the timer 
+and display the correct phase status 
+according to the IF plan schedule. 
+Actual Result Result as expected  
+Test Status Pass 
+Table 31: Test Case TC11 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 83 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+70 
+ 
+Test Case ID TC12 
+Test Scenario User can view the ir fasting progress 
+statistics. 
+Steps 1. The user click the Fasting progress 
+button. 
+2. The user is able to see the statistics of 
+their recorded fasting data. 
+Expected Result The system displays the total number of 
+fasts, the longest fasting duration, the 
+total fasting hours, and the number of 
+fasting days. It also visualizes fasting 
+hours per week and per month using bar 
+graphs 
+Actual Result Result as expected 
+Test Status Pass 
+Table 32: Test Case TC12 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 84 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+71 
+ 
+Test Case ID TC13 
+Test Scenario User can input their weight and height 
+value 
+Steps 1. The user clicks the Add weight/height 
+button 
+2. The user is able to see the current 
+values of their entered weight and height. 
+Expected Result The system displays the current of weight 
+and height value and visualizes weight 
+trend using line graphs. 
+Actual Result Result as expected 
+Test Status Pass 
+Table 33: Test Case TC13 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 85 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+72 
+ 
+Test Case ID TC14 
+Test Scenario User can view their BMI category 
+Steps 1. The user enter weight and height value 
+2. The user is able to see their BMI 
+category 
+Expected Result The system calculates the BMI based on 
+the entered weight and height and 
+displays the BMI category using text and 
+an indicator 
+Actual Result Result as expected 
+Test Status Pass 
+Table 34: Test Case TC14 
+ 
+Test Case ID TC15 
+Test Scenario User can view their notification list 
+Steps 1. The user click the bell icon 
+2. The user is able to see their list of 
+notification message 
+Expected Result The system displays the most recent 
+notification message sent. 
+Actual Result Result as expected 
+Test Status Pass 
+Table 35: Test Case TC15 
+
+===== PAGE 86 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+73 
+ 
+ 
+Test Case ID TC16 
+Test Scenario User get the notification about their IF 
+progress 
+Steps 1. The user click the Start button 
+2. The user is able to get the notification 
+about their If progress 
+Expected Result The system notifies the user about their 
+current IF phase  either fasting or eating  
+and shows the percentage of time 
+completed 
+Actual Result Result as expected 
+Test Status Pass 
+Table 36: Test Case TC16 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 87 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+74 
+ 
+Test Case ID TC17 
+Test Scenario User receives notifications and reminders 
+about their entered weight 
+Steps 1. The user click the Add button 
+2. The user is able to receive notifications 
+and reminders to keep entering their 
+weight values to track the trend 
+Expected Result The system notifies and reminds the user 
+to keep entering their weight values, for 
+example, every 7 days, to ensure the 
+trend graphs can be displayed 
+Actual Result Result as expected 
+Test Status Pass 
+Table 37: Test Case TC17 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 88 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+75 
+ 
+Test Case ID TC18 
+Test Scenario User can view their detail at profile page 
+Steps 1. The user clicks the Profile icon. 
+2. The user is navigated to the profile 
+page. 
+3. The user can view their details, such as 
+name, email, and selected IF plan, on the 
+page. 
+Expected Result The system retrieves user data from the 
+database and displays it on the profile 
+page 
+Actual Result Result as expected 
+Test Status Pass 
+Table 38: Test Case TC18 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 89 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+76 
+ 
+Test Case ID TC19 
+Test Scenario User can log out their account  
+Steps 1. The user clicks the Log Out button. 
+2. The user is logged out of the 
+application 
+Expected Result The system successfully logs out the user 
+and redirects them to the login page. 
+Actual Result Result as expected 
+Test Status Pass 
+Table 39: Test Case TC19 
+Test Case ID TC20 
+Test Scenario User can submit their attributes form to 
+get IF plan recommendation  
+Steps 1. The user clicks the Recommendation 
+button. 
+2. The user fill all the information in the 
+form 
+3. The user click the Submit button 
+Expected Result The system successfully displays the 
+recommended IF plan dialog 
+Actual Result Result as expected 
+Test Status Pass 
+Table 40: Test Case TC20 
+
+===== PAGE 90 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+77 
+ 
+ 
+Test Case ID TC21 
+Test Scenario User fail to submit their attributes form to 
+get IF plan recommendation  
+Steps 1. The user clicks the Recommendation 
+button. 
+2. The user not fill all the information in 
+the form 
+3. The user click the Submit button 
+Expected Result The system fails to display the 
+recommended IF plan dialog 
+Actual Result Result as expected 
+Test Status Pass 
+Table 41: Test Case TC21 
+ 
+5.3. Summary of Test Result  
+All planned test cases for the Fast -Fit application were successfully executed . The 
+testing process included scenarios across multiple modules such as user registration and 
+login, IF plan recommendation, IF plan selection, progress tracking, weight  and BMI 
+display, and notification function. Full details of the test cases and their results are 
+documented in the Appendix B. 
+ 
+
+===== PAGE 91 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+78 
+ 
+5.4. Evidence Requirement Fulfilled 
+This section presents the evidence that the Fast-Fit mobile application has fulfilled the 
+system objectives and functional requirements defined during the design phase. 
+Firstly, the application allows users to choose from a selection of beginner -friendly IF 
+plans such as 12:12, 14:10 and 16:8. These options are clearly presented in the IF Plan 
+Selection Page (Figure C.9), enabling users to select a plan that suits their preferences. 
+Once a plan is selected, a real -time fasting timer is displayed according to the chosen 
+IF plan that allow users to efficiently monitor their current fasting or eating status 
+(Figures C.6 and C.7). Users also receive notifications indicating the start and end times 
+of their fasting schedule along with progress updates. These notifications are stored 
+locally and displayed in the Notification List Page (Figure C.5). 
+Secondly, the application includes an IF plan recommendation feature as shown in 
+Figures C.10 to C.12. Users are required to fill out a form with their personal details 
+such as age, weight, height, activity level, work type, work hours, sleep hours and their 
+main goal via the User Attributes Form Page ( Figure C.11). This information is 
+processed using a manually implemented Decision Tree algorithm written in Java. 
+Based on the input, the app recommends the suitable IF plan which is displayed on the 
+screen (Figure C.12) where it helps users to determine the plan that best matches their 
+attributes. 
+In addition, the Fast-Fit app allows users to track their fasting progress and weight over 
+time as shown in the Dashboard Page ( Figure C.13). Users can view a bar graph 
+showing fasting hours per week or per month ( Figure C.14). They can also regularly 
+input their weight which is stored and visualized as a line graph (Figure C.15). By 
+default, the app reminds users every seven days to update their weight ( Figure C.17). 
+Lastly, users can view their BMI category by entering their weight and height which is 
+then displayed using text and an indicator (Figure C.18). 
+Overall, the implemented features align with the defined system objectives and 
+requirements. The Fast -Fit app successfully integrates user inputs, IF plan 
+recommendations, progress tracking, and a user -friendly interface. All core functions 
+have been developed, and tested to ensure the application works as intended. 
+
+===== PAGE 92 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+79 
+ 
+5.5. Critical Evaluation 
+The Fast-Fit application introduces several innovative elements that distinguish it from 
+existing intermittent fasting apps such as Easy Fast. One of its key advantages is the 
+integration of an AI -powered recommendation system which uses a Decision Tree 
+algorithm to suggest suitable IF plans based on user attributes such as age, weight, 
+height, physical activity level and work type. This personalized guidance addresses a 
+significant limitation in Easy Fast which does not utilize machine learning to 
+recommend fasting plans. As a result, Fast -Fit offers a more tailored and supportive 
+experience especially for beginners who may be unfamiliar with which fasting method 
+suits their lifestyle and health goals. 
+Another strength of Fast-Fit is its offline functionality in the recommendation module. 
+The decision logic from the trained model is manually implemented using conditional 
+statements in the Android app where it avoids from continuous internet access when 
+generating IF suggestions. This design ensures faster response times and improved 
+accessibility for users in areas with limited connectivity. 
+However, while Fast -Fit offers some advantages, it also has certain limitations when 
+compared to Easy Fast. For instance, although Fast -Fit includes visualizations such as 
+weight trends and fasting statistics, these features are also present in Easy Fast w hich 
+provides similar dashboard capabilities with engaging graphs and health metrics. 
+Therefore, in terms of data visualization and progress tracking, both applications offer 
+comparable functionality and Fast-Fit does not present a clear advantage in this area. 
+Additionally, the scope of the Fast -Fit app remains relatively narrow. It focuses 
+primarily on beginner IF plans, which is specifically for 12:12, 14:10, and 16:8 IF plan, 
+whereas Easy Fast supports a wider variety of fasting styles including  other time -
+restricted IF plan,  OMAD and alternate -day fasting. This limited range may restrict 
+Fast-Fit's usefulness for users who wish to explore or transition into more advanced 
+fasting methods. 
+Moreover, Fast -Fit depends heavily on accurate user input to generate meaningful 
+recommendations. Incorrect or incomplete data can result in less effective fasting plan 
+suggestions. Unlike Easy Fast, which includes supplementary features such as water 
+
+===== PAGE 93 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+80 
+ 
+intake tracking, mood journaling, and flexible fasting templates, Fast-Fit currently does 
+not extend its functionality beyond fasting and weight -related tracking. This narrower 
+focus may reduce its appeal to users seeking a more holistic health management 
+experience. 
+In summary, Fast -Fit brings forward an important innovation with its IF plan 
+recommendations. Nevertheless, the app's effectiveness could be further enhanced by 
+expanding the variety of fasting plans  by introducing more comprehensive health 
+tracking tools and refining the user interface to match or surpass the polish of more 
+mature applications like Easy Fast. 
+
+===== PAGE 94 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+81 
+ 
+6 SDG ALIGNMENT 
+The main goal of the Fast -Fit app is to support SDG 3: Good Health and Well -Being. 
+The application encourages users to embrace healthier lives that lead to better physical 
+health and well-being by supporting efficient intermittent fasting techniques. Through 
+its personalized fasting plans and progress tracking features, Fast -Fit empowers 
+individuals to make informed d ietary choices, manage their weight effectively, and 
+develop sustainable habits that can lead to a reduction in lifestyle-related health issues. 
+Ultimately, the app seeks to enhance overall health outcomes and support users in 
+achieving their wellness goals. 
+ 
+
+===== PAGE 95 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+82 
+ 
+7 CONCLUSION & FUTURE WORK 
+7.1. Conclusion 
+The Fast -Fit mobile application was developed with the primary goal of assisting 
+beginners in adopting and maintaining IF routines through personalized 
+recommendations and effective tracking tools. The application successfully meets the 
+key functional requirements outlined during the planning phase. These include offering 
+a selection of beginner -friendly IF plans (12:12, 14:10, 16:8), integrating a Decision 
+Tree model for IF plan recommendations, tracking user progress through fasting 
+statistics and weight trends, calculating BMI, and providing timely reminders through 
+notifications. 
+All major modules were implemented and tested to be functioning as intended. The use 
+of Firebase as the backend ensured secure data storage and smooth data retrieval while 
+Java and Android Studio provided a solid foundation for building a responsive and 
+reliable mobile application. The integration of the DT model directly into the 
+application using rule-based logic allowed offline accessibility for the recommendation 
+feature. 
+Compared to the initial objectives, the project can be considered successful as all of it 
+has been achieved. The application is fit for its intended purpose and demonstrates real 
+potential for use in health and lifestyle management. 
+ 
+7.2. Future Work 
+While the Fast-Fit application successfully meets its core objectives there are several 
+areas for further enhancement that could significantly improve its functionality, 
+flexibility, and overall user experience. 
+One of the most important areas for future development is the expansion of fasting plan 
+options. Currently, the application focuses on beginner -friendly plans such as 12:12, 
+14:10 and 16:8. To support users as they progress in their intermittent fasting jo urney, 
+
+===== PAGE 96 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+83 
+ 
+the app could be extended to include more advanced methods such as OMAD, alternate-
+day fasting, or the 5:2 approach. This would allow the application to remain useful for 
+a broader range of users over time. 
+Additionally, integrating Fast-Fit with external health APIs and wearable devices such 
+as Google Fit or smartwatches could greatly enhance data accuracy and reduce manual 
+input. Through this integration, real -time tracking of physical activity, sleep durat ion, 
+heart rate and calories burned could be used to provide more informed and dynamic 
+fasting plan recommendations tailored to each user's current health status and daily 
+habits. 
+Another valuable enhancement features are meal suggestions, hydration tracking, and 
+basic nutritional guidance. These additions would offer a more holistic health 
+management experience by helping users not only follow a fasting schedule but also 
+make healthier lifestyle choices alongside it. To further improve user engagement and 
+motivation, gamification elements could be introduced. Features like achievement 
+badges, fasting streaks and interactive challenges could encourage users to remain 
+consistent and c ommitted to their fasting goals. These motivational tools would help 
+maintain user interest, particularly for beginners who may struggle with consistency in 
+the early stages. 
+Moreover, although the current IF plan recommendation model performs well using a 
+manually implemented Decision Tree, future work could involve collecting more  
+verified user data to improve the model’s performance or exploring lightweight models 
+that allow learning from user feedback in real time. 
+Lastly, improving the user interface and user experience design remains a key area for 
+refinement. While the current design is functional, future updates could introduce 
+cleaner layouts, better visual elements, smoother transitions and responsiveness across 
+different screen sizes to enhance usability and aesthetics. 
+ 
+
+===== PAGE 97 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+84 
+ 
+REFERENCES 
+A beginner’s guide to intermittent fasting. (2019, May 8). U -M School of Public 
+Health. https://sph.umich.edu/pursuit/2019posts/beginners-guide-to-
+intermittent-
+fasting.html#:~:text=A%20good%20option%20for%20beginners,the%20time
+%20of%20the%20fast 
+Coursera. (2022, July 25). Decision trees in machine learning: Two types (+ examples). 
+https://www.coursera.org/articles/decision-tree-machine-learning 
+Decision tree. (2023, August 20). GeeksforGeeks. 
+https://www.geeksforgeeks.org/decision-tree/ 
+Exploratory data analysis in Python. (2023, March 7). GeeksforGeeks. 
+https://www.geeksforgeeks.org/exploratory-data-analysis-in-python/ 
+Firebase - Introduction - GeeksforGeeks. (2021, July 15). GeeksforGeeks. 
+https://www.geeksforgeeks.org/firebase-introduction/ 
+Intermittent fasting. (2024, October 8). Wikipedia, the free encyclopedia. Retrieved 
+May 25, 2025, from https://en.wikipedia.org/wiki/Intermittent_fasting 
+Intermittent fasting: What is it, and how does it work? (2023, September 29). Johns 
+Hopkins Medicine, based in Baltimore, Maryland. 
+https://www.hopkinsmedicine.org/health/wellness-and-
+prevention/intermittent-fasting-what-is-it-and-how-does-it-work 
+Juan. (2023, August 9). TF -DF: The fastest and most robust model for beginners. 
+Medium. https://juaancabsou.medium.com/tf-df-the-fastest-and-most-robust-
+model-for-beginners-e383a8da0a70 
+Leonard, J. (n.d.). 6 ways to do intermittent fasting: The best methods. Medical and 
+health information | MedicalNewsToday. 
+https://www.medicalnewstoday.com/articles/322293# 
+ML | Gini impurity and entropy in decision tree. (2023, February 24). GeeksforGeeks. 
+https://www.geeksforgeeks.org/gini-impurity-and-entropy-in-decision-tree-
+ml/ 
+Python machine learning decision tree. (n.d.). W3Schools Online Web Tutorials. 
+https://www.w3schools.com/python/python_ml_decision_tree.asp 
+
+===== PAGE 98 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+85 
+ 
+Python | Decision tree implementation. (2023, January 10). GeeksforGeeks. 
+https://www.geeksforgeeks.org/decision-tree-implementation-python/ 
+Table_2_Evaluation of the “Shifting weight using intermittent fasting in night -shift 
+workers” weight loss interventions: A mixed-methods protocol.DOCX. (n.d.). 
+figshare. 
+https://frontiersin.figshare.com/articles/dataset/Table_2_Evaluation_of_the_S
+hifting_Weight_using_Intermittent_Fasting_in_night-
+shift_workers_weight_loss_interventions_a_mixed-
+methods_protocol_DOCX/24100755?file=4228548 
+Top 6 machine learning classification algorithms. (2024, September 4). 
+GeeksforGeeks. https://www.geeksforgeeks.org/top-6-machine-learning-
+algorithms-for-classification/ 
+Understanding feature importance and visualization of tree models. (2024, June 4). 
+GeeksforGeeks. https://www.geeksforgeeks.org/understanding-feature-
+importance-and-visualization-of-tree-models/ 
+What is a decision tree. (n.d.). IBM - United States. 
+https://www.ibm.com/topics/decision-trees 
+
+===== PAGE 99 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+86 
+ 
+APPENDICES 
+Appendix A: Questionnaire 
+
+
+===== PAGE 100 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+87 
+ 
+
+
+===== PAGE 101 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+88 
+ 
+  
+
+
+===== PAGE 102 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+89 
+ 
+
+
+===== PAGE 103 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+90 
+ 
+ 
+Note: Survey  access link for full view   
+https://forms.office.com/Pages/DesignPageV2.aspx?prevorigin=Marketing&origin=Neo
+PortalPage&subpage=design&id= -
+PvQCsppXk6vrc1wQkrGJsmMU9Vg5ipJl6ZXTSZoiGhUNkRLRk1UUFFGS1VWTVQ1
+U0pCVkxINVlMUC4u&analysis=false&topview=Preview  
+ 
+  
+
+
+===== PAGE 104 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+91 
+ 
+Appendix B: Summary of Test Result 
+ 
+General Information 
+Test Report Description This test summary report will provide 
+a summary of the finding based on all 
+the test cases in Chapter 5.2 
+Associated Test Strategy Reference Chapter 5.1 
+Summary 
+The Status of the test is as follow: 
+Number of test cases 
+planned to be completed 
+Number of test cases 
+remaining to be executed 
+Number of test cases 
+completed 
+21 0 21 
+ 
+Changes from Plans 
+There have been no changes from the plan and test has completed successfully. 
+Comprehensiveness Assessment 
+The test cases coverage as shown as below: 
+
+===== PAGE 105 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+92 
+ 
+ 
+Result Summary 
+21 test cases have been planned and executed. None of the test cases are failed. 
+Therefore, the system is expected to work all the project requirement. 
+Conclusion Based on Test Result 
+The application has passed the system testing 
+Table B.1: Test Summary Report 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+0
+5
+10
+15
+20
+25
+Test Result
+Total Test Cases Total Casses Passed Test Cases Failed
+
+===== PAGE 106 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+93 
+ 
+Appendix C: Users Interface Design 
+ 
+Figure C.1: Fast-Fit - Log in Page 
+
+
+===== PAGE 107 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+94 
+ 
+ 
+Figure C.2: Fast-Fit - Register Page 
+
+
+===== PAGE 108 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+95 
+ 
+ 
+Figure C.3: Fast-Fit – Reset Password Page 
+
+
+===== PAGE 109 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+96 
+ 
+ 
+Figure C.4: Fast-Fit - Homepage 
+
+
+===== PAGE 110 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+97 
+ 
+ 
+Figure C.5: Fast-Fit - Notification List Page 
+
+
+===== PAGE 111 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+98 
+ 
+ 
+Figure C.6: Fast-Fit - Timer Tracking 
+
+
+===== PAGE 112 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+99 
+ 
+ 
+Figure C.7: Fast-Fit - IF Plan Complete Cycle 
+
+
+===== PAGE 113 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+100 
+ 
+ 
+Figure C.8: Fast-Fit - Profile Page 
+
+
+===== PAGE 114 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+101 
+ 
+ 
+Figure C.9: Fast-Fit - IF Plan Selection Page 
+
+
+===== PAGE 115 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+102 
+ 
+ 
+Figure C.10: Fast-Fit - IF Plan Recommendation Button 
+
+
+===== PAGE 116 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+103 
+ 
+ 
+Figure C.11: Fast-Fit - User Attributes Form Page 
+
+
+===== PAGE 117 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+104 
+ 
+ 
+Figure C.12: Fast-Fit - IF Plan Recommendation Display 
+
+
+===== PAGE 118 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+105 
+ 
+ 
+Figure C.13: Fast-Fit - Dashboard Page 
+
+
+===== PAGE 119 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+106 
+ 
+ 
+Figure C.14: Fast-Fit - Bar Graph of Fasting Hour 
+
+
+===== PAGE 120 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+107 
+ 
+ 
+Figure C.15: Fast-Fit - Weight Tracking 
+
+
+===== PAGE 121 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+108 
+ 
+ 
+Figure C.16: Fast-Fit - Weight Entry Dialog 
+
+
+===== PAGE 122 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+109 
+ 
+ 
+Figure C.17: Fast-Fit - Weight Reminder 
+
+
+===== PAGE 123 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+110 
+ 
+ 
+ 
+Figure C.18: Fast-Fit - BMI Display 
+
+
+===== PAGE 124 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+111 
+ 
+Appendix D:  UAT Survey Result  
+ 
+ 
+
+
+===== PAGE 125 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+112 
+ 
+ 
+ 
+
+
+===== PAGE 126 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+113 
+ 
+ 
+ 
+
+
+===== PAGE 127 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+114 
+ 
+ 
+ 
+
+
+===== PAGE 128 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+115 
+ 
+ 
+ 
+
+
+===== PAGE 129 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+116 
+ 
+ 
+ 
+
+
+===== PAGE 130 =====
+
+CAT405 Final Report              Academic Session: 
+2024/2025 
+ 
+117 
+ 
+ 

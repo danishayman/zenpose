@@ -4,26 +4,26 @@ import '../models/pose_template.dart';
 import '../theme/zen_theme.dart';
 import 'pose_thumbnail_image.dart';
 
-/// Difficulty level label for a yoga pose.
-enum PoseDifficulty { beginner, intermediate, advanced }
+/// Difficulty label for a yoga pose card.
+enum PoseDifficulty { beginner, intermediate, hard }
 
 extension PoseDifficultyX on PoseDifficulty {
   String get label => switch (this) {
     PoseDifficulty.beginner => 'Beginner',
     PoseDifficulty.intermediate => 'Intermediate',
-    PoseDifficulty.advanced => 'Advanced',
+    PoseDifficulty.hard => 'Hard',
   };
 
   Color get color => switch (this) {
     PoseDifficulty.beginner => ZenColors.success,
     PoseDifficulty.intermediate => ZenColors.warning,
-    PoseDifficulty.advanced => ZenColors.error,
+    PoseDifficulty.hard => ZenColors.error,
   };
 
   Color get bgColor => switch (this) {
     PoseDifficulty.beginner => ZenColors.successLight,
     PoseDifficulty.intermediate => ZenColors.warningLight,
-    PoseDifficulty.advanced => ZenColors.errorLight,
+    PoseDifficulty.hard => ZenColors.errorLight,
   };
 }
 
@@ -42,7 +42,7 @@ PoseDifficulty inferDifficulty(String poseName) {
       lower.contains('half moon') ||
       lower.contains('halfmoon') ||
       lower.contains('lotus')) {
-    return PoseDifficulty.advanced;
+    return PoseDifficulty.hard;
   }
   if (lower.contains('triangle') ||
       lower.contains('eagle') ||

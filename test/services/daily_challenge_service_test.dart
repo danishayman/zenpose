@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:zenpose/models/daily_challenge.dart';
+import 'package:zenpose/models/user_rank.dart';
 import 'package:zenpose/services/daily_challenge_service.dart';
 
 void main() {
@@ -91,46 +92,66 @@ void main() {
     });
   });
 
-  group('DailyChallengeService level-based hold policy', () {
-    test('maps XP bands to level correctly', () {
+  group('DailyChallengeService rank-based hold policy', () {
+    test('maps XP bands to rank correctly', () {
       expect(
-        DailyChallengeService.levelFromXp(0),
-        equals(DailyChallengeUserLevel.beginner),
+        DailyChallengeService.rankFromXp(0),
+        equals(UserRankTier.bronze),
       );
       expect(
-        DailyChallengeService.levelFromXp(999),
-        equals(DailyChallengeUserLevel.beginner),
+        DailyChallengeService.rankFromXp(999),
+        equals(UserRankTier.bronze),
       );
       expect(
-        DailyChallengeService.levelFromXp(1000),
-        equals(DailyChallengeUserLevel.intermediate),
+        DailyChallengeService.rankFromXp(1000),
+        equals(UserRankTier.silver),
       );
       expect(
-        DailyChallengeService.levelFromXp(2999),
-        equals(DailyChallengeUserLevel.intermediate),
+        DailyChallengeService.rankFromXp(2999),
+        equals(UserRankTier.silver),
       );
       expect(
-        DailyChallengeService.levelFromXp(3000),
-        equals(DailyChallengeUserLevel.advanced),
+        DailyChallengeService.rankFromXp(3000),
+        equals(UserRankTier.gold),
+      );
+      expect(
+        DailyChallengeService.rankFromXp(7000),
+        equals(UserRankTier.emerald),
+      );
+      expect(
+        DailyChallengeService.rankFromXp(12000),
+        equals(UserRankTier.diamond),
       );
     });
 
-    test('maps level to hold seconds correctly', () {
+    test('maps rank to hold seconds correctly', () {
       expect(
-        DailyChallengeService.holdSecondsForLevel(
-          DailyChallengeUserLevel.beginner,
+        DailyChallengeService.holdSecondsForRank(
+          UserRankTier.bronze,
         ),
         equals(20),
       );
       expect(
-        DailyChallengeService.holdSecondsForLevel(
-          DailyChallengeUserLevel.intermediate,
+        DailyChallengeService.holdSecondsForRank(
+          UserRankTier.silver,
+        ),
+        equals(30),
+      );
+      expect(
+        DailyChallengeService.holdSecondsForRank(
+          UserRankTier.gold,
         ),
         equals(35),
       );
       expect(
-        DailyChallengeService.holdSecondsForLevel(
-          DailyChallengeUserLevel.advanced,
+        DailyChallengeService.holdSecondsForRank(
+          UserRankTier.emerald,
+        ),
+        equals(40),
+      );
+      expect(
+        DailyChallengeService.holdSecondsForRank(
+          UserRankTier.diamond,
         ),
         equals(45),
       );

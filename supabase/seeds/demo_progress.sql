@@ -1,7 +1,7 @@
 -- ZenPose demo progression seed
 -- Resets and reseeds only:
---   beginner@example.com
---   intermediate@example.com
+--   bronze@example.com
+--   silver@example.com
 --   pro@example.com
 --
 -- Run in Supabase SQL Editor with a role that can write to auth-backed tables.
@@ -11,8 +11,8 @@ begin;
 do $$
 declare
   expected_emails constant text[] := array[
-    'beginner@example.com',
-    'intermediate@example.com',
+    'bronze@example.com',
+    'silver@example.com',
     'pro@example.com'
   ];
   missing_emails text[];
@@ -44,14 +44,14 @@ select
   u.id as user_id,
   lower(u.email) as email,
   case lower(u.email)
-    when 'beginner@example.com' then 'beginner'
-    when 'intermediate@example.com' then 'intermediate'
+    when 'bronze@example.com' then 'bronze'
+    when 'silver@example.com' then 'silver'
     when 'pro@example.com' then 'pro'
   end as persona
 from auth.users u
 where lower(u.email) in (
-  'beginner@example.com',
-  'intermediate@example.com',
+  'bronze@example.com',
+  'silver@example.com',
   'pro@example.com'
 );
 
@@ -103,25 +103,25 @@ insert into public.user_stats (
 select
   d.user_id,
   case d.persona
-    when 'beginner' then 2
-    when 'intermediate' then 6
+    when 'bronze' then 2
+    when 'silver' then 6
     when 'pro' then 18
   end as current_streak,
   case d.persona
-    when 'beginner' then 4
-    when 'intermediate' then 12
+    when 'bronze' then 4
+    when 'silver' then 12
     when 'pro' then 31
   end as longest_streak,
   case d.persona
-    when 'beginner' then 480
-    when 'intermediate' then 2680
+    when 'bronze' then 480
+    when 'silver' then 2680
     when 'pro' then 9620
   end as total_xp,
   to_char(
     current_date -
       case d.persona
-        when 'beginner' then interval '1 day'
-        when 'intermediate' then interval '0 day'
+        when 'bronze' then interval '1 day'
+        when 'silver' then interval '0 day'
         when 'pro' then interval '0 day'
       end,
     'YYYY-MM-DD'
@@ -137,8 +137,8 @@ insert into public.weekly_workout_goals (
 select
   d.user_id,
   case d.persona
-    when 'beginner' then 2
-    when 'intermediate' then 4
+    when 'bronze' then 2
+    when 'silver' then 4
     when 'pro' then 7
   end as target_workouts,
   timezone('utc', current_date + time '23:59:58') as updated_at
@@ -149,8 +149,8 @@ with persona_day_counts as (
   select *
   from (
     values
-      ('beginner'::text, array[1,0,1,1,0,1,1,0,1,0,1,1]::int[]),
-      ('intermediate', array[2,1,2,1,1,2,1,1,2,1,1,2,1,1,2,1,1,2,0,1]::int[]),
+      ('bronze'::text, array[1,0,1,1,0,1,1,0,1,0,1,1]::int[]),
+      ('silver', array[2,1,2,1,1,2,1,1,2,1,1,2,1,1,2,1,1,2,0,1]::int[]),
       ('pro', array[3,2,3,2,2,3,2,3,2,2,3,2,3,2,2,3,2,3,2,2,3,2,3,2]::int[])
   ) v(persona, day_counts)
 ),
@@ -193,25 +193,25 @@ select
   s.user_id,
   (array['Downdog', 'Goddess', 'Plank', 'Tree', 'Warrior2'])[1 + ((s.session_idx - 1) % 5)] as pose_name,
   case s.persona
-    when 'beginner' then (64 + ((s.session_idx * 9 + s.day_idx * 3) % 22))::double precision
-    when 'intermediate' then (75 + ((s.session_idx * 7 + s.day_idx * 2) % 20))::double precision
+    when 'bronze' then (64 + ((s.session_idx * 9 + s.day_idx * 3) % 22))::double precision
+    when 'silver' then (75 + ((s.session_idx * 7 + s.day_idx * 2) % 20))::double precision
     when 'pro' then (88 + ((s.session_idx * 5 + s.day_idx) % 11))::double precision
   end as best_score,
   case s.persona
-    when 'beginner' then (260 + ((s.session_idx * 23 + s.day_idx * 7) % 220))::double precision
-    when 'intermediate' then (480 + ((s.session_idx * 29 + s.day_idx * 11) % 420))::double precision
+    when 'bronze' then (260 + ((s.session_idx * 23 + s.day_idx * 7) % 220))::double precision
+    when 'silver' then (480 + ((s.session_idx * 29 + s.day_idx * 11) % 420))::double precision
     when 'pro' then (900 + ((s.session_idx * 37 + s.day_idx * 13) % 780))::double precision
   end as hold_duration,
   true as completed,
   case s.persona
-    when 'beginner' then
+    when 'bronze' then
       timezone(
         'utc',
         ((current_date - (s.day_idx - 1)::int) + time '19:00')
           + ((s.session_in_day - 1) * interval '2 hour 10 minute')
           + (((s.day_idx + s.session_in_day) % 3) * interval '17 minute')
       )
-    when 'intermediate' then
+    when 'silver' then
       timezone(
         'utc',
         ((current_date - (s.day_idx - 1)::int) + time '12:30')
@@ -229,7 +229,7 @@ select
   'practice'::text as session_type,
   true as gamification_processed,
   case s.persona
-    when 'beginner' then
+    when 'bronze' then
       timezone(
         'utc',
         ((current_date - (s.day_idx - 1)::int) + time '19:00')
@@ -237,7 +237,7 @@ select
           + (((s.day_idx + s.session_in_day) % 3) * interval '17 minute')
           + interval '4 minute'
       )
-    when 'intermediate' then
+    when 'silver' then
       timezone(
         'utc',
         ((current_date - (s.day_idx - 1)::int) + time '12:30')
@@ -261,11 +261,11 @@ with badge_map as (
   select *
   from (
     values
-      ('beginner'::text, 'first_completion'::text, 8::int),
-      ('intermediate', 'first_completion', 45),
-      ('intermediate', 'sessions_5', 30),
-      ('intermediate', 'streak_3', 24),
-      ('intermediate', 'high_score_90', 14),
+      ('bronze'::text, 'first_completion'::text, 8::int),
+      ('silver', 'first_completion', 45),
+      ('silver', 'sessions_5', 30),
+      ('silver', 'streak_3', 24),
+      ('silver', 'high_score_90', 14),
       ('pro', 'first_completion', 90),
       ('pro', 'sessions_5', 86),
       ('pro', 'sessions_25', 60),
@@ -310,13 +310,13 @@ with measure_plan as (
     metric.metric_key,
     metric.unit,
     case d.persona
-      when 'beginner' then 4
-      when 'intermediate' then 8
+      when 'bronze' then 4
+      when 'silver' then 8
       when 'pro' then 12
     end as sample_count,
     case d.persona
-      when 'beginner' then interval '10 day'
-      when 'intermediate' then interval '7 day'
+      when 'bronze' then interval '10 day'
+      when 'silver' then interval '7 day'
       when 'pro' then interval '5 day'
     end as step_span
   from _demo_users d
@@ -348,18 +348,18 @@ select
     case
       when r.metric_key = 'body_weight' then
         case r.persona
-          when 'beginner' then
+          when 'bronze' then
             78.0 - ((r.sample_idx - 1) * 0.10) + (((r.sample_idx % 3) - 1) * 0.05)
-          when 'intermediate' then
+          when 'silver' then
             74.5 - ((r.sample_idx - 1) * 0.18) + (((r.sample_idx % 4) - 2) * 0.03)
           when 'pro' then
             70.0 - ((r.sample_idx - 1) * 0.12) + (((r.sample_idx % 5) - 2) * 0.02)
         end
       when r.metric_key = 'body_fat' then
         case r.persona
-          when 'beginner' then
+          when 'bronze' then
             27.0 - ((r.sample_idx - 1) * 0.12) + (((r.sample_idx % 2) - 0.5) * 0.10)
-          when 'intermediate' then
+          when 'silver' then
             22.0 - ((r.sample_idx - 1) * 0.20) + (((r.sample_idx % 3) - 1) * 0.06)
           when 'pro' then
             16.5 - ((r.sample_idx - 1) * 0.10) + (((r.sample_idx % 4) - 1.5) * 0.04)
@@ -403,17 +403,17 @@ select
   t.user_id,
   t.today_key,
   case t.persona
-    when 'beginner' then 'in_progress'
+    when 'bronze' then 'in_progress'
     else 'completed'
   end as status,
   case t.persona
-    when 'beginner' then 1
+    when 'bronze' then 1
     else 0
   end as skip_count,
   5 as total_steps,
   timezone('utc', current_date + time '06:00') as started_at,
   case t.persona
-    when 'beginner' then null
+    when 'bronze' then null
     else timezone('utc', current_date + time '06:38')
   end as completed_at,
   timezone('utc', current_date + time '06:45') as updated_at,
@@ -454,22 +454,22 @@ select
   s.step_index,
   s.pose_name,
   case
-    when t.persona = 'beginner' and s.step_index in (0, 1) then 'completed'
-    when t.persona = 'beginner' and s.step_index = 2 then 'skipped'
-    when t.persona = 'beginner' then 'pending'
+    when t.persona = 'bronze' and s.step_index in (0, 1) then 'completed'
+    when t.persona = 'bronze' and s.step_index = 2 then 'skipped'
+    when t.persona = 'bronze' then 'pending'
     else 'completed'
   end as status,
   case
-    when t.persona = 'beginner' and s.step_index = 0 then 73.0
-    when t.persona = 'beginner' and s.step_index = 1 then 76.0
-    when t.persona = 'intermediate' then (82 + (s.step_index * 2))::double precision
+    when t.persona = 'bronze' and s.step_index = 0 then 73.0
+    when t.persona = 'bronze' and s.step_index = 1 then 76.0
+    when t.persona = 'silver' then (82 + (s.step_index * 2))::double precision
     when t.persona = 'pro' then (93 + s.step_index)::double precision
     else null
   end as best_score,
   case
-    when t.persona = 'beginner' and s.step_index = 0 then 48.0
-    when t.persona = 'beginner' and s.step_index = 1 then 52.0
-    when t.persona = 'intermediate' then (72 + (s.step_index * 6))::double precision
+    when t.persona = 'bronze' and s.step_index = 0 then 48.0
+    when t.persona = 'bronze' and s.step_index = 1 then 52.0
+    when t.persona = 'silver' then (72 + (s.step_index * 6))::double precision
     when t.persona = 'pro' then (104 + (s.step_index * 8))::double precision
     else null
   end as hold_duration,
@@ -522,8 +522,8 @@ select
   c.month_key,
   c.challenge_id,
   case
-    when c.persona = 'beginner' then 'joined'
-    when c.persona = 'intermediate' and c.challenge_id in ('sessions_20', 'minutes_120', 'score_90_x5') then 'completed'
+    when c.persona = 'bronze' then 'joined'
+    when c.persona = 'silver' and c.challenge_id in ('sessions_20', 'minutes_120', 'score_90_x5') then 'completed'
     when c.persona = 'pro' and c.challenge_id in ('sessions_40', 'minutes_600') then 'joined'
     else 'completed'
   end as status,
@@ -537,8 +537,8 @@ select
       + interval '9 hour'
   ) as joined_at,
   case
-    when c.persona = 'beginner' then null
-    when c.persona = 'intermediate' and c.challenge_id in ('sessions_20', 'minutes_120', 'score_90_x5') then
+    when c.persona = 'bronze' then null
+    when c.persona = 'silver' and c.challenge_id in ('sessions_20', 'minutes_120', 'score_90_x5') then
       timezone('utc', (current_date + time '19:00') - interval '2 day')
     when c.persona = 'pro' and c.challenge_id in ('sessions_40', 'minutes_600') then
       null
@@ -550,8 +550,8 @@ select
     else null
   end as claimed_at,
   case
-    when c.persona = 'beginner' then null
-    when c.persona = 'intermediate' and c.challenge_id in ('sessions_20', 'minutes_120', 'score_90_x5') then c.reward_badge_label
+    when c.persona = 'bronze' then null
+    when c.persona = 'silver' and c.challenge_id in ('sessions_20', 'minutes_120', 'score_90_x5') then c.reward_badge_label
     when c.persona = 'pro' and c.challenge_id not in ('sessions_40', 'minutes_600') then c.reward_badge_label
     else null
   end as reward_badge_label,
@@ -564,7 +564,7 @@ commit;
 -- select u.email, count(*) as workouts
 -- from public.pose_results pr
 -- join auth.users u on u.id = pr.user_id
--- where lower(u.email) in ('beginner@example.com', 'intermediate@example.com', 'pro@example.com')
+-- where lower(u.email) in ('bronze@example.com', 'silver@example.com', 'pro@example.com')
 -- group by u.email
 -- order by u.email;
 --
@@ -572,12 +572,13 @@ commit;
 -- from public.user_stats us
 -- join public.weekly_workout_goals wg on wg.user_id = us.user_id
 -- join auth.users u on u.id = us.user_id
--- where lower(u.email) in ('beginner@example.com', 'intermediate@example.com', 'pro@example.com')
+-- where lower(u.email) in ('bronze@example.com', 'silver@example.com', 'pro@example.com')
 -- order by u.email;
 --
 -- select u.email, upc.status, count(*) as challenge_rows
 -- from public.user_profile_challenges upc
 -- join auth.users u on u.id = upc.user_id
--- where lower(u.email) in ('beginner@example.com', 'intermediate@example.com', 'pro@example.com')
+-- where lower(u.email) in ('bronze@example.com', 'silver@example.com', 'pro@example.com')
 -- group by u.email, upc.status
 -- order by u.email, upc.status;
+

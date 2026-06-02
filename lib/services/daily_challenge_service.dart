@@ -4,13 +4,17 @@ import '../constants/session_launch_config.dart';
 import '../models/challenge_step_result.dart';
 import '../models/daily_challenge.dart';
 import '../models/daily_challenge_step.dart';
+import '../models/exercise_definition.dart';
 import '../models/pose_result.dart';
 import '../models/pose_template.dart';
 import '../models/unlocked_badge.dart';
 import '../models/user_rank.dart';
+import 'admin_management_service.dart';
+import 'auth_context.dart';
 import 'database_service.dart';
 import 'gamification_service.dart';
 import 'pose_template_service.dart';
+import 'user_rank_service.dart';
 
 class DailyChallengeStepProcessResult {
   final DailyChallengeBundle bundle;
@@ -36,21 +40,23 @@ class DailyChallengeStepProcessResult {
   });
 }
 
-enum DailyChallengeUserLevel { beginner, intermediate, advanced }
-
 /// Local offline daily challenge orchestration.
 class DailyChallengeService {
   final DatabaseService _databaseService;
   final PoseTemplateService _templateService;
   final GamificationService _gamificationService;
+  final AdminManagementService _adminManagementService;
 
   DailyChallengeService({
     DatabaseService? databaseService,
     PoseTemplateService? templateService,
     GamificationService? gamificationService,
+    AdminManagementService? adminManagementService,
   }) : _databaseService = databaseService ?? DatabaseService.instance,
        _templateService = templateService ?? PoseTemplateService(),
-       _gamificationService = gamificationService ?? GamificationService();
+       _gamificationService = gamificationService ?? GamificationService(),
+       _adminManagementService =
+           adminManagementService ?? AdminManagementService();
 
   static const int totalSteps = 5;
   static const int maxSkips = 1;
@@ -63,11 +69,11 @@ class DailyChallengeService {
   static const double challengeScoreThreshold = 70;
   static const double caloriesPerActiveSecond = 0.08;
 
-  static const int beginnerMaxXp = 999;
-  static const int intermediateMaxXp = 2999;
-  static const int beginnerChallengeHoldSeconds = 20;
-  static const int intermediateChallengeHoldSeconds = 35;
-  static const int advancedChallengeHoldSeconds = 45;
+  static const int bronzeChallengeHoldSeconds = 20;
+  static const int silverChallengeHoldSeconds = 30;
+  static const int goldChallengeHoldSeconds = 35;
+  static const int emeraldChallengeHoldSeconds = 40;
+  static const int diamondChallengeHoldSeconds = 45;
 
   static String dateKeyFromDate(DateTime date) {
     final local = date.toLocal();
@@ -91,26 +97,22 @@ class DailyChallengeService {
 
   static bool canSkip(int currentSkipCount) => currentSkipCount < maxSkips;
 
-  static DailyChallengeUserLevel levelFromXp(int totalXp) {
-    if (totalXp <= beginnerMaxXp) {
-      return DailyChallengeUserLevel.beginner;
-    }
-    if (totalXp <= intermediateMaxXp) {
-      return DailyChallengeUserLevel.intermediate;
-    }
-    return DailyChallengeUserLevel.advanced;
+  static UserRankTier rankFromXp(int totalXp) {
+    return UserRankService.rankForXp(totalXp);
   }
 
-  static int holdSecondsForLevel(DailyChallengeUserLevel level) {
-    return switch (level) {
-      DailyChallengeUserLevel.beginner => beginnerChallengeHoldSeconds,
-      DailyChallengeUserLevel.intermediate => intermediateChallengeHoldSeconds,
-      DailyChallengeUserLevel.advanced => advancedChallengeHoldSeconds,
+  static int holdSecondsForRank(UserRankTier rank) {
+    return switch (rank) {
+      UserRankTier.bronze => bronzeChallengeHoldSeconds,
+      UserRankTier.silver => silverChallengeHoldSeconds,
+      UserRankTier.gold => goldChallengeHoldSeconds,
+      UserRankTier.emerald => emeraldChallengeHoldSeconds,
+      UserRankTier.diamond => diamondChallengeHoldSeconds,
     };
   }
 
   static int holdSecondsForXp(int totalXp) {
-    return holdSecondsForLevel(levelFromXp(totalXp));
+    return holdSecondsForRank(rankFromXp(totalXp));
   }
 
   static int targetHoldSecondsForChallenge(DailyChallenge challenge) {
@@ -169,10 +171,9 @@ class DailyChallengeService {
     }
 
     final templates = await _templateService.loadTemplates();
-    final sequence = buildDeterministicSequence(
-      poseNames: templates.map((t) => t.name).toList(),
+    final sequence = await _buildChallengeSequence(
       dateKey: dateKey,
-      take: totalSteps,
+      templates: templates,
     );
 
     final createdAt = DateTime.now();
@@ -609,5 +610,56 @@ class DailyChallengeService {
       counts[pose] = remaining - 1;
     }
     return counts.values.every((count) => count == 0);
+  }
+
+  Future<List<String>> _buildChallengeSequence({
+    required String dateKey,
+    required List<PoseTemplate> templates,
+  }) async {
+    final poseNames = templates.map((t) => t.name).toList(growable: false);
+    final fallback = buildDeterministicSequence(
+      poseNames: poseNames,
+      dateKey: dateKey,
+      take: totalSteps,
+    );
+    try {
+      final activeExercises = await _adminManagementService.listExercises(
+        activeOnly: true,
+      );
+      final selected = _pickExerciseForDate(
+        dateKey: dateKey,
+        activeExercises: activeExercises,
+      );
+      if (selected == null || selected.steps.isEmpty) {
+        return fallback;
+      }
+      final normalizedTemplateNames = <String>{
+        for (final template in templates) _normalizePoseName(template.name),
+      };
+      final steps = selected.steps
+          .where((step) => normalizedTemplateNames.contains(_normalizePoseName(step.poseName)))
+          .toList(growable: false);
+      if (steps.isEmpty) {
+        return fallback;
+      }
+      return steps.map((step) => step.poseName).toList(growable: false);
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  ExerciseDefinition? _pickExerciseForDate({
+    required String dateKey,
+    required List<ExerciseDefinition> activeExercises,
+  }) {
+    if (activeExercises.isEmpty) return null;
+    final key = '$dateKey:${AuthContext.activeUserId}';
+    final seed = key.codeUnits.fold<int>(23, (acc, code) => (acc * 37) + code);
+    final index = seed.abs() % activeExercises.length;
+    return activeExercises[index];
+  }
+
+  String _normalizePoseName(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
   }
 }

@@ -59,7 +59,7 @@ void main() {
       ]);
     });
 
-    test('suppresses speech when no user is detected', () async {
+    test('allows speech when no user is detected', () async {
       final speaker = _FakeSpeaker();
       final service = VoiceCueService(speaker: speaker);
 
@@ -68,8 +68,8 @@ void main() {
         WorkoutGuidanceState.noUserDetected,
       );
 
-      expect(spoken, isFalse);
-      expect(speaker.spoken, isEmpty);
+      expect(spoken, isTrue);
+      expect(speaker.spoken, <String>['Step into frame']);
     });
 
     test('mutes speech shortly after unspeakable states', () async {
@@ -83,8 +83,8 @@ void main() {
       final t0 = DateTime(2026, 3, 14, 10, 0, 0);
 
       final unspeakable = await service.speakIfAllowed(
-        'Hold still',
-        WorkoutGuidanceState.unstablePose,
+        'Completed',
+        WorkoutGuidanceState.completed,
         now: t0,
       );
       final mutedAfterRecovery = await service.speakIfAllowed(
@@ -104,7 +104,7 @@ void main() {
       expect(speaker.spoken, <String>['Raise your right arm']);
     });
 
-    test('suppresses speech when pose is unstable', () async {
+    test('allows speech when pose is unstable', () async {
       final speaker = _FakeSpeaker();
       final service = VoiceCueService(speaker: speaker);
 
@@ -113,8 +113,42 @@ void main() {
         WorkoutGuidanceState.unstablePose,
       );
 
-      expect(spoken, isFalse);
-      expect(speaker.spoken, isEmpty);
+      expect(spoken, isTrue);
+      expect(speaker.spoken, <String>['Hold still']);
+    });
+
+    test('supports periodic refresh for repeated coaching cues', () async {
+      final speaker = _FakeSpeaker();
+      final service = VoiceCueService(
+        speaker: speaker,
+        cooldown: const Duration(seconds: 2),
+        repeatInterval: const Duration(seconds: 6),
+      );
+      final t0 = DateTime(2026, 3, 14, 10, 0, 0);
+
+      final first = await service.speakIfAllowed(
+        'Raise your right arm',
+        WorkoutGuidanceState.aligning,
+        now: t0,
+      );
+      final blockedRepeat = await service.speakIfAllowed(
+        'Raise your right arm',
+        WorkoutGuidanceState.aligning,
+        now: t0.add(const Duration(seconds: 4)),
+      );
+      final refreshedRepeat = await service.speakIfAllowed(
+        'Raise your right arm',
+        WorkoutGuidanceState.aligning,
+        now: t0.add(const Duration(seconds: 7)),
+      );
+
+      expect(first, isTrue);
+      expect(blockedRepeat, isFalse);
+      expect(refreshedRepeat, isTrue);
+      expect(speaker.spoken, <String>[
+        'Raise your right arm',
+        'Raise your right arm',
+      ]);
     });
   });
 }

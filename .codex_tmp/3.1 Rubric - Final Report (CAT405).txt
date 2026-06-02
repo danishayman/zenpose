@@ -1,0 +1,205 @@
+
+
+===== PAGE 1 =====
+Page 1 of 2 
+ 
+ 
+ 
+CAT 405 – Intelligent Computing 
+ 
+ 
+3.1 CAT 405 – Intelligent Computing: Rubric Final - Report (10%) 
+ 
+ 
+Criteria Weight Excellent/Good 
+A/A- 
+Moderate 
+B+/B/B- Fair 
+C+/C/C- 
+Poor 
+D+/D/D-/F 
+ 
+CLO2 (PLO3) - Applying programming method and research/algorithm to develop systems. 
+ 
+ 
+ 
+ 
+ 
+Contents 
+40% 1. Excellent in describing a problem 
+statement with proper references. 
+2. Excellent in describing existing 
+system/solution and existing 
+method/technique/algorithm 
+3. Excellent in describing Data set/ 
+source. (If necessary) 
+4. Excellent in showing the planning (e.g., 
+Gantt Chart). 
+5. Excellent in describing the output of 
+the system and conclusion. 
+6. Excellently written the report that 
+fulfils the grammar rules and can 
+deliver the correct meaning. 
+7. Excellently follow the report format. 
+The tables and figures have the proper 
+captions 
+8. Excellently written citations and 
+references with a proper format. 
+1. Moderately in describing a 
+problem statement with 
+references. 
+2. Moderately in describing existing 
+system/solution and existing 
+method/technique/algorithm 
+3. Moderately in describing Data set/ 
+source. (If necessary) 
+4. Moderately in showing the 
+planning (e.g., Gantt Chart). 
+5. Moderately in describing the 
+output of the system and 
+conclusion. 
+6. Moderately written the report that 
+fulfils the grammar rules and can 
+deliver the correct meaning. 
+7. Follow the report format. The tables 
+and figures have the proper 
+captions. 
+8. Adequately written citations and 
+references 
+1. Fairly in describing a problem 
+statement. 
+2. Fairly in describing existing 
+system/solution and existing 
+method/technique/algorithm 
+3. Fairly in describing Data source, 
+training, and testing. (If necessary) 
+4. Fairly in showing the planning 
+(e.g., Gantt Chart). 
+5. Fairly in describing the output of 
+the system and conclusion. 
+6. Fairly written the report that fulfils 
+the grammar rules and can deliver 
+the correct meaning that impairs 
+the flow of communication. 
+7. Format of report can be improved. 
+Tables and figures can be 
+improved. 
+8. Citations and references are 
+given occasionally. 
+1. Poorly in describing a problem 
+statement. 
+2. Poorly in describing existing 
+system/solution and existing 
+method/technique/algorithm 
+3. Not describing data source, 
+training, and testing. (if necessary) 
+4. Not showing the planning 
+(e.g., Gantt Chart). 
+5. Poorly/unable in describing the 
+output of the system and 
+conclusion. 
+6. Poorly written the report and not 
+fulfil the grammar rules and is 
+unable to deliver the correct 
+meaning that impairs the flow of 
+communication. 
+7. Not follow the report format. 
+Tables, figures, and references are 
+incomplete and incorrect. 
+8. Citations and references poorly 
+written 
+
+===== PAGE 2 =====
+Page 2 of 2 
+ 
+ 
+ 
+Description of 
+System 
+Implementation 
+20% 1. Excellent description of a solution 
+using Intelligent method(s). 
+2. Excellently demonstrate overall 
+modules & system architecture 
+3. Excellently specify and describe the 
+methods/approaches used with 
+justification to solve a problem. 
+4. Excellent in describing the 
+implementation of the 
+method/approach in the system. 
+1. Moderately describe a solution to a 
+problem using intelligent method(s). 
+2. Moderately demonstrate overall 
+modules and system architecture. 
+3. Moderately specify and describe the 
+method/approaches used to solve a 
+problem. 
+4. Moderately in describing the 
+implementation of the 
+method/approach in the system 
+1. Fairly in describing a solution to a 
+problem. 
+2. Fairly demonstrate overall 
+modules and system architecture 
+3. Fairly specify and describe the 
+method/approaches used to 
+solve a problem. 
+4. Fairly in describing the 
+implementation of the 
+method/approach in the system 
+1. Poorly in describing a solution to 
+a problem. 
+2. Poorly / not demonstrate overall 
+modules and system architecture 
+3. Poorly/ does not specify and 
+describe methods/approaches 
+used to solve a problem. 
+4. Poorly or unable in describing 
+the implementation of the 
+method/approach in the system 
+ 
+ 
+CLO5 (PLO7) - Relate existing literatures with new ideas in conducting the project. 
+ 
+ 
+Organisation 
+Skill 
+20% 1. The report is excellently organized 
+and contains all the required related 
+background study and existing 
+solutions 
+2. Excellently in describing the existing 
+solution or similar system. 
+1. The report is moderately organized 
+and contains most of the required 
+related background study and 
+existing solutions 
+2. Moderately in describing existing 
+solution or similar system 
+1. The report is fairly organized and 
+contains some the required related 
+background study and existing 
+solutions 
+2. Fairly in describing existing 
+solution or similar system 
+1. The report is poorly 
+organized and does not 
+contain the related 
+background study and 
+existing solutions 
+2. Poorly in describing existing 
+solution  or similar system 
+ 
+Ability to relate 
+to the SDG 
+Alignment 
+ 
+20% The problem addressed to be solved 
+excellently meet any of the SDG 
+The problem addressed to be solved 
+meets the SDG 
+The problem addressed to be solved 
+occasionally meet the SDG 
+The problem addressed to be solved 
+does not meet the SDG 
+ 

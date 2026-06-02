@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../theme/zen_theme.dart';
+import 'admin_screen.dart';
 import 'home_screen.dart';
 import 'pose_selection_screen.dart';
 import 'profile_screen.dart';
@@ -17,50 +19,97 @@ class AppShellScreen extends StatefulWidget {
 
 class _AppShellScreenState extends State<AppShellScreen>
     with SingleTickerProviderStateMixin {
+  final AuthService _authService = AuthService.instance;
   int _tabIndex = 0;
 
-  late final List<Widget> _tabs =
-      widget.tabsOverride ??
-      const <Widget>[
-        HomeScreen(),
-        PoseSelectionScreen(),
-        ProgressDashboardScreen(),
-        ProfileScreen(),
-      ];
+  List<Widget> _buildTabs(bool includeAdmin) {
+    if (widget.tabsOverride != null) return widget.tabsOverride!;
+    return <Widget>[
+      const HomeScreen(),
+      const PoseSelectionScreen(),
+      const ProgressDashboardScreen(),
+      const ProfileScreen(),
+      if (includeAdmin) const AdminScreen(),
+    ];
+  }
+
+  List<NavigationDestination> _buildDestinations(bool includeAdmin) {
+    return <NavigationDestination>[
+      const NavigationDestination(
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home_rounded),
+        label: 'Home',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.self_improvement_outlined),
+        selectedIcon: Icon(Icons.self_improvement),
+        label: 'Practice',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.bar_chart_outlined),
+        selectedIcon: Icon(Icons.bar_chart_rounded),
+        label: 'Progress',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.person_outline_rounded),
+        selectedIcon: Icon(Icons.person_rounded),
+        label: 'Profile',
+      ),
+      if (includeAdmin)
+        const NavigationDestination(
+          icon: Icon(Icons.admin_panel_settings_outlined),
+          selectedIcon: Icon(Icons.admin_panel_settings_rounded),
+          label: 'Admin',
+        ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: Container(
-        decoration: ZenDecor.gradientBackdrop(),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 280),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (child, animation) {
-            return FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.03),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
+    return ValueListenableBuilder<AuthState>(
+      valueListenable: _authService.authState,
+      builder: (context, auth, _) {
+        final includeAdmin =
+            widget.tabsOverride == null && auth.isAdmin && auth.isAccountActive;
+        final tabs = _buildTabs(includeAdmin);
+        final destinations = _buildDestinations(includeAdmin);
+        if (_tabIndex >= tabs.length) {
+          _tabIndex = tabs.length - 1;
+        }
+
+        return Scaffold(
+          extendBody: true,
+          body: Container(
+            decoration: ZenDecor.gradientBackdrop(),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.03),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey<int>(_tabIndex),
+                child: tabs[_tabIndex],
               ),
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey<int>(_tabIndex),
-            child: _tabs[_tabIndex],
+            ),
           ),
-        ),
-      ),
-      bottomNavigationBar: _buildNavBar(),
+          bottomNavigationBar: _buildNavBar(destinations),
+        );
+      },
     );
   }
 
-  Widget _buildNavBar() {
+  Widget _buildNavBar(List<NavigationDestination> destinations) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Container(
@@ -88,28 +137,7 @@ class _AppShellScreenState extends State<AppShellScreen>
             labelBehavior:
                 NavigationDestinationLabelBehavior.alwaysShow,
             animationDuration: const Duration(milliseconds: 250),
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: 'Home',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.self_improvement_outlined),
-                selectedIcon: Icon(Icons.self_improvement),
-                label: 'Practice',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.bar_chart_outlined),
-                selectedIcon: Icon(Icons.bar_chart_rounded),
-                label: 'Progress',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: 'Profile',
-              ),
-            ],
+            destinations: destinations,
           ),
         ),
       ),

@@ -13,6 +13,7 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final AuthService _authService = AuthService.instance;
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isRegisterMode = false;
@@ -42,7 +43,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
       if (code == 'over_request_rate_limit' ||
           code == 'too_many_requests' ||
-          code == 'rate_limit_exceeded') {
+          code == 'rate_limit_exceeded' ||
+          message.contains('rate limit')) {
         return 'Too many attempts. Please wait a moment and try again.';
       }
 
@@ -75,14 +77,26 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _submitEmailAuth() async {
+    final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+
+    if (_isRegisterMode && username.isEmpty) {
+      setState(() => _error = 'Please choose a username.');
+      return;
+    }
+
+    if (_isRegisterMode && username.length < 3) {
+      setState(() => _error = 'Username must be at least 3 characters.');
+      return;
+    }
 
     if (email.isEmpty) {
       setState(() => _error = 'Please enter your email address.');
@@ -100,7 +114,11 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     try {
       if (_isRegisterMode) {
-        await _authService.signUpWithEmail(email: email, password: password);
+        await _authService.signUpWithEmail(
+          email: email,
+          password: password,
+          username: username,
+        );
       } else {
         await _authService.signInWithEmail(email: email, password: password);
       }
@@ -149,13 +167,27 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Sign in to sync your progress across devices.',
+                        _isRegisterMode
+                            ? 'Create your account to sync progress and personalize your profile.'
+                            : 'Sign in to sync your progress across devices.',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 18),
+                      if (_isRegisterMode) ...[
+                        TextField(
+                          controller: _usernameController,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Username',
+                            prefixIcon: Icon(Icons.person_outline_rounded),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
                         decoration: const InputDecoration(
                           labelText: 'Email',
                           prefixIcon: Icon(Icons.mail_outline_rounded),
@@ -204,9 +236,10 @@ class _AuthScreenState extends State<AuthScreen> {
                       TextButton(
                         onPressed: _loading
                             ? null
-                            : () => setState(
-                                () => _isRegisterMode = !_isRegisterMode,
-                              ),
+                            : () => setState(() {
+                                _isRegisterMode = !_isRegisterMode;
+                                _error = null;
+                              }),
                         child: Text(
                           _isRegisterMode
                               ? 'Already have an account? Sign in'

@@ -37,8 +37,8 @@ class VoiceCueService {
 
   VoiceCueService({
     required VoiceSpeaker speaker,
-    this.cooldown = const Duration(seconds: 6),
-    this.repeatInterval = const Duration(seconds: 12),
+    this.cooldown = const Duration(seconds: 3),
+    this.repeatInterval = const Duration(seconds: 6),
     this.postUnspeakableMute = const Duration(milliseconds: 1200),
   }) : _speaker = speaker;
 
@@ -82,6 +82,8 @@ class VoiceCueService {
   }
 
   bool _isSpeakableState(WorkoutGuidanceState state) =>
+      state == WorkoutGuidanceState.noUserDetected ||
+      state == WorkoutGuidanceState.unstablePose ||
       state == WorkoutGuidanceState.aligning ||
       state == WorkoutGuidanceState.holding;
 
