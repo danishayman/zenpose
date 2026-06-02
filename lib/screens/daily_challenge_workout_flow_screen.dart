@@ -262,13 +262,21 @@ class _DailyChallengeWorkoutFlowScreenState
         _redoStepIndexes.remove(step.stepIndex) ||
         step.status != DailyChallengeStepStatus.pending;
     try {
+      final previousBundle = _bundle;
       final process = await _challengeService.completeTimedStep(
         dateKey: widget.dateKey,
         stepIndex: step.stepIndex,
         stepResult: result,
         allowOverwrite: shouldOverwrite,
       );
-      _bundle = process.bundle;
+      _bundle = process.applied
+          ? _mergeAppliedStepResult(
+              previousBundle: previousBundle,
+              serviceBundle: process.bundle,
+              stepIndex: step.stepIndex,
+              stepResult: result,
+            )
+          : process.bundle;
       if (process.applied) {
         _sessionXpEarned += process.xpGained;
         _sessionBadges.addAll(process.unlockedBadges);
@@ -334,6 +342,49 @@ class _DailyChallengeWorkoutFlowScreenState
       }
       setState(() => _restRemainingSeconds -= 1);
     });
+  }
+
+  DailyChallengeBundle _mergeAppliedStepResult({
+    required DailyChallengeBundle? previousBundle,
+    required DailyChallengeBundle serviceBundle,
+    required int stepIndex,
+    required ChallengeStepResult stepResult,
+  }) {
+    final previousByIndex = <int, DailyChallengeStep>{
+      for (final step in previousBundle?.steps ?? const <DailyChallengeStep>[])
+        step.stepIndex: step,
+    };
+    final now = stepResult.completedAt;
+    final mergedSteps = serviceBundle.steps
+        .map((serviceStep) {
+          final previousStep = previousByIndex[serviceStep.stepIndex];
+          if (serviceStep.stepIndex == stepIndex) {
+            return serviceStep.copyWith(
+              status: DailyChallengeStepStatus.completed,
+              bestScore: stepResult.bestScore,
+              holdDuration: stepResult.holdDuration,
+              updatedAt: now,
+            );
+          }
+          if (serviceStep.status == DailyChallengeStepStatus.pending &&
+              previousStep != null &&
+              previousStep.status != DailyChallengeStepStatus.pending) {
+            return previousStep;
+          }
+          return serviceStep;
+        })
+        .toList(growable: false);
+    final pending = mergedSteps
+        .where((step) => step.status == DailyChallengeStepStatus.pending)
+        .length;
+    final challenge = pending == 0
+        ? serviceBundle.challenge.copyWith(
+            status: DailyChallengeStatus.completed,
+            completedAt: serviceBundle.challenge.completedAt ?? now,
+            updatedAt: now,
+          )
+        : serviceBundle.challenge;
+    return DailyChallengeBundle(challenge: challenge, steps: mergedSteps);
   }
 
   Future<void> _editRestTime() async {

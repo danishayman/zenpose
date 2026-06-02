@@ -20,6 +20,7 @@ class _FakeDailyChallengeService extends DailyChallengeService {
   final List<PoseTemplate> templates;
   final List<bool> overwriteFlags = <bool>[];
   bool throwOnCompleteTimedStep = false;
+  bool returnStaleProcessBundle = false;
   int saveSummaryCalls = 0;
   String? savedFeedback;
 
@@ -49,6 +50,7 @@ class _FakeDailyChallengeService extends DailyChallengeService {
       throw StateError('forced failure');
     }
     overwriteFlags.add(allowOverwrite);
+    final staleBundle = _bundle;
     final now = DateTime(2026, 3, 27, 12, 0, overwriteFlags.length);
     final updatedSteps = _bundle.steps
         .map((step) {
@@ -73,7 +75,7 @@ class _FakeDailyChallengeService extends DailyChallengeService {
     );
     _bundle = DailyChallengeBundle(challenge: challenge, steps: updatedSteps);
     return DailyChallengeStepProcessResult(
-      bundle: _bundle,
+      bundle: returnStaleProcessBundle ? staleBundle : _bundle,
       xpGained: allowOverwrite ? 0 : 10,
       xpBefore: allowOverwrite ? 110 : 900,
       xpAfter: allowOverwrite ? 110 : 910,
@@ -529,6 +531,80 @@ void main() {
       expect(find.text('Get Ready'), findsNothing);
     },
   );
+
+  testWidgets('final next opens completion even when saved bundle is stale', (
+    tester,
+  ) async {
+    final now = DateTime(2026, 3, 27, 10, 0, 0);
+    final challenge = DailyChallenge(
+      dateKey: '2026-03-27',
+      status: DailyChallengeStatus.inProgress,
+      skipCount: 0,
+      totalSteps: 2,
+      startedAt: now,
+      completedAt: null,
+      updatedAt: now,
+      sequence: const <String>['Downdog', 'Tree'],
+    );
+    final steps = <DailyChallengeStep>[
+      DailyChallengeStep(
+        dateKey: '2026-03-27',
+        stepIndex: 0,
+        poseName: 'Downdog',
+        status: DailyChallengeStepStatus.pending,
+        bestScore: null,
+        holdDuration: null,
+        updatedAt: now,
+      ),
+      DailyChallengeStep(
+        dateKey: '2026-03-27',
+        stepIndex: 1,
+        poseName: 'Tree',
+        status: DailyChallengeStepStatus.pending,
+        bestScore: null,
+        holdDuration: null,
+        updatedAt: now,
+      ),
+    ];
+    final service = _FakeDailyChallengeService(
+      bundle: DailyChallengeBundle(challenge: challenge, steps: steps),
+      templates: <PoseTemplate>[
+        _template('downdog', 'Downdog'),
+        _template('tree', 'Tree'),
+      ],
+    )..returnStaleProcessBundle = true;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DailyChallengeWorkoutFlowScreen(
+          dateKey: '2026-03-27',
+          challengeService: service,
+          punishmentService: _NoOpPunishmentService(),
+          evaluatorBuilder: (_) =>
+              const _EvaluatorStub(action: ChallengeStepNavigationAction.next),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    await tester.pump(const Duration(seconds: _readyCountdownSeconds));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('NEXT'));
+    await tester.pumpAndSettle();
+    expect(find.text('REST'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Skip'));
+    await tester.tap(find.text('Skip'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('NEXT'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Great session completed!'), findsOneWidget);
+    expect(find.text('REST'), findsNothing);
+  });
 
   testWidgets(
     'previous action rewinds and next completion overwrites previous step',
