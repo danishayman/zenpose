@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zenpose/models/workout_guidance_snapshot.dart';
 import 'package:zenpose/services/voice_cue_service.dart';
@@ -15,6 +17,20 @@ class _FakeSpeaker implements VoiceSpeaker {
   Future<void> stop() async {
     stopCalls += 1;
   }
+}
+
+class _SlowSpeaker implements VoiceSpeaker {
+  final List<String> spoken = <String>[];
+  final Completer<void> completer = Completer<void>();
+
+  @override
+  Future<void> speak(String message) {
+    spoken.add(message);
+    return completer.future;
+  }
+
+  @override
+  Future<void> stop() async {}
 }
 
 void main() {
@@ -149,6 +165,34 @@ void main() {
         'Raise your right arm',
         'Raise your right arm',
       ]);
+    });
+
+    test('blocks new prompts while speech is still playing', () async {
+      final speaker = _SlowSpeaker();
+      final service = VoiceCueService(
+        speaker: speaker,
+        cooldown: Duration.zero,
+        repeatInterval: Duration.zero,
+      );
+      final t0 = DateTime(2026, 3, 14, 10, 0, 0);
+
+      final first = service.speakIfAllowed(
+        'Raise your right arm',
+        WorkoutGuidanceState.aligning,
+        now: t0,
+      );
+      await Future<void>.delayed(Duration.zero);
+      final blockedWhileSpeaking = await service.speakIfAllowed(
+        'Straighten your left leg',
+        WorkoutGuidanceState.aligning,
+        now: t0.add(const Duration(seconds: 1)),
+      );
+
+      speaker.completer.complete();
+
+      expect(await first, isTrue);
+      expect(blockedWhileSpeaking, isFalse);
+      expect(speaker.spoken, <String>['Raise your right arm']);
     });
   });
 }

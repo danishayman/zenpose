@@ -1,6 +1,7 @@
 import '../models/body_measurement.dart';
 import '../models/pose_result.dart';
 import '../models/progress_analytics_models.dart';
+import '../models/session_history_entry.dart';
 
 class ProgressAnalyticsService {
   const ProgressAnalyticsService();
@@ -68,6 +69,25 @@ class ProgressAnalyticsService {
     return total;
   }
 
+  int countWeeklyCompletedSessions({
+    required List<SessionHistoryEntry> sessions,
+    required DateTime anchorDate,
+  }) {
+    final localAnchor = anchorDate.toLocal();
+    final weekStart = startOfSundayWeek(localAnchor);
+    final weekEnd = weekStart.add(const Duration(days: 7));
+    var total = 0;
+
+    for (final session in sessions) {
+      if (!session.completed) continue;
+      final timestamp = session.activityAt.toLocal();
+      if (!timestamp.isBefore(weekStart) && timestamp.isBefore(weekEnd)) {
+        total += 1;
+      }
+    }
+    return total;
+  }
+
   List<ExerciseTrendSnapshot> buildExerciseTrends(List<PoseResult> results) {
     final completed = _completedResults(results);
     final grouped = <String, List<PoseResult>>{};
@@ -89,9 +109,8 @@ class ProgressAnalyticsService {
       final bestScore = rows
           .map((e) => e.bestScore)
           .reduce((a, b) => a > b ? a : b);
-      final averageHold = rows
-              .map(_normalizedHoldSeconds)
-              .reduce((a, b) => a + b) /
+      final averageHold =
+          rows.map(_normalizedHoldSeconds).reduce((a, b) => a + b) /
           rows.length;
       final recentWindow = rows.take(_exerciseTrendWindowSize).toList();
       final previousWindow = rows

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zenpose/models/body_measurement.dart';
 import 'package:zenpose/models/pose_result.dart';
+import 'package:zenpose/models/session_history_entry.dart';
 import 'package:zenpose/services/progress_analytics_service.dart';
 
 void main() {
@@ -67,6 +68,54 @@ void main() {
 
     final count = service.countWeeklyCompleted(
       results: results,
+      anchorDate: DateTime(2026, 4, 9, 12, 0),
+    );
+    expect(count, equals(2));
+  });
+
+  test('countWeeklyCompletedSessions counts a challenge as one session', () {
+    final sessions = <SessionHistoryEntry>[
+      SessionHistoryEntry(
+        sessionId: 'challenge:2026-04-05',
+        kind: SessionHistoryKind.challenge,
+        activityAt: DateTime(2026, 4, 5, 9, 0),
+        startedAt: DateTime(2026, 4, 5, 8, 30),
+        completed: true,
+        durationSeconds: 225,
+        averageScore: 82,
+        isLegacyPractice: false,
+        poses: List<SessionHistoryPoseEntry>.generate(
+          5,
+          (index) => SessionHistoryPoseEntry(
+            poseName: 'Pose $index',
+            status: SessionHistoryPoseStatus.completed,
+            bestScore: 80 + index.toDouble(),
+            holdDurationSeconds: 45,
+          ),
+        ),
+      ),
+      SessionHistoryEntry(
+        sessionId: 'practice:1',
+        kind: SessionHistoryKind.practice,
+        activityAt: DateTime(2026, 4, 7, 9, 0),
+        startedAt: DateTime(2026, 4, 7, 9, 0),
+        completed: true,
+        durationSeconds: 45,
+        averageScore: 88,
+        isLegacyPractice: false,
+        poses: const <SessionHistoryPoseEntry>[
+          SessionHistoryPoseEntry(
+            poseName: 'Tree',
+            status: SessionHistoryPoseStatus.completed,
+            bestScore: 88,
+            holdDurationSeconds: 45,
+          ),
+        ],
+      ),
+    ];
+
+    final count = service.countWeeklyCompletedSessions(
+      sessions: sessions,
       anchorDate: DateTime(2026, 4, 9, 12, 0),
     );
     expect(count, equals(2));

@@ -175,7 +175,7 @@ void main() {
     await tester.tap(find.byKey(const Key('progress-goal-save-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('5 workouts per week'), findsOneWidget);
+    expect(find.text('5 sessions per week'), findsOneWidget);
   });
 
   testWidgets('adds body weight measurement from Measures tab', (tester) async {

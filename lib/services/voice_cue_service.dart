@@ -11,10 +11,10 @@ class FlutterTtsVoiceSpeaker implements VoiceSpeaker {
   final FlutterTts _tts;
 
   FlutterTtsVoiceSpeaker({FlutterTts? tts}) : _tts = tts ?? FlutterTts() {
-    _tts.setSpeechRate(0.48);
+    _tts.setSpeechRate(0.42);
     _tts.setPitch(1.0);
     _tts.setVolume(1.0);
-    _tts.awaitSpeakCompletion(false);
+    _tts.awaitSpeakCompletion(true);
   }
 
   @override
@@ -33,13 +33,14 @@ class VoiceCueService {
 
   DateTime? _lastSpokenAt;
   DateTime? _lastUnspeakableAt;
+  bool _isSpeaking = false;
   final Map<String, DateTime> _lastMessageAt = <String, DateTime>{};
 
   VoiceCueService({
     required VoiceSpeaker speaker,
-    this.cooldown = const Duration(seconds: 3),
-    this.repeatInterval = const Duration(seconds: 6),
-    this.postUnspeakableMute = const Duration(milliseconds: 1200),
+    this.cooldown = const Duration(seconds: 6),
+    this.repeatInterval = const Duration(seconds: 14),
+    this.postUnspeakableMute = const Duration(seconds: 2),
   }) : _speaker = speaker;
 
   Future<bool> speakIfAllowed(
@@ -54,6 +55,10 @@ class VoiceCueService {
     final at = now ?? DateTime.now();
     if (!_isSpeakableState(state)) {
       _lastUnspeakableAt = at;
+      return false;
+    }
+
+    if (_isSpeaking) {
       return false;
     }
 
@@ -75,10 +80,15 @@ class VoiceCueService {
       return false;
     }
 
-    await _speaker.speak(trimmed);
     _lastSpokenAt = at;
     _lastMessageAt[trimmed] = at;
-    return true;
+    _isSpeaking = true;
+    try {
+      await _speaker.speak(trimmed);
+      return true;
+    } finally {
+      _isSpeaking = false;
+    }
   }
 
   bool _isSpeakableState(WorkoutGuidanceState state) =>
@@ -90,6 +100,7 @@ class VoiceCueService {
   Future<void> reset() async {
     _lastSpokenAt = null;
     _lastUnspeakableAt = null;
+    _isSpeaking = false;
     _lastMessageAt.clear();
     await _speaker.stop();
   }

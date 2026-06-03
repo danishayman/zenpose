@@ -94,14 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final sessionHistory =
         await (widget.loadSessionHistory?.call() ??
             _databaseService.getHomeSessionHistory());
-    final allResults =
-        await (widget.loadAllResults?.call() ??
-            _databaseService.getAllResults());
     final weeklyGoal =
         await (widget.loadWeeklyGoal?.call() ??
             _databaseService.getWeeklyWorkoutGoal());
-    final weeklyCompleted = _analyticsService.countWeeklyCompleted(
-      results: allResults,
+    final weeklyCompleted = _analyticsService.countWeeklyCompletedSessions(
+      sessions: sessionHistory,
       anchorDate: _now(),
     );
 
@@ -224,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 controller: controller,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Workouts per week',
+                  labelText: 'Sessions per week',
                   hintText: 'e.g. 3',
                 ),
               ),
@@ -530,7 +527,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$weeklyCompleted / $weeklyGoal workouts completed',
+                  '$weeklyCompleted / $weeklyGoal sessions completed',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 6),

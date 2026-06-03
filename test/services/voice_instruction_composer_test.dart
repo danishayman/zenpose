@@ -6,7 +6,7 @@ void main() {
   group('VoiceInstructionComposer', () {
     const composer = VoiceInstructionComposer();
 
-    test('expands known base cue with reason and motivational tone', () {
+    test('expands known base cue into concise voice guidance', () {
       const snapshot = WorkoutGuidanceSnapshot(
         score: 62,
         holdProgress: 0.2,
@@ -21,10 +21,7 @@ void main() {
         baseCue: snapshot.primaryCue,
       );
 
-      expect(
-        spoken,
-        'Raise your right arm a little and stack your shoulders for better alignment. You are doing great, keep going.',
-      );
+      expect(spoken, 'Raise your right arm a little. Stack your shoulders.');
     });
 
     test('uses safety guidance when user is not detected', () {
@@ -42,10 +39,7 @@ void main() {
         baseCue: snapshot.primaryCue,
       );
 
-      expect(
-        spoken,
-        'Step into frame so I can track your pose accurately. You are doing great, keep going.',
-      );
+      expect(spoken, 'Step into frame so I can track your pose.');
     });
 
     test('falls back for unknown cue text', () {
@@ -63,10 +57,7 @@ void main() {
         baseCue: snapshot.primaryCue,
       );
 
-      expect(
-        spoken,
-        'Custom cue to improve alignment and keep your form steady. You are doing great, keep going.',
-      );
+      expect(spoken, 'Custom cue. Keep your form steady.');
     });
 
     test('returns null when no form cue exists in aligning state', () {

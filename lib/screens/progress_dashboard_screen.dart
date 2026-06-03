@@ -6,6 +6,7 @@ import '../models/body_measurement.dart';
 import '../models/pose_result.dart';
 import '../models/pose_template.dart';
 import '../models/progress_analytics_models.dart';
+import '../models/session_history_entry.dart';
 import '../models/weekly_workout_goal.dart';
 import '../services/database_service.dart';
 import '../services/pose_template_service.dart';
@@ -16,6 +17,7 @@ import '../widgets/zen_section_header.dart';
 
 class ProgressDashboardScreen extends StatefulWidget {
   final Future<List<PoseResult>> Function()? loadAllResults;
+  final Future<List<SessionHistoryEntry>> Function()? loadSessionHistory;
   final Future<WeeklyWorkoutGoal> Function()? loadWeeklyGoal;
   final Future<void> Function(int targetWorkouts)? saveWeeklyGoal;
   final Future<List<BodyMeasurement>> Function(BodyMetricType metricType)?
@@ -27,6 +29,7 @@ class ProgressDashboardScreen extends StatefulWidget {
   const ProgressDashboardScreen({
     super.key,
     this.loadAllResults,
+    this.loadSessionHistory,
     this.loadWeeklyGoal,
     this.saveWeeklyGoal,
     this.loadMeasurementHistory,
@@ -97,6 +100,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
     final weeklyGoal =
         await (widget.loadWeeklyGoal?.call() ??
             _databaseService.getWeeklyWorkoutGoal());
+    final sessionHistory = await _loadSessionHistory(results);
     final measurementEntries = await Future.wait(
       BodyMetricType.coreMetrics.map((metricType) async {
         final history =
@@ -117,6 +121,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
 
     return _ProgressDashboardData(
       results: results,
+      sessionHistory: sessionHistory,
       weeklyGoal: weeklyGoal,
       measurementHistoryByMetric: <BodyMetricType, List<BodyMeasurement>>{
         for (final entry in measurementEntries) entry.key: entry.value,
@@ -138,6 +143,52 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
           targetWorkouts: targetWorkouts,
         ));
     await _refresh();
+  }
+
+  Future<List<SessionHistoryEntry>> _loadSessionHistory(
+    List<PoseResult> results,
+  ) async {
+    if (widget.loadSessionHistory != null) {
+      return widget.loadSessionHistory!.call();
+    }
+    if (widget.loadAllResults != null) {
+      return _sessionHistoryFromResults(results);
+    }
+    return _databaseService.getHomeSessionHistory();
+  }
+
+  List<SessionHistoryEntry> _sessionHistoryFromResults(
+    List<PoseResult> results,
+  ) {
+    return results
+        .map((result) {
+          final occurredAt =
+              result.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return SessionHistoryEntry(
+            sessionId:
+                'result:${result.id ?? occurredAt.microsecondsSinceEpoch}',
+            kind: result.sessionType == PoseResultSessionType.challenge
+                ? SessionHistoryKind.challenge
+                : SessionHistoryKind.practice,
+            activityAt: occurredAt,
+            startedAt: occurredAt,
+            completed: result.completed,
+            durationSeconds: result.holdDuration.round(),
+            averageScore: result.bestScore,
+            isLegacyPractice: result.sessionType == null,
+            poses: <SessionHistoryPoseEntry>[
+              SessionHistoryPoseEntry(
+                poseName: result.poseName,
+                status: result.completed
+                    ? SessionHistoryPoseStatus.completed
+                    : SessionHistoryPoseStatus.pending,
+                bestScore: result.bestScore,
+                holdDurationSeconds: result.holdDuration,
+              ),
+            ],
+          );
+        })
+        .toList(growable: false);
   }
 
   Future<void> _saveBodyMeasurement(
@@ -196,7 +247,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
                 controller: controller,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Workouts per week',
+                  labelText: 'Sessions per week',
                   hintText: 'e.g. 3',
                 ),
               ),
@@ -337,10 +388,11 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
             results: data.results,
             month: _visibleMonth,
           );
-          final weeklyCompleted = _analyticsService.countWeeklyCompleted(
-            results: data.results,
-            anchorDate: _now(),
-          );
+          final weeklyCompleted = _analyticsService
+              .countWeeklyCompletedSessions(
+                sessions: data.sessionHistory,
+                anchorDate: _now(),
+              );
           final exercises = _analyticsService.buildExerciseTrends(data.results);
           final filteredExercises = exercises
               .where(
@@ -523,7 +575,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        '$weeklyCompleted / $weeklyGoal workouts completed',
+                        '$weeklyCompleted / $weeklyGoal sessions completed',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
@@ -576,7 +628,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '$weeklyGoal workouts per week',
+                        '$weeklyGoal sessions per week',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
@@ -1222,12 +1274,14 @@ class _WeekdayChip extends StatelessWidget {
 
 class _ProgressDashboardData {
   final List<PoseResult> results;
+  final List<SessionHistoryEntry> sessionHistory;
   final WeeklyWorkoutGoal weeklyGoal;
   final Map<BodyMetricType, List<BodyMeasurement>> measurementHistoryByMetric;
   final List<PoseTemplate> poseTemplates;
 
   const _ProgressDashboardData({
     required this.results,
+    required this.sessionHistory,
     required this.weeklyGoal,
     required this.measurementHistoryByMetric,
     required this.poseTemplates,

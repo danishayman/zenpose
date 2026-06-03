@@ -107,6 +107,56 @@ void main() {
       ],
     ),
   ];
+  final weeklyGoalHistory = <SessionHistoryEntry>[
+    SessionHistoryEntry(
+      sessionId: 'challenge:2026-03-29',
+      kind: SessionHistoryKind.challenge,
+      activityAt: DateTime(2026, 3, 29, 10, 30),
+      startedAt: DateTime(2026, 3, 29, 10, 0),
+      completed: true,
+      durationSeconds: 225,
+      averageScore: 84,
+      isLegacyPractice: false,
+      poses: const <SessionHistoryPoseEntry>[
+        SessionHistoryPoseEntry(
+          poseName: 'Tree',
+          status: SessionHistoryPoseStatus.completed,
+          bestScore: 84,
+          holdDurationSeconds: 45,
+        ),
+        SessionHistoryPoseEntry(
+          poseName: 'Plank',
+          status: SessionHistoryPoseStatus.completed,
+          bestScore: 82,
+          holdDurationSeconds: 45,
+        ),
+        SessionHistoryPoseEntry(
+          poseName: 'Downdog',
+          status: SessionHistoryPoseStatus.completed,
+          bestScore: 86,
+          holdDurationSeconds: 45,
+        ),
+      ],
+    ),
+    SessionHistoryEntry(
+      sessionId: 'practice:2',
+      kind: SessionHistoryKind.practice,
+      activityAt: DateTime(2026, 3, 30, 20, 0),
+      startedAt: DateTime(2026, 3, 30, 20, 0),
+      completed: true,
+      durationSeconds: 45,
+      averageScore: 90,
+      isLegacyPractice: false,
+      poses: const <SessionHistoryPoseEntry>[
+        SessionHistoryPoseEntry(
+          poseName: 'Warrior',
+          status: SessionHistoryPoseStatus.completed,
+          bestScore: 90,
+          holdDurationSeconds: 45,
+        ),
+      ],
+    ),
+  ];
 
   WidgetBuilder testStreakBuilder() =>
       (_) => StreakCalendarScreen(
@@ -334,12 +384,14 @@ void main() {
   ) async {
     _setLargeSurface(tester);
 
-    await tester.pumpWidget(_app(buildHome()));
+    await tester.pumpWidget(
+      _app(buildHome(loadSessionHistory: () async => weeklyGoalHistory)),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('home-goal-progress-card')), findsOneWidget);
     expect(find.text('Weekly Goal'), findsOneWidget);
-    expect(find.text('2 / 3 workouts completed'), findsOneWidget);
+    expect(find.text('2 / 3 sessions completed'), findsOneWidget);
     expect(find.text('1 left'), findsOneWidget);
 
     final goalY = tester
@@ -357,6 +409,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         buildHome(
+          loadSessionHistory: () async => weeklyGoalHistory,
           loadWeeklyGoal: () async => WeeklyWorkoutGoal(
             userId: 'u1',
             targetWorkouts: 2,
@@ -368,7 +421,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('2 / 2 workouts completed'), findsOneWidget);
+    expect(find.text('2 / 2 sessions completed'), findsOneWidget);
     expect(find.text('Congrats! Goal met 🎉'), findsOneWidget);
   });
 
@@ -381,6 +434,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         buildHome(
+          loadSessionHistory: () async => weeklyGoalHistory,
           loadWeeklyGoal: () async => WeeklyWorkoutGoal(
             userId: 'u1',
             targetWorkouts: goal,
@@ -404,7 +458,7 @@ void main() {
     await tester.tap(find.byKey(const Key('home-goal-save-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('2 / 5 workouts completed'), findsOneWidget);
+    expect(find.text('2 / 5 sessions completed'), findsOneWidget);
     expect(find.text('3 left'), findsOneWidget);
   });
 }
