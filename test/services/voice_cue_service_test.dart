@@ -33,7 +33,115 @@ class _SlowSpeaker implements VoiceSpeaker {
   Future<void> stop() async {}
 }
 
+class _FakeTtsEngine implements TtsEngine {
+  final dynamic voices;
+  final bool failVoiceLookup;
+  final List<String> spoken = <String>[];
+  Map<String, String>? selectedVoice;
+  int stopCalls = 0;
+
+  _FakeTtsEngine({
+    this.voices = const <Map<String, String>>[],
+    this.failVoiceLookup = false,
+  });
+
+  @override
+  Future<dynamic> awaitSpeakCompletion(bool awaitCompletion) async => null;
+
+  @override
+  Future<dynamic> getVoices() async {
+    if (failVoiceLookup) {
+      throw StateError('Voice lookup unavailable');
+    }
+    return voices;
+  }
+
+  @override
+  Future<dynamic> setPitch(double pitch) async => null;
+
+  @override
+  Future<dynamic> setSpeechRate(double rate) async => null;
+
+  @override
+  Future<dynamic> setVoice(Map<String, String> voice) async {
+    selectedVoice = voice;
+  }
+
+  @override
+  Future<dynamic> setVolume(double volume) async => null;
+
+  @override
+  Future<dynamic> speak(String message) async {
+    spoken.add(message);
+  }
+
+  @override
+  Future<dynamic> stop() async {
+    stopCalls += 1;
+  }
+}
+
 void main() {
+  group('FlutterTtsVoiceSpeaker', () {
+    test(
+      'selects a natural English voice and pauses between phrases',
+      () async {
+        final engine = _FakeTtsEngine(
+          voices: const <Map<String, String>>[
+            {'name': 'Basic Spanish', 'locale': 'es-ES'},
+            {'name': 'Google US English Natural', 'locale': 'en-US'},
+            {'name': 'Basic English', 'locale': 'en-US'},
+          ],
+        );
+        final waits = <Duration>[];
+        final speaker = FlutterTtsVoiceSpeaker(
+          engine: engine,
+          wait: (duration) async => waits.add(duration),
+        );
+
+        await speaker.speak('Gently raise your right arm. Keep breathing.');
+
+        expect(engine.selectedVoice, <String, String>{
+          'name': 'Google US English Natural',
+          'locale': 'en-US',
+        });
+        expect(engine.spoken, <String>[
+          'Gently raise your right arm.',
+          'Keep breathing.',
+        ]);
+        expect(waits, <Duration>[FlutterTtsVoiceSpeaker.defaultPhrasePause]);
+      },
+    );
+
+    test('ignores empty phrase fragments', () async {
+      final engine = _FakeTtsEngine();
+      final speaker = FlutterTtsVoiceSpeaker(
+        engine: engine,
+        wait: (_) async {},
+      );
+
+      await speaker.speak(' . Ease into the outline. ! Take a slow breath.');
+
+      expect(engine.spoken, <String>[
+        'Ease into the outline.',
+        'Take a slow breath.',
+      ]);
+    });
+
+    test('continues speaking when voice lookup fails', () async {
+      final engine = _FakeTtsEngine(failVoiceLookup: true);
+      final speaker = FlutterTtsVoiceSpeaker(
+        engine: engine,
+        wait: (_) async {},
+      );
+
+      await speaker.speak('Hold still for a moment.');
+
+      expect(engine.selectedVoice, isNull);
+      expect(engine.spoken, <String>['Hold still for a moment.']);
+    });
+  });
+
   group('VoiceCueService', () {
     test('respects cooldown and same-message repeat interval', () async {
       final speaker = _FakeSpeaker();

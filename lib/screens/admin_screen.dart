@@ -344,7 +344,7 @@ class _AdminScreenState extends State<AdminScreen> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<AccountRole>(
-                    value: user.role,
+                    initialValue: user.role,
                     decoration: const InputDecoration(labelText: 'Role'),
                     items: const [
                       DropdownMenuItem(
@@ -367,7 +367,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: DropdownButtonFormField<AccountStatus>(
-                    value: user.status,
+                    initialValue: user.status,
                     decoration: const InputDecoration(labelText: 'Status'),
                     items: const [
                       DropdownMenuItem(
@@ -744,7 +744,7 @@ class _ExerciseEditorDialogState extends State<_ExerciseEditorDialog> {
                           ],
                         ),
                         DropdownButtonFormField<String>(
-                          value: selectedPose.isEmpty ? null : selectedPose,
+                          initialValue: selectedPose.isEmpty ? null : selectedPose,
                           decoration: const InputDecoration(labelText: 'Pose'),
                           items: availablePoses
                               .map(

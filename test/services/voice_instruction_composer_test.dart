@@ -21,7 +21,10 @@ void main() {
         baseCue: snapshot.primaryCue,
       );
 
-      expect(spoken, 'Raise your right arm a little. Stack your shoulders.');
+      expect(
+        spoken,
+        'Raise your right arm higher. Keep your shoulders relaxed.',
+      );
     });
 
     test('uses safety guidance when user is not detected', () {
@@ -39,7 +42,7 @@ void main() {
         baseCue: snapshot.primaryCue,
       );
 
-      expect(spoken, 'Step into frame so I can track your pose.');
+      expect(spoken, 'I cannot see you. Step into frame.');
     });
 
     test('falls back for unknown cue text', () {
@@ -57,7 +60,7 @@ void main() {
         baseCue: snapshot.primaryCue,
       );
 
-      expect(spoken, 'Custom cue. Keep your form steady.');
+      expect(spoken, 'Custom cue. Keep your breath steady.');
     });
 
     test('returns null when no form cue exists in aligning state', () {

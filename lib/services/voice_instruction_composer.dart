@@ -41,28 +41,38 @@ class VoiceInstructionComposer {
     final lowered = cue.toLowerCase();
 
     if (lowered.contains('raise your left arm')) {
-      return _motivate('Raise your left arm a little. Stack your shoulders.');
+      return _motivate(
+        'Raise your left arm higher. Keep your shoulders relaxed.',
+      );
     }
     if (lowered.contains('raise your right arm')) {
-      return _motivate('Raise your right arm a little. Stack your shoulders.');
+      return _motivate(
+        'Raise your right arm higher. Keep your shoulders relaxed.',
+      );
     }
     if (lowered.contains('lower your left arm')) {
-      return _motivate('Lower your left arm slightly. Level your shoulders.');
+      return _motivate(
+        'Lower your left arm slightly. Keep your shoulders level.',
+      );
     }
     if (lowered.contains('lower your right arm')) {
-      return _motivate('Lower your right arm slightly. Level your shoulders.');
+      return _motivate(
+        'Lower your right arm slightly. Keep your shoulders level.',
+      );
     }
     if (lowered.contains('straighten your left leg')) {
-      return _motivate('Straighten your left leg. Keep your base steady.');
+      return _motivate('Straighten your left leg more. Keep your base steady.');
     }
     if (lowered.contains('straighten your right leg')) {
-      return _motivate('Straighten your right leg. Keep your base steady.');
+      return _motivate(
+        'Straighten your right leg more. Keep your base steady.',
+      );
     }
     if (lowered.contains('bend your left knee')) {
-      return _motivate('Bend your left knee a bit more. Stay controlled.');
+      return _motivate('Bend your left knee more. Stay balanced.');
     }
     if (lowered.contains('bend your right knee')) {
-      return _motivate('Bend your right knee a bit more. Stay controlled.');
+      return _motivate('Bend your right knee more. Stay balanced.');
     }
     if (lowered.contains('open your left hip')) {
       return _motivate('Open your left hip more. Keep your balance.');
@@ -78,10 +88,10 @@ class VoiceInstructionComposer {
     }
     if (lowered.contains('adjust torso alignment') ||
         lowered.contains('torso')) {
-      return _motivate('Adjust your torso. Engage your core.');
+      return _motivate('Adjust your torso alignment. Gently engage your core.');
     }
     if (lowered.contains('match the outline')) {
-      return _motivate('Match the outline with small adjustments.');
+      return _motivate('Ease toward the outline. Use small adjustments.');
     }
     if (lowered.contains('hold still')) {
       return _safetyUnstableInstruction();
@@ -90,14 +100,14 @@ class VoiceInstructionComposer {
       return _safetyNoUserInstruction();
     }
 
-    return _motivate('$cue. Keep your form steady.');
+    return _motivate('$cue. Keep your breath steady.');
   }
 
   String _safetyUnstableInstruction() =>
-      _motivate('Hold still and breathe for a moment.');
+      _motivate('Hold still for a moment. Take a slow breath.');
 
   String _safetyNoUserInstruction() =>
-      _motivate('Step into frame so I can track your pose.');
+      _motivate('I cannot see you. Step into frame.');
 
   String _motivate(String instruction) {
     if (tone != VoiceCoachTone.motivational) {

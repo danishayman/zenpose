@@ -53,55 +53,60 @@ class _XpDeductionDialogState extends State<XpDeductionDialog>
 
   @override
   Widget build(BuildContext context) {
+    final summaries = _PenaltySummary.fromBreakdown(widget.result.breakdown);
+    final maxContentHeight = MediaQuery.sizeOf(context).height * 0.58;
+
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       title: const Text('XP Deducted'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '-${widget.result.xpDeducted} XP',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: ZenColors.error,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...widget.result.breakdown.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                '${item.reason.label}: -${item.xpDeducted}',
-                style: Theme.of(context).textTheme.bodyMedium,
+      content: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxContentHeight),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '-${widget.result.xpDeducted} XP',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: ZenColors.error,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Total XP: ${widget.result.xpAfter}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          if (widget.result.didRankDown) ...[
-            const SizedBox(height: 14),
-            const Text(
-              'Rank Dropped',
-              style: TextStyle(
-                fontFamily: 'Manrope',
-                fontWeight: FontWeight.w800,
-                color: ZenColors.error,
+              const SizedBox(height: 8),
+              ...summaries.map(
+                (summary) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: _PenaltySummaryText(summary: summary),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            _RankDropBadgeTransition(
-              progress: _progress,
-              fromAsset: widget.result.rankBefore.badgeAssetPath,
-              toAsset: widget.result.rankAfter.badgeAssetPath,
-            ),
-          ],
-        ],
+              const SizedBox(height: 8),
+              Text(
+                'Total XP: ${widget.result.xpAfter}',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              if (widget.result.didRankDown) ...[
+                const SizedBox(height: 14),
+                const Text(
+                  'Rank Dropped',
+                  style: TextStyle(
+                    fontFamily: 'Manrope',
+                    fontWeight: FontWeight.w800,
+                    color: ZenColors.error,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _RankDropBadgeTransition(
+                  progress: _progress,
+                  fromAsset: widget.result.rankBefore.badgeAssetPath,
+                  toAsset: widget.result.rankAfter.badgeAssetPath,
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
       actions: [
         ElevatedButton(
@@ -110,6 +115,104 @@ class _XpDeductionDialogState extends State<XpDeductionDialog>
         ),
       ],
     );
+  }
+}
+
+class _PenaltySummaryText extends StatelessWidget {
+  final _PenaltySummary summary;
+
+  const _PenaltySummaryText({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(summary.title, style: theme.bodyMedium),
+        if (summary.subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            summary.subtitle!,
+            style: theme.bodySmall?.copyWith(
+              color: theme.bodySmall?.color?.withValues(alpha: 0.74),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PenaltySummary {
+  final PenaltyReason reason;
+  final int count;
+  final int xpDeducted;
+  final List<String> dateKeys;
+
+  const _PenaltySummary({
+    required this.reason,
+    required this.count,
+    required this.xpDeducted,
+    required this.dateKeys,
+  });
+
+  String get title {
+    final label = count == 1 ? reason.label : _pluralLabel(reason);
+    final countText = count == 1 ? '' : ' x$count';
+    return '$label$countText: -$xpDeducted';
+  }
+
+  String? get subtitle {
+    if (count <= 1 || dateKeys.isEmpty) return null;
+    final dates = [...dateKeys]..sort();
+    if (dates.length == 1) return dates.single;
+    return '${dates.first} to ${dates.last}';
+  }
+
+  static List<_PenaltySummary> fromBreakdown(
+    List<PenaltyBreakdownItem> breakdown,
+  ) {
+    final grouped = <PenaltyReason, List<PenaltyBreakdownItem>>{};
+    for (final item in breakdown) {
+      grouped
+          .putIfAbsent(item.reason, () => <PenaltyBreakdownItem>[])
+          .add(item);
+    }
+
+    return grouped.entries
+        .map((entry) {
+          final dateKeys = entry.value
+              .map((item) => item.dateKey)
+              .where((dateKey) => dateKey.isNotEmpty)
+              .toSet()
+              .toList(growable: false);
+          return _PenaltySummary(
+            reason: entry.key,
+            count: entry.value.length,
+            xpDeducted: entry.value.fold<int>(
+              0,
+              (total, item) => total + item.xpDeducted,
+            ),
+            dateKeys: dateKeys,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  static String _pluralLabel(PenaltyReason reason) {
+    switch (reason) {
+      case PenaltyReason.missedDay:
+        return 'Missed Days';
+      case PenaltyReason.challengeAbandon:
+        return 'Challenges Abandoned';
+      case PenaltyReason.practicePoorPerformance:
+        return 'Poor Practices';
+      case PenaltyReason.practiceRepeatedPoorPerformance:
+        return 'Repeated Poor Practices';
+      case PenaltyReason.lowScoreFailures:
+        return reason.label;
+    }
   }
 }
 
