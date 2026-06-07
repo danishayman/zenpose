@@ -9,49 +9,58 @@ import 'package:zenpose/widgets/pre_session_countdown_widgets.dart';
 PoseTemplate _template({String key = 'downdog'}) {
   return PoseTemplate(
     templateKey: key,
-    name: 'Downdog',
+    name: key == 'plank' ? 'Plank' : 'Downdog',
     meanVector: List<double>.filled(24, 0.0),
   );
 }
 
 void main() {
-  testWidgets('countdown shows values and launches destination once', (
+  testWidgets('instructions show and camera opens only after tapping button', (
     tester,
   ) async {
     var destinationBuilds = 0;
+    Duration? launchedHoldDuration;
 
     await tester.pumpWidget(
       MaterialApp(
         home: PreSessionIntroScreen(
-          template: _template(),
+          template: _template(key: 'plank'),
           countdownSeconds: SessionLaunchConfig.preSessionCountdownSeconds,
           destinationBuilder: (context, template, holdDuration) {
             destinationBuilds += 1;
+            launchedHoldDuration = holdDuration;
             return const Scaffold(body: Center(child: Text('DESTINATION')));
           },
         ),
       ),
     );
 
-    expect(find.text('Get Ready'), findsOneWidget);
-    expect(
-      find.text('${SessionLaunchConfig.preSessionCountdownSeconds}'),
-      findsOneWidget,
-    );
-
-    await tester.pump(const Duration(seconds: 1));
-    expect(
-      find.text('${SessionLaunchConfig.preSessionCountdownSeconds - 1}'),
-      findsOneWidget,
-    );
+    expect(find.text('How to do Plank'), findsOneWidget);
+    expect(find.text('Place hands under shoulders.'), findsOneWidget);
+    expect(find.text('Step both feet back.'), findsOneWidget);
+    expect(find.text('Keep body in one line.'), findsOneWidget);
+    expect(find.text('Tighten your core.'), findsOneWidget);
+    expect(find.text('Open Camera'), findsOneWidget);
+    expect(find.text('DESTINATION'), findsNothing);
 
     await tester.pump(
-      Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds - 1),
+      Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds + 3),
     );
+    await tester.pumpAndSettle();
+
+    expect(find.text('DESTINATION'), findsNothing);
+    expect(destinationBuilds, 0);
+
+    tester.widget<Slider>(find.byType(Slider)).onChanged?.call(60);
+    await tester.pump();
+    expect(find.text('60s'), findsOneWidget);
+
+    await tester.tap(find.text('Open Camera'));
     await tester.pumpAndSettle();
 
     expect(find.text('DESTINATION'), findsOneWidget);
     expect(destinationBuilds, 1);
+    expect(launchedHoldDuration, const Duration(seconds: 60));
 
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();

@@ -45,6 +45,105 @@ void main() {
       expect(spoken, 'I cannot see you. Step into frame.');
     });
 
+    test('expands elbow feedback into specific voice guidance', () {
+      const snapshot = WorkoutGuidanceSnapshot(
+        score: 62,
+        holdProgress: 0.2,
+        state: WorkoutGuidanceState.aligning,
+        primaryCue: 'Bend your left elbow more',
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+
+      final spoken = composer.compose(
+        snapshot: snapshot,
+        baseCue: snapshot.primaryCue,
+      );
+
+      expect(spoken, 'Bend your left elbow more. Keep your shoulder steady.');
+    });
+
+    test('expands knee feedback into specific voice guidance', () {
+      const snapshot = WorkoutGuidanceSnapshot(
+        score: 62,
+        holdProgress: 0.2,
+        state: WorkoutGuidanceState.aligning,
+        primaryCue: 'Bend your right knee more',
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+
+      final spoken = composer.compose(
+        snapshot: snapshot,
+        baseCue: snapshot.primaryCue,
+      );
+
+      expect(
+        spoken,
+        'Sink a little deeper into your right knee. Keep it tracking forward.',
+      );
+    });
+
+    test('expands hip and torso feedback into specific voice guidance', () {
+      const hipSnapshot = WorkoutGuidanceSnapshot(
+        score: 62,
+        holdProgress: 0.2,
+        state: WorkoutGuidanceState.aligning,
+        primaryCue: 'Open your left hip more',
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+      const torsoSnapshot = WorkoutGuidanceSnapshot(
+        score: 62,
+        holdProgress: 0.2,
+        state: WorkoutGuidanceState.aligning,
+        primaryCue: 'Adjust torso alignment',
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+
+      final hip = composer.compose(
+        snapshot: hipSnapshot,
+        baseCue: hipSnapshot.primaryCue,
+      );
+      final torso = composer.compose(
+        snapshot: torsoSnapshot,
+        baseCue: torsoSnapshot.primaryCue,
+      );
+
+      expect(
+        hip,
+        'Rotate your left hip open a little more. Keep your pelvis steady.',
+      );
+      expect(torso, 'Adjust your torso alignment. Gently engage your core.');
+    });
+
+    test('uses deterministic variants for repeated known cues', () {
+      const snapshot = WorkoutGuidanceSnapshot(
+        score: 62,
+        holdProgress: 0.2,
+        state: WorkoutGuidanceState.aligning,
+        primaryCue: 'Straighten your right arm',
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+
+      final first = composer.compose(
+        snapshot: snapshot,
+        baseCue: snapshot.primaryCue,
+      );
+      final second = composer.compose(
+        snapshot: snapshot,
+        baseCue: snapshot.primaryCue,
+      );
+
+      expect(first, second);
+      expect(
+        first,
+        'Extend your right arm a little more. Keep your shoulder relaxed.',
+      );
+    });
+
     test('falls back for unknown cue text', () {
       const snapshot = WorkoutGuidanceSnapshot(
         score: 55,

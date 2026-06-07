@@ -186,6 +186,77 @@ void main() {
       expect(snapshot.secondaryCue, isNull);
     });
 
+    test('rotates across body-part cues after display duration', () {
+      final service = WorkoutGuidanceService(
+        cueMinDisplayDuration: const Duration(seconds: 1),
+      );
+      final t0 = DateTime(2026, 3, 14, 9, 0, 0);
+      const feedback = <String>[
+        'Bend your left elbow more',
+        'Bend your right knee more',
+        'Adjust torso alignment',
+      ];
+
+      final first = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 58,
+        holdProgress: 0.1,
+        scoreThreshold: 70,
+        feedbackMessages: feedback,
+        now: t0,
+      );
+      final held = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 58,
+        holdProgress: 0.1,
+        scoreThreshold: 70,
+        feedbackMessages: feedback,
+        now: t0.add(const Duration(milliseconds: 500)),
+      );
+      final rotated = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 58,
+        holdProgress: 0.1,
+        scoreThreshold: 70,
+        feedbackMessages: feedback,
+        now: t0.add(const Duration(milliseconds: 1200)),
+      );
+
+      expect(first.primaryCue, 'Bend your left elbow more');
+      expect(held.primaryCue, 'Bend your left elbow more');
+      expect(rotated.primaryCue, 'Bend your right knee more');
+    });
+
+    test('prefers joint-level feedback over broad segment cues', () {
+      final service = WorkoutGuidanceService();
+      final snapshot = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 60,
+        holdProgress: 0.1,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>[
+          'Raise your right arm',
+          'Straighten your left leg',
+          'Bend your right knee more',
+        ],
+        now: DateTime(2026, 3, 14, 9, 0, 0),
+      );
+
+      expect(snapshot.primaryCue, 'Bend your right knee more');
+    });
+
     test('suppresses contradictory cue flips for the same limb', () {
       final service = WorkoutGuidanceService();
       final t0 = DateTime(2026, 3, 14, 9, 0, 0);

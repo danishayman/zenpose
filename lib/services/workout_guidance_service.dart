@@ -173,17 +173,9 @@ class WorkoutGuidanceService {
       final defaultCue = _state == WorkoutGuidanceState.aligning
           ? 'Match the outline'
           : null;
-      final chosenFeedback = rankedFeedback.isNotEmpty
-          ? rankedFeedback.first
-          : null;
       final selectedPrimary = maxVisualCues <= 0
           ? null
-          : _selectCue(
-              cue: chosenFeedback?.message ?? defaultCue,
-              priority: chosenFeedback?.priority ?? 2,
-              at: at,
-              safetyCue: false,
-            );
+          : _selectFeedbackCue(rankedFeedback, defaultCue: defaultCue, at: at);
       final secondary = maxVisualCues > 1 && rankedFeedback.length > 1
           ? rankedFeedback[1].message
           : null;
@@ -314,6 +306,56 @@ class WorkoutGuidanceService {
     return cue;
   }
 
+  String? _selectFeedbackCue(
+    List<_CueCandidate> rankedFeedback, {
+    required String? defaultCue,
+    required DateTime at,
+  }) {
+    if (rankedFeedback.isEmpty) {
+      return _selectCue(
+        cue: defaultCue,
+        priority: _priorityForMessage((defaultCue ?? '').toLowerCase()),
+        at: at,
+        safetyCue: false,
+      );
+    }
+
+    final activeCue = _activeCue;
+    final activeAge = _activeCueSince == null
+        ? cueMinDisplayDuration
+        : at.difference(_activeCueSince!);
+    if (activeCue != null && activeAge < cueMinDisplayDuration) {
+      final activeCandidate = _candidateForCue(rankedFeedback, activeCue);
+      final bestCandidate = rankedFeedback.first;
+      if (activeCandidate != null &&
+          bestCandidate.priority >= activeCandidate.priority) {
+        return activeCue;
+      }
+    }
+
+    final activeTarget = activeCue == null ? null : _parseCue(activeCue).target;
+    final chosen = activeTarget == null
+        ? rankedFeedback.first
+        : rankedFeedback.firstWhere(
+            (candidate) => _parseCue(candidate.message).target != activeTarget,
+            orElse: () => rankedFeedback.first,
+          );
+
+    return _selectCue(
+      cue: chosen.message,
+      priority: chosen.priority,
+      at: at,
+      safetyCue: false,
+    );
+  }
+
+  _CueCandidate? _candidateForCue(List<_CueCandidate> candidates, String cue) {
+    for (final candidate in candidates) {
+      if (candidate.message == cue) return candidate;
+    }
+    return null;
+  }
+
   void _setActiveCue(String cue, int priority, DateTime at) {
     _activeCue = cue;
     _activeCuePriority = priority;
@@ -336,7 +378,8 @@ class WorkoutGuidanceService {
   List<_CueCandidate> _rankFeedback(List<String> feedback, DateTime at) {
     final deduped = <String>{};
     final ranked = <_CueCandidate>[];
-    for (final message in feedback) {
+    for (var index = 0; index < feedback.length; index++) {
+      final message = feedback[index];
       final normalized = message.trim().toLowerCase();
       if (normalized.isEmpty || deduped.contains(normalized)) continue;
       deduped.add(normalized);
@@ -347,10 +390,15 @@ class WorkoutGuidanceService {
         _CueCandidate(
           message: message,
           priority: _priorityForMessage(normalized),
+          sourceIndex: index,
         ),
       );
     }
-    ranked.sort((a, b) => a.priority.compareTo(b.priority));
+    ranked.sort((a, b) {
+      final priorityOrder = a.priority.compareTo(b.priority);
+      if (priorityOrder != 0) return priorityOrder;
+      return a.sourceIndex.compareTo(b.sourceIndex);
+    });
     return ranked;
   }
 
@@ -387,20 +435,21 @@ class WorkoutGuidanceService {
   }
 
   int _priorityForMessage(String normalized) {
+    if (normalized.contains('elbow') || normalized.contains('knee')) {
+      return 1;
+    }
     if (normalized.contains('torso') ||
         normalized.contains('shoulder') ||
         normalized.contains('hip')) {
-      return 1;
+      return 2;
     }
     if (normalized.contains('arm') ||
         normalized.contains('leg') ||
-        normalized.contains('elbow') ||
-        normalized.contains('knee') ||
         normalized.contains('wrist') ||
         normalized.contains('ankle')) {
-      return 2;
+      return 3;
     }
-    return 3;
+    return 4;
   }
 
   _ParsedCue _parseCue(String message) {
@@ -417,8 +466,12 @@ class WorkoutGuidanceService {
     String? target;
     if (normalized.contains('left arm')) target = 'left arm';
     if (normalized.contains('right arm')) target = 'right arm';
+    if (normalized.contains('left elbow')) target = 'left elbow';
+    if (normalized.contains('right elbow')) target = 'right elbow';
     if (normalized.contains('left leg')) target = 'left leg';
     if (normalized.contains('right leg')) target = 'right leg';
+    if (normalized.contains('left knee')) target = 'left knee';
+    if (normalized.contains('right knee')) target = 'right knee';
     if (normalized.contains('left shoulder')) target = 'left shoulder';
     if (normalized.contains('right shoulder')) target = 'right shoulder';
     if (normalized.contains('left hip')) target = 'left hip';
@@ -432,8 +485,13 @@ class WorkoutGuidanceService {
 class _CueCandidate {
   final String message;
   final int priority;
+  final int sourceIndex;
 
-  const _CueCandidate({required this.message, required this.priority});
+  const _CueCandidate({
+    required this.message,
+    required this.priority,
+    required this.sourceIndex,
+  });
 }
 
 class _CueMemory {

@@ -282,13 +282,19 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
-    expect(find.text('Get Ready'), findsOneWidget);
+    expect(find.text('How to do Downdog'), findsOneWidget);
+    expect(find.text('Start on hands and knees.'), findsOneWidget);
     expect(find.byType(PoseDemoAnimation), findsOneWidget);
     expect(find.text('PRACTICE_STUB'), findsNothing);
 
     await tester.pump(
-      Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds),
+      Duration(seconds: SessionLaunchConfig.preSessionCountdownSeconds + 3),
     );
+    await tester.pumpAndSettle();
+
+    expect(find.text('PRACTICE_STUB'), findsNothing);
+
+    await tester.tap(find.text('Open Camera'));
     await tester.pumpAndSettle();
 
     expect(find.text('PRACTICE_STUB'), findsOneWidget);
