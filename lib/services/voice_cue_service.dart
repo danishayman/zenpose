@@ -50,7 +50,7 @@ abstract class VoiceSpeaker {
 }
 
 class FlutterTtsVoiceSpeaker implements VoiceSpeaker {
-  static const Duration defaultPhrasePause = Duration(milliseconds: 600);
+  static const Duration defaultPhrasePause = Duration(milliseconds: 3500);
 
   final TtsEngine _engine;
   final Duration phrasePause;

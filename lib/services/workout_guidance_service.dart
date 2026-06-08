@@ -170,12 +170,9 @@ class WorkoutGuidanceService {
         _clearCueState();
       }
       final rankedFeedback = _rankFeedback(cleanedFeedback, at);
-      final defaultCue = _state == WorkoutGuidanceState.aligning
-          ? 'Match the outline'
-          : null;
       final selectedPrimary = maxVisualCues <= 0
           ? null
-          : _selectFeedbackCue(rankedFeedback, defaultCue: defaultCue, at: at);
+          : _selectFeedbackCue(rankedFeedback, at: at);
       final secondary = maxVisualCues > 1 && rankedFeedback.length > 1
           ? rankedFeedback[1].message
           : null;
@@ -308,16 +305,10 @@ class WorkoutGuidanceService {
 
   String? _selectFeedbackCue(
     List<_CueCandidate> rankedFeedback, {
-    required String? defaultCue,
     required DateTime at,
   }) {
     if (rankedFeedback.isEmpty) {
-      return _selectCue(
-        cue: defaultCue,
-        priority: _priorityForMessage((defaultCue ?? '').toLowerCase()),
-        at: at,
-        safetyCue: false,
-      );
+      return _selectCue(cue: null, priority: 99, at: at, safetyCue: false);
     }
 
     final activeCue = _activeCue;
@@ -395,8 +386,6 @@ class WorkoutGuidanceService {
       );
     }
     ranked.sort((a, b) {
-      final priorityOrder = a.priority.compareTo(b.priority);
-      if (priorityOrder != 0) return priorityOrder;
       return a.sourceIndex.compareTo(b.sourceIndex);
     });
     return ranked;

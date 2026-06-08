@@ -127,16 +127,19 @@ class LimbSimilarityService {
   /// [limbScores] should be the output of [computeLimbScores].  Returns an
   /// empty list when all segments meet the threshold.
   List<String> generateFeedback(Map<String, double> limbScores) {
-    final messages = <String>[];
+    final corrections = <_SegmentCorrection>[];
 
     for (int i = 0; i < segmentNames.length; i++) {
       final score = limbScores[segmentNames[i]];
       if (score != null && score < feedbackThreshold) {
-        messages.add(_feedbackMessages[i]);
+        corrections.add(
+          _SegmentCorrection(message: _feedbackMessages[i], score: score),
+        );
       }
     }
 
-    return messages;
+    corrections.sort((a, b) => a.score.compareTo(b.score));
+    return [for (final correction in corrections) correction.message];
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────
@@ -145,4 +148,11 @@ class LimbSimilarityService {
   List<double> _extractSubVector(List<double> vector, List<int> indices) {
     return [for (final idx in indices) vector[idx]];
   }
+}
+
+class _SegmentCorrection {
+  final String message;
+  final double score;
+
+  const _SegmentCorrection({required this.message, required this.score});
 }

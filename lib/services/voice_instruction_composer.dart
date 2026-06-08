@@ -19,10 +19,11 @@ class VoiceInstructionComposer {
       case WorkoutGuidanceState.noUserDetected:
         return _safetyNoUserInstruction();
       case WorkoutGuidanceState.unstablePose:
-        return _safetyUnstableInstruction();
+        return null;
       case WorkoutGuidanceState.aligning:
-      case WorkoutGuidanceState.holding:
         return _composeFormInstruction(snapshot, baseCue);
+      case WorkoutGuidanceState.holding:
+        return _positiveHoldingInstruction();
     }
   }
 
@@ -32,9 +33,6 @@ class VoiceInstructionComposer {
   ) {
     final cue = baseCue?.trim() ?? '';
     if (cue.isEmpty) {
-      if (snapshot.state == WorkoutGuidanceState.holding) {
-        return _motivate('Great hold. Keep breathing.');
-      }
       return null;
     }
 
@@ -177,11 +175,9 @@ class VoiceInstructionComposer {
         ]),
       );
     }
-    if (lowered.contains('match the outline')) {
-      return _motivate('Ease toward the outline. Use small adjustments.');
-    }
-    if (lowered.contains('hold still')) {
-      return _safetyUnstableInstruction();
+    if (lowered.contains('match the outline') ||
+        lowered.contains('hold still')) {
+      return null;
     }
     if (lowered.contains('step into frame')) {
       return _safetyNoUserInstruction();
@@ -190,8 +186,8 @@ class VoiceInstructionComposer {
     return _motivate('$cue. Keep your breath steady.');
   }
 
-  String _safetyUnstableInstruction() =>
-      _motivate('Hold still for a moment. Take a slow breath.');
+  String _positiveHoldingInstruction() =>
+      _motivate("You're doing great. Hold still and keep breathing.");
 
   String _safetyNoUserInstruction() =>
       _motivate('I cannot see you. Step into frame.');

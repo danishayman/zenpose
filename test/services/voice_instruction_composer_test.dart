@@ -45,6 +45,39 @@ void main() {
       expect(spoken, 'I cannot see you. Step into frame.');
     });
 
+    test('does not speak unstable hold-still guidance', () {
+      const snapshot = WorkoutGuidanceSnapshot(
+        score: 58,
+        holdProgress: 0.1,
+        state: WorkoutGuidanceState.unstablePose,
+        primaryCue: 'Hold still',
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+
+      final spoken = composer.compose(
+        snapshot: snapshot,
+        baseCue: snapshot.primaryCue,
+      );
+
+      expect(spoken, isNull);
+    });
+
+    test('uses positive guidance while holding green state', () {
+      const snapshot = WorkoutGuidanceSnapshot(
+        score: 90,
+        holdProgress: 0.5,
+        state: WorkoutGuidanceState.holding,
+        primaryCue: null,
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+
+      final spoken = composer.compose(snapshot: snapshot, baseCue: null);
+
+      expect(spoken, "You're doing great. Hold still and keep breathing.");
+    });
+
     test('expands elbow feedback into specific voice guidance', () {
       const snapshot = WorkoutGuidanceSnapshot(
         score: 62,
@@ -161,6 +194,31 @@ void main() {
 
       expect(spoken, 'Custom cue. Keep your breath steady.');
     });
+
+    test(
+      'does not voice outline or hold-still fallback cues while aligning',
+      () {
+        const snapshot = WorkoutGuidanceSnapshot(
+          score: 55,
+          holdProgress: 0.1,
+          state: WorkoutGuidanceState.aligning,
+          primaryCue: 'Match the outline',
+          secondaryCue: null,
+          shouldResetSession: false,
+        );
+        final outline = composer.compose(
+          snapshot: snapshot,
+          baseCue: 'Match the outline',
+        );
+        final holdStill = composer.compose(
+          snapshot: snapshot,
+          baseCue: 'Hold still',
+        );
+
+        expect(outline, isNull);
+        expect(holdStill, isNull);
+      },
+    );
 
     test('returns null when no form cue exists in aligning state', () {
       const snapshot = WorkoutGuidanceSnapshot(

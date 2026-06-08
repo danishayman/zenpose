@@ -109,7 +109,11 @@ void main() {
           'Gently raise your right arm.',
           'Keep breathing.',
         ]);
-        expect(waits, <Duration>[FlutterTtsVoiceSpeaker.defaultPhrasePause]);
+        expect(waits, <Duration>[const Duration(milliseconds: 3500)]);
+        expect(
+          FlutterTtsVoiceSpeaker.defaultPhrasePause,
+          const Duration(milliseconds: 3500),
+        );
       },
     );
 

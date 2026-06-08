@@ -164,7 +164,32 @@ void main() {
       expect(exited.state, WorkoutGuidanceState.aligning);
     });
 
-    test('prioritizes torso cues and emits a single visual cue', () {
+    test(
+      'uses the first most-needed correction and emits a single visual cue',
+      () {
+        final service = WorkoutGuidanceService();
+        final snapshot = service.evaluate(
+          cameraReady: true,
+          hasPose: true,
+          poseStable: true,
+          poseCompleted: false,
+          score: 60,
+          holdProgress: 0.1,
+          scoreThreshold: 70,
+          feedbackMessages: const <String>[
+            'Raise your right arm',
+            'Adjust torso alignment',
+            'Straighten your left leg',
+          ],
+          now: DateTime(2026, 3, 14, 9, 0, 0),
+        );
+
+        expect(snapshot.primaryCue, 'Raise your right arm');
+        expect(snapshot.secondaryCue, isNull);
+      },
+    );
+
+    test('does not default to match outline when no correction exists', () {
       final service = WorkoutGuidanceService();
       final snapshot = service.evaluate(
         cameraReady: true,
@@ -174,15 +199,12 @@ void main() {
         score: 60,
         holdProgress: 0.1,
         scoreThreshold: 70,
-        feedbackMessages: const <String>[
-          'Raise your right arm',
-          'Adjust torso alignment',
-          'Straighten your left leg',
-        ],
+        feedbackMessages: const <String>[],
         now: DateTime(2026, 3, 14, 9, 0, 0),
       );
 
-      expect(snapshot.primaryCue, 'Adjust torso alignment');
+      expect(snapshot.state, WorkoutGuidanceState.aligning);
+      expect(snapshot.primaryCue, isNull);
       expect(snapshot.secondaryCue, isNull);
     });
 
@@ -236,7 +258,7 @@ void main() {
       expect(rotated.primaryCue, 'Bend your right knee more');
     });
 
-    test('prefers joint-level feedback over broad segment cues', () {
+    test('keeps severity-sorted angle correction before limb fallback', () {
       final service = WorkoutGuidanceService();
       final snapshot = service.evaluate(
         cameraReady: true,
@@ -247,14 +269,34 @@ void main() {
         holdProgress: 0.1,
         scoreThreshold: 70,
         feedbackMessages: const <String>[
+          'Bend your right knee more',
           'Raise your right arm',
           'Straighten your left leg',
-          'Bend your right knee more',
         ],
         now: DateTime(2026, 3, 14, 9, 0, 0),
       );
 
       expect(snapshot.primaryCue, 'Bend your right knee more');
+    });
+
+    test('uses first limb fallback when angle corrections are unavailable', () {
+      final service = WorkoutGuidanceService();
+      final snapshot = service.evaluate(
+        cameraReady: true,
+        hasPose: true,
+        poseStable: true,
+        poseCompleted: false,
+        score: 60,
+        holdProgress: 0.1,
+        scoreThreshold: 70,
+        feedbackMessages: const <String>[
+          'Straighten your right leg',
+          'Raise your left arm',
+        ],
+        now: DateTime(2026, 3, 14, 9, 0, 0),
+      );
+
+      expect(snapshot.primaryCue, 'Straighten your right leg');
     });
 
     test('suppresses contradictory cue flips for the same limb', () {
