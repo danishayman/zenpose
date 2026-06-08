@@ -11,6 +11,7 @@ class VoiceInstructionComposer {
   String? compose({
     required WorkoutGuidanceSnapshot snapshot,
     String? baseCue,
+    String? poseKey,
   }) {
     switch (snapshot.state) {
       case WorkoutGuidanceState.initializing:
@@ -23,7 +24,7 @@ class VoiceInstructionComposer {
       case WorkoutGuidanceState.aligning:
         return _composeFormInstruction(snapshot, baseCue);
       case WorkoutGuidanceState.holding:
-        return _positiveHoldingInstruction();
+        return _positiveHoldingInstruction(snapshot, poseKey: poseKey);
     }
   }
 
@@ -101,10 +102,65 @@ class VoiceInstructionComposer {
     return _motivate(_ensureSentence(cue));
   }
 
-  String _positiveHoldingInstruction() => _motivate("You're doing great.");
+  String _positiveHoldingInstruction(
+    WorkoutGuidanceSnapshot snapshot, {
+    String? poseKey,
+  }) {
+    final normalizedPoseKey = _normalizePoseKey(poseKey);
+    final prompts = <String>[
+      ..._holdingEncouragement,
+      if (normalizedPoseKey != null &&
+          _poseFeelingPrompts.containsKey(normalizedPoseKey))
+        _poseFeelingPrompts[normalizedPoseKey]!,
+    ];
+    final seed =
+        (normalizedPoseKey == null ? 0 : _stableSeed(normalizedPoseKey)) +
+        snapshot.score.round() +
+        (snapshot.holdProgress * 10).floor();
+    return _motivate(prompts[seed % prompts.length]);
+  }
 
   String _safetyNoUserInstruction() =>
       _motivate('I cannot see you. Step into frame.');
+
+  static const List<String> _holdingEncouragement = <String>[
+    "You're doing great.",
+    'Hold this position.',
+    'Control your breathing.',
+    'Nice work. Stay steady.',
+    'Good. Keep holding.',
+  ];
+
+  static const Map<String, String> _poseFeelingPrompts = <String, String>{
+    'chair': 'You may feel this in your thighs and knees.',
+    'goddess': 'You may feel this in your inner thighs and hips.',
+    'downdog':
+        'You may feel this through your shoulders, hamstrings, and calves.',
+    'halfmoon': 'You may feel this in your standing leg and side body.',
+    'plank': 'You may feel this in your core and shoulders.',
+    'tree': 'You may feel this in your standing leg and hips.',
+    'warrior2': 'You may feel this in your front thigh and hips.',
+    'cobra': 'You may feel this across your chest and upper back.',
+    'highlunge': 'You may feel this in your front thigh and hip flexors.',
+    'triangle': 'You may feel this along your side body and hamstrings.',
+  };
+
+  String? _normalizePoseKey(String? poseKey) {
+    final normalized = poseKey?.trim().toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]+'),
+      '',
+    );
+    if (normalized == null || normalized.isEmpty) return null;
+    return normalized;
+  }
+
+  int _stableSeed(String value) {
+    var seed = 0;
+    for (final codeUnit in value.codeUnits) {
+      seed = (seed + codeUnit) % 9973;
+    }
+    return seed;
+  }
 
   String _ensureSentence(String cue) {
     if (cue.endsWith('.') || cue.endsWith('!') || cue.endsWith('?')) {

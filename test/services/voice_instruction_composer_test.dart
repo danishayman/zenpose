@@ -75,6 +75,70 @@ void main() {
       expect(spoken, "You're doing great.");
     });
 
+    test('varies holding guidance deterministically', () {
+      const snapshot = WorkoutGuidanceSnapshot(
+        score: 91,
+        holdProgress: 0.5,
+        state: WorkoutGuidanceState.holding,
+        primaryCue: null,
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+
+      final first = composer.compose(snapshot: snapshot, baseCue: null);
+      final second = composer.compose(snapshot: snapshot, baseCue: null);
+
+      expect(first, second);
+      expect(first, 'Hold this position.');
+    });
+
+    test('uses pose-specific body-awareness cue while holding', () {
+      const snapshot = WorkoutGuidanceSnapshot(
+        score: 90,
+        holdProgress: 0.5,
+        state: WorkoutGuidanceState.holding,
+        primaryCue: null,
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+
+      final spoken = composer.compose(
+        snapshot: snapshot,
+        baseCue: null,
+        poseKey: 'plank',
+      );
+
+      expect(spoken, 'You may feel this in your core and shoulders.');
+    });
+
+    test('falls back to generic holding guidance for unknown pose keys', () {
+      const snapshot = WorkoutGuidanceSnapshot(
+        score: 91,
+        holdProgress: 0.5,
+        state: WorkoutGuidanceState.holding,
+        primaryCue: null,
+        secondaryCue: null,
+        shouldResetSession: false,
+      );
+
+      final spoken = composer.compose(
+        snapshot: snapshot,
+        baseCue: null,
+        poseKey: 'unknown-pose',
+      );
+
+      expect(
+        spoken,
+        isIn(<String>[
+          "You're doing great.",
+          'Hold this position.',
+          'Control your breathing.',
+          'Nice work. Stay steady.',
+          'Good. Keep holding.',
+        ]),
+      );
+    });
+
     test('expands elbow feedback into specific voice guidance', () {
       const snapshot = WorkoutGuidanceSnapshot(
         score: 62,

@@ -610,6 +610,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final spokenCue = _voiceInstructionComposer.compose(
       snapshot: snapshot,
       baseCue: snapshot.primaryCue,
+      poseKey: widget.poseTemplate.templateKey,
     );
     if (spokenCue == null || spokenCue.isEmpty) return;
     unawaited(_voiceCueService.speakIfAllowed(spokenCue, snapshot.state));
