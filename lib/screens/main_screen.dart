@@ -22,6 +22,7 @@ import '../services/pose_distance_similarity_service.dart';
 import '../services/limb_similarity_service.dart';
 import '../services/pose_correction_service.dart';
 import '../services/pose_detection_service.dart';
+import '../services/pose_form_gate_service.dart';
 import '../services/pose_mirror_service.dart';
 import '../services/pose_session_service.dart';
 import '../services/pose_stability_service.dart';
@@ -82,6 +83,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final PoseCorrectionService _poseCorrectionService = PoseCorrectionService();
   final PoseDistanceSimilarityService _distanceSimilarityService =
       PoseDistanceSimilarityService();
+  final PoseFormGateService _poseFormGateService = PoseFormGateService();
   final PoseStabilityService _poseStabilityService = PoseStabilityService(
     stabilityThreshold: 0.015,
   );
@@ -380,9 +382,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           hasDistanceScore: hasDistanceScore,
         );
         final useMirrored = mirroredSimilarity > similarity;
-        final selectedSimilarity = useMirrored
-            ? mirroredSimilarity
-            : similarity;
+        final baseSimilarity = useMirrored ? mirroredSimilarity : similarity;
+        final formGate = _poseFormGateService.evaluate(
+          poseKey: widget.poseTemplate.templateKey,
+          normalizedVector: normalized,
+          angles: angles,
+          scoreThreshold: _poseSessionService.scoreThreshold,
+        );
+        final selectedSimilarity = formGate.applyToScore(baseSimilarity);
         _rawSimilarityNotifier.value = selectedSimilarity;
         final smoothedScore = _scoreSmoothingService.addScore(
           selectedSimilarity,
@@ -437,7 +444,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             ? _mirroredPoseCorrectionService.generateCorrections(angles)
             : _poseCorrectionService.generateCorrections(angles);
         _angleFeedbackNotifier.value = angleCorrections;
-        final guidanceFeedback = <String>[...angleCorrections, ...feedback];
+        final guidanceFeedback = <String>[
+          ...formGate.feedbackMessages,
+          ...angleCorrections,
+          ...feedback,
+        ];
 
         final guidance = _guidanceService.evaluate(
           cameraReady: _isCameraReady,
@@ -473,8 +484,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             'mirrorDist=${mirroredDistanceScore.toStringAsFixed(1)} '
             'mirrorCos=${mirroredCosineScore?.toStringAsFixed(1) ?? '-'} '
             'mirrorAngle=${mirroredAngleScore?.toStringAsFixed(1) ?? '-'} '
+            'base=${baseSimilarity.toStringAsFixed(1)}% '
             'raw=${selectedSimilarity.toStringAsFixed(1)}% '
             'smooth=${smoothedScore.toStringAsFixed(1)}% '
+            'gate=${formGate.passes ? 'pass' : 'cap'} '
             'maxDist=${maxDistance.toStringAsFixed(2)} '
             'hasDistance=$hasDistanceScore '
             'mirrored=$useMirrored',
