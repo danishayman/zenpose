@@ -48,3 +48,6 @@ dataset/
 # Local environment variables
 .env
 .env.local
+
+# FVM Version Cache
+.fvm/
