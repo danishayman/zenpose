@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "C:/Users/danis/Documents/FYP/zenpose/linux"
+  "cmake.sourceDirectory": "C:/Users/danis/Documents/FYP/zenpose/linux",
+  "dart.flutterSdkPath": ".fvm/versions/3.44.1"
 }
