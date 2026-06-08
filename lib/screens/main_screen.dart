@@ -389,6 +389,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         final formGate = _poseFormGateService.evaluate(
           poseKey: widget.poseTemplate.templateKey,
           normalizedVector: normalized,
+          rawLandmarks: smoothedLandmarks,
+          imageHeight: _cameraImageSize.height,
           angles: angles,
           scoreThreshold: _poseSessionService.scoreThreshold,
         );

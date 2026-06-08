@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zenpose/models/pose_landmark_model.dart';
 import 'package:zenpose/services/pose_form_gate_service.dart';
 import 'package:zenpose/services/pose_mirror_service.dart';
+
+const double _imageHeight = 1000.0;
 
 void main() {
   late PoseFormGateService service;
@@ -114,6 +117,8 @@ void main() {
       final result = service.evaluate(
         poseKey: 'downdog',
         normalizedVector: _plankVector(),
+        rawLandmarks: _floorLandmarks(),
+        imageHeight: _imageHeight,
         angles: _angles(
           leftKnee: 165,
           rightKnee: 179,
@@ -136,6 +141,8 @@ void main() {
       final result = service.evaluate(
         poseKey: 'downdog',
         normalizedVector: _downDogVector(),
+        rawLandmarks: _floorLandmarks(),
+        imageHeight: _imageHeight,
         angles: _angles(
           leftKnee: 163,
           rightKnee: 178,
@@ -146,6 +153,26 @@ void main() {
       );
 
       expect(result.passes, isTrue);
+    });
+
+    test('caps Down Dog when floor evidence is too high in frame', () {
+      final result = service.evaluate(
+        poseKey: 'downdog',
+        normalizedVector: _downDogVector(),
+        rawLandmarks: _standingFloorLandmarks(),
+        imageHeight: _imageHeight,
+        angles: _angles(
+          leftKnee: 163,
+          rightKnee: 178,
+          leftElbow: 176,
+          rightElbow: 177,
+        ),
+        scoreThreshold: 60,
+      );
+
+      expect(result.passes, isFalse);
+      expect(result.feedbackMessages, contains('Move down onto the floor/mat'));
+      expect(result.applyToScore(92), 52);
     });
 
     test('caps Half Moon when the user only tilts sideways', () {
@@ -200,6 +227,8 @@ void main() {
       final result = service.evaluate(
         poseKey: 'plank',
         normalizedVector: _downDogVector(),
+        rawLandmarks: _floorLandmarks(),
+        imageHeight: _imageHeight,
         angles: _angles(
           leftKnee: 163,
           rightKnee: 178,
@@ -221,6 +250,8 @@ void main() {
       final result = service.evaluate(
         poseKey: 'plank',
         normalizedVector: _plankVector(),
+        rawLandmarks: _floorLandmarks(),
+        imageHeight: _imageHeight,
         angles: _angles(
           leftKnee: 165,
           rightKnee: 179,
@@ -231,6 +262,26 @@ void main() {
       );
 
       expect(result.passes, isTrue);
+    });
+
+    test('caps Plank when the user is upright instead of on the floor', () {
+      final result = service.evaluate(
+        poseKey: 'plank',
+        normalizedVector: _plankVector(),
+        rawLandmarks: _standingFloorLandmarks(),
+        imageHeight: _imageHeight,
+        angles: _angles(
+          leftKnee: 165,
+          rightKnee: 179,
+          leftElbow: 159,
+          rightElbow: 178,
+        ),
+        scoreThreshold: 60,
+      );
+
+      expect(result.passes, isFalse);
+      expect(result.feedbackMessages, contains('Move down onto the floor/mat'));
+      expect(result.applyToScore(96), 52);
     });
 
     test('caps Warrior 2 when arms are raised overhead', () {
@@ -280,6 +331,8 @@ void main() {
       final result = service.evaluate(
         poseKey: 'cobra',
         normalizedVector: _plankVector(),
+        rawLandmarks: _floorLandmarks(),
+        imageHeight: _imageHeight,
         angles: _angles(),
         scoreThreshold: 60,
       );
@@ -297,11 +350,28 @@ void main() {
       final result = service.evaluate(
         poseKey: 'cobra',
         normalizedVector: _cobraVector(),
+        rawLandmarks: _cobraFloorLandmarks(),
+        imageHeight: _imageHeight,
         angles: _angles(),
         scoreThreshold: 60,
       );
 
       expect(result.passes, isTrue);
+    });
+
+    test('caps Cobra when lower body is not near the floor', () {
+      final result = service.evaluate(
+        poseKey: 'cobra',
+        normalizedVector: _cobraVector(),
+        rawLandmarks: _standingFloorLandmarks(),
+        imageHeight: _imageHeight,
+        angles: _angles(),
+        scoreThreshold: 60,
+      );
+
+      expect(result.passes, isFalse);
+      expect(result.feedbackMessages, contains('Move down onto the floor/mat'));
+      expect(result.applyToScore(90), 52);
     });
 
     test('caps Triangle when user is just standing', () {
@@ -549,6 +619,43 @@ List<double> _standingVector() {
     (-0.24, 1.95),
     (0.24, 1.95),
   ]);
+}
+
+List<PoseLandmark> _floorLandmarks({
+  double wristY = 700,
+  double hipY = 620,
+  double kneeY = 720,
+  double ankleY = 800,
+}) {
+  final landmarks = _emptyLandmarks();
+  landmarks[15] = _landmark(y: wristY);
+  landmarks[16] = _landmark(y: wristY);
+  landmarks[23] = _landmark(y: hipY);
+  landmarks[24] = _landmark(y: hipY);
+  landmarks[25] = _landmark(y: kneeY);
+  landmarks[26] = _landmark(y: kneeY);
+  landmarks[27] = _landmark(y: ankleY);
+  landmarks[28] = _landmark(y: ankleY);
+  return landmarks;
+}
+
+List<PoseLandmark> _cobraFloorLandmarks() {
+  return _floorLandmarks(wristY: 590, hipY: 560, kneeY: 590, ankleY: 640);
+}
+
+List<PoseLandmark> _standingFloorLandmarks() {
+  return _floorLandmarks(wristY: 340, hipY: 420, kneeY: 560, ankleY: 820);
+}
+
+List<PoseLandmark> _emptyLandmarks() {
+  return List<PoseLandmark>.generate(
+    33,
+    (_) => const PoseLandmark(x: 0, y: 0, z: 0, confidence: 0),
+  );
+}
+
+PoseLandmark _landmark({required double y}) {
+  return PoseLandmark(x: 100, y: y, z: 0, confidence: 1);
 }
 
 List<double> _vector(List<(double, double)> points) {

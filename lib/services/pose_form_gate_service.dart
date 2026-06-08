@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../models/pose_landmark_model.dart';
 import 'pose_normalization_service.dart';
 
 class PoseFormGateResult {
@@ -35,6 +36,8 @@ class PoseFormGateService {
   PoseFormGateResult evaluate({
     required String poseKey,
     required List<double>? normalizedVector,
+    List<PoseLandmark>? rawLandmarks,
+    double? imageHeight,
     required Map<String, double> angles,
     required double scoreThreshold,
   }) {
@@ -51,15 +54,23 @@ class PoseFormGateService {
     }
 
     final points = _PosePoints(normalizedVector);
+    final floorFailures = _floorContactFailures(
+      normalizedKey,
+      rawLandmarks,
+      imageHeight,
+    );
     final failures = switch (normalizedKey) {
       'chair' => _chairFailures(points, angles),
-      'downdog' => _downDogFailures(points, angles),
+      'downdog' => <String>[
+        ...floorFailures,
+        ..._downDogFailures(points, angles),
+      ],
       'goddess' => _goddessFailures(points, angles),
       'halfmoon' => _halfMoonFailures(points, angles),
       'highlunge' => _highLungeFailures(points, angles),
-      'plank' => _plankFailures(points, angles),
+      'plank' => <String>[...floorFailures, ..._plankFailures(points, angles)],
       'warrior2' => _warrior2Failures(points, angles),
-      'cobra' => _cobraFailures(points),
+      'cobra' => <String>[...floorFailures, ..._cobraFailures(points)],
       'triangle' => _triangleFailures(points, angles),
       _ => const <String>[],
     };
@@ -78,6 +89,12 @@ class PoseFormGateService {
     'warrior2',
     'cobra',
     'triangle',
+  };
+
+  static const Set<String> _floorPoseKeys = <String>{
+    'downdog',
+    'plank',
+    'cobra',
   };
 
   PoseFormGateResult _fail(double scoreThreshold, List<String> messages) {
@@ -177,11 +194,11 @@ class PoseFormGateService {
 
   List<String> _plankFailures(_PosePoints points, Map<String, double> angles) {
     final failures = <String>[];
-    if (points.torsoDeviationFromVertical > 25.0 ||
-        points.hipDistanceFromShoulderAnkleLine > 0.25) {
+    if (points.torsoDeviationFromVertical > 32.0 ||
+        points.hipDistanceFromShoulderAnkleLine > 0.32) {
       failures.add('Keep shoulders, hips, and heels in one line');
     }
-    if ((points.averageWristY - points.averageShoulderY).abs() > 0.45) {
+    if ((points.averageWristY - points.averageShoulderY).abs() > 0.55) {
       failures.add('Stack your shoulders over your hands');
     }
     if (!_bothElbowsStraight(angles, minAngle: 150.0)) {
@@ -191,6 +208,30 @@ class PoseFormGateService {
       failures.add('Straighten both legs');
     }
     return failures;
+  }
+
+  List<String> _floorContactFailures(
+    String normalizedKey,
+    List<PoseLandmark>? rawLandmarks,
+    double? imageHeight,
+  ) {
+    if (!_floorPoseKeys.contains(normalizedKey)) {
+      return const <String>[];
+    }
+
+    final rawPoints = _RawPosePoints.from(rawLandmarks, imageHeight);
+    if (rawPoints == null) {
+      return const <String>['Move down onto the floor/mat'];
+    }
+
+    final hasFloorContact = switch (normalizedKey) {
+      'downdog' || 'plank' => rawPoints.handsLow && rawPoints.feetLow,
+      'cobra' => rawPoints.lowerBodyLow,
+      _ => true,
+    };
+
+    if (hasFloorContact) return const <String>[];
+    return const <String>['Move down onto the floor/mat'];
   }
 
   List<String> _warrior2Failures(
@@ -362,6 +403,57 @@ class _PosePoints {
   _Point _point(int jointIndex) {
     final offset = jointIndex * 2;
     return _Point(vector[offset], vector[offset + 1]);
+  }
+}
+
+class _RawPosePoints {
+  static const double _contactBandStart = 0.52;
+  static const double _lowerBodyBandStart = 0.50;
+
+  final List<PoseLandmark> landmarks;
+  final double imageHeight;
+
+  const _RawPosePoints({required this.landmarks, required this.imageHeight});
+
+  static _RawPosePoints? from(
+    List<PoseLandmark>? landmarks,
+    double? imageHeight,
+  ) {
+    if (landmarks == null || landmarks.length < 29) return null;
+    if (imageHeight == null || imageHeight <= 0) return null;
+    return _RawPosePoints(landmarks: landmarks, imageHeight: imageHeight);
+  }
+
+  PoseLandmark get leftWrist => landmarks[15];
+  PoseLandmark get rightWrist => landmarks[16];
+  PoseLandmark get leftHip => landmarks[23];
+  PoseLandmark get rightHip => landmarks[24];
+  PoseLandmark get leftKnee => landmarks[25];
+  PoseLandmark get rightKnee => landmarks[26];
+  PoseLandmark get leftAnkle => landmarks[27];
+  PoseLandmark get rightAnkle => landmarks[28];
+
+  bool get handsLow =>
+      _averageNormalizedY(leftWrist, rightWrist) >= _contactBandStart;
+
+  bool get feetLow =>
+      _averageNormalizedY(leftAnkle, rightAnkle) >= _contactBandStart;
+
+  bool get hipsLow =>
+      _averageNormalizedY(leftHip, rightHip) >= _lowerBodyBandStart;
+
+  bool get lowerBodyLow {
+    final lowerAverage =
+        (_averageNormalizedY(leftHip, rightHip) +
+            _averageNormalizedY(leftKnee, rightKnee) +
+            _averageNormalizedY(leftAnkle, rightAnkle)) /
+        3.0;
+    return hipsLow && lowerAverage >= _lowerBodyBandStart;
+  }
+
+  double _averageNormalizedY(PoseLandmark a, PoseLandmark b) {
+    if (!a.isValid || !b.isValid) return 0.0;
+    return ((a.y + b.y) / 2.0) / imageHeight;
   }
 }
 
