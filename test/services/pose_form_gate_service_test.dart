@@ -86,6 +86,19 @@ void main() {
       expect(result.applyToScore(88), 52);
     });
 
+    test('caps Goddess when stance is wide but knees are not open enough', () {
+      final result = service.evaluate(
+        poseKey: 'goddess',
+        normalizedVector: _goddessVector(kneeX: 0.42, kneeY: 0.36),
+        angles: _angles(leftKnee: 124, rightKnee: 126),
+        scoreThreshold: 60,
+      );
+
+      expect(result.passes, isFalse);
+      expect(result.feedbackMessages, contains('Sink your hips lower'));
+      expect(result.applyToScore(88), 52);
+    });
+
     test('passes Goddess with wide low bent knees', () {
       final result = service.evaluate(
         poseKey: 'goddess',
@@ -365,7 +378,7 @@ List<double> _chairVector({double rightWristY = -1.80, double kneeY = 0.65}) {
   ]);
 }
 
-List<double> _goddessVector({double kneeY = 0.32}) {
+List<double> _goddessVector({double kneeX = 0.65, double kneeY = 0.32}) {
   return _vector(<(double, double)>[
     (-0.25, -1.00),
     (0.25, -1.00),
@@ -375,8 +388,8 @@ List<double> _goddessVector({double kneeY = 0.32}) {
     (0.53, -1.15),
     (-0.16, 0.00),
     (0.16, 0.00),
-    (-0.65, kneeY),
-    (0.65, kneeY),
+    (-kneeX, kneeY),
+    (kneeX, kneeY),
     (-0.66, 0.98),
     (0.66, 0.98),
   ]);

@@ -115,7 +115,9 @@ class PoseFormGateService {
     if (!_bothKneesBent(angles, maxAngle: 135.0)) {
       failures.add('Bend both knees outward');
     }
-    if (points.averageKneeY > 0.50) {
+    final kneesOpenNearAnkles =
+        points.kneeSpreadX >= points.ankleSpreadX * 0.78;
+    if (points.averageKneeY > 0.42 || !kneesOpenNearAnkles) {
       failures.add('Sink your hips lower');
     }
     return failures;
