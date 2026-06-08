@@ -1520,12 +1520,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     // (distance, cosine, angle)
     switch (widget.poseTemplate.templateKey.toLowerCase()) {
       case 'downdog':
-      case 'plank':
       case 'chair':
       case 'half-moon':
       case 'halfmoon':
       case 'half moon':
         return (0.05, 0.60, 0.35);
+      case 'plank':
+        return (0.10, 0.75, 0.15);
       default:
         return (0.20, 0.50, 0.30);
     }
@@ -1536,7 +1537,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       case 'downdog':
         return 5.2;
       case 'plank':
-        return 5.2;
+        return 6.2;
       case 'chair':
         return 5.2;
       case 'half-moon':

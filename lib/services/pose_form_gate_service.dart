@@ -201,10 +201,10 @@ class PoseFormGateService {
     if ((points.averageWristY - points.averageShoulderY).abs() > 0.55) {
       failures.add('Stack your shoulders over your hands');
     }
-    if (!_bothElbowsStraight(angles, minAngle: 150.0)) {
+    if (!_bothElbowsStraight(angles, minAngle: 135.0)) {
       failures.add('Press through straight arms');
     }
-    if (!_bothKneesStraight(angles, minAngle: 155.0)) {
+    if (!_bothKneesStraight(angles, minAngle: 145.0)) {
       failures.add('Straighten both legs');
     }
     return failures;
@@ -225,7 +225,8 @@ class PoseFormGateService {
     }
 
     final hasFloorContact = switch (normalizedKey) {
-      'downdog' || 'plank' => rawPoints.handsLow && rawPoints.feetLow,
+      'downdog' => rawPoints.handsLow && rawPoints.feetLow,
+      'plank' => rawPoints.plankContactLow,
       'cobra' => rawPoints.lowerBodyLow,
       _ => true,
     };
@@ -408,6 +409,8 @@ class _PosePoints {
 
 class _RawPosePoints {
   static const double _contactBandStart = 0.52;
+  static const double _plankHandBandStart = 0.45;
+  static const double _plankFootBandStart = 0.50;
   static const double _lowerBodyBandStart = 0.50;
 
   final List<PoseLandmark> landmarks;
@@ -438,6 +441,10 @@ class _RawPosePoints {
 
   bool get feetLow =>
       _averageNormalizedY(leftAnkle, rightAnkle) >= _contactBandStart;
+
+  bool get plankContactLow =>
+      _averageNormalizedY(leftWrist, rightWrist) >= _plankHandBandStart &&
+      _averageNormalizedY(leftAnkle, rightAnkle) >= _plankFootBandStart;
 
   bool get hipsLow =>
       _averageNormalizedY(leftHip, rightHip) >= _lowerBodyBandStart;

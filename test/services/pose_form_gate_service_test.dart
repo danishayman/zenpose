@@ -264,6 +264,24 @@ void main() {
       expect(result.passes, isTrue);
     });
 
+    test('passes Plank with softer beginner alignment on the floor', () {
+      final result = service.evaluate(
+        poseKey: 'plank',
+        normalizedVector: _plankVector(),
+        rawLandmarks: _floorLandmarks(wristY: 470, ankleY: 540),
+        imageHeight: _imageHeight,
+        angles: _angles(
+          leftKnee: 148,
+          rightKnee: 151,
+          leftElbow: 140,
+          rightElbow: 146,
+        ),
+        scoreThreshold: 60,
+      );
+
+      expect(result.passes, isTrue);
+    });
+
     test('caps Plank when the user is upright instead of on the floor', () {
       final result = service.evaluate(
         poseKey: 'plank',
