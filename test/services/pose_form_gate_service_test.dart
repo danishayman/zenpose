@@ -46,6 +46,19 @@ void main() {
       expect(result.passes, isTrue);
     });
 
+    test('caps Chair when knees are not bent', () {
+      final result = service.evaluate(
+        poseKey: 'chair',
+        normalizedVector: _chairVector(),
+        angles: _angles(leftKnee: 176, rightKnee: 177),
+        scoreThreshold: 60,
+      );
+
+      expect(result.passes, isFalse);
+      expect(result.feedbackMessages, contains('Bend your knees more'));
+      expect(result.applyToScore(90), 52);
+    });
+
     test('caps Chair when arms are raised but body is not lowered', () {
       final result = service.evaluate(
         poseKey: 'chair',

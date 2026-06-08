@@ -95,7 +95,7 @@ class PoseFormGateService {
       failures.add('Raise both arms overhead');
     }
     final hasKneeBend = _atLeastOneKneeBent(angles, maxAngle: 172.0);
-    if (!hasKneeBend && points.averageKneeY > 0.78) {
+    if (!hasKneeBend) {
       failures.add('Bend your knees more');
     }
     if (points.averageKneeY > 0.95) {
