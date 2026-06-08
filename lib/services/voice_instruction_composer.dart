@@ -39,141 +39,56 @@ class VoiceInstructionComposer {
     final lowered = cue.toLowerCase();
 
     if (lowered.contains('bend your left elbow')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Bend your left elbow more. Keep your shoulder steady.',
-          'Soften your left elbow a little more. Keep your arm controlled.',
-        ]),
-      );
+      return _motivate('Bend your left elbow more.');
     }
     if (lowered.contains('bend your right elbow')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Bend your right elbow more. Keep your shoulder steady.',
-          'Soften your right elbow a little more. Keep your arm controlled.',
-        ]),
-      );
+      return _motivate('Bend your right elbow more.');
     }
     if (lowered.contains('straighten your left arm')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Straighten your left arm more. Keep your wrist in line.',
-          'Extend your left arm a little more. Keep your shoulder relaxed.',
-        ]),
-      );
+      return _motivate('Straighten your left arm.');
     }
     if (lowered.contains('straighten your right arm')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Straighten your right arm more. Keep your wrist in line.',
-          'Extend your right arm a little more. Keep your shoulder relaxed.',
-        ]),
-      );
+      return _motivate('Straighten your right arm.');
     }
     if (lowered.contains('raise your left arm')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Raise your left arm higher. Keep your shoulders relaxed.',
-          'Lift your left arm a little higher. Keep your chest open.',
-        ]),
-      );
+      return _motivate('Raise your left arm.');
     }
     if (lowered.contains('raise your right arm')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Raise your right arm higher. Keep your shoulders relaxed.',
-          'Lift your right arm a little higher. Keep your chest open.',
-        ]),
-      );
+      return _motivate('Raise your right arm.');
     }
     if (lowered.contains('lower your left arm')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Lower your left arm slightly. Keep your shoulders level.',
-          'Bring your left arm down a little. Keep your neck relaxed.',
-        ]),
-      );
+      return _motivate('Lower your left arm.');
     }
     if (lowered.contains('lower your right arm')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Lower your right arm slightly. Keep your shoulders level.',
-          'Bring your right arm down a little. Keep your neck relaxed.',
-        ]),
-      );
+      return _motivate('Lower your right arm.');
     }
     if (lowered.contains('straighten your left leg')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Straighten your left leg more. Keep your base steady.',
-          'Lengthen your left leg a little more. Press evenly through your foot.',
-        ]),
-      );
+      return _motivate('Straighten your left leg.');
     }
     if (lowered.contains('straighten your right leg')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Straighten your right leg more. Keep your base steady.',
-          'Lengthen your right leg a little more. Press evenly through your foot.',
-        ]),
-      );
+      return _motivate('Straighten your right leg.');
     }
     if (lowered.contains('bend your left knee')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Bend your left knee more. Stay balanced.',
-          'Sink a little deeper into your left knee. Keep it tracking forward.',
-        ]),
-      );
+      return _motivate('Bend your left knee more.');
     }
     if (lowered.contains('bend your right knee')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Bend your right knee more. Stay balanced.',
-          'Sink a little deeper into your right knee. Keep it tracking forward.',
-        ]),
-      );
+      return _motivate('Bend your right knee more.');
     }
     if (lowered.contains('open your left hip')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Open your left hip more. Keep your balance.',
-          'Rotate your left hip open a little more. Keep your pelvis steady.',
-        ]),
-      );
+      return _motivate('Open your left hip.');
     }
     if (lowered.contains('open your right hip')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Open your right hip more. Keep your balance.',
-          'Rotate your right hip open a little more. Keep your pelvis steady.',
-        ]),
-      );
+      return _motivate('Open your right hip.');
     }
     if (lowered.contains('close your left hip')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Close your left hip slightly. Center your pelvis.',
-          'Draw your left hip in slightly. Keep your pelvis centered.',
-        ]),
-      );
+      return _motivate('Close your left hip.');
     }
     if (lowered.contains('close your right hip')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Close your right hip slightly. Center your pelvis.',
-          'Draw your right hip in slightly. Keep your pelvis centered.',
-        ]),
-      );
+      return _motivate('Close your right hip.');
     }
     if (lowered.contains('adjust torso alignment') ||
         lowered.contains('torso')) {
-      return _motivate(
-        _variant(snapshot, cue, const <String>[
-          'Adjust your torso alignment. Gently engage your core.',
-          'Stack your torso more evenly. Keep your core lightly active.',
-        ]),
-      );
+      return _motivate('Adjust your torso.');
     }
     if (lowered.contains('match the outline') ||
         lowered.contains('hold still')) {
@@ -183,35 +98,19 @@ class VoiceInstructionComposer {
       return _safetyNoUserInstruction();
     }
 
-    return _motivate('$cue. Keep your breath steady.');
+    return _motivate(_ensureSentence(cue));
   }
 
-  String _positiveHoldingInstruction() =>
-      _motivate("You're doing great. Hold still and keep breathing.");
+  String _positiveHoldingInstruction() => _motivate("You're doing great.");
 
   String _safetyNoUserInstruction() =>
       _motivate('I cannot see you. Step into frame.');
 
-  String _variant(
-    WorkoutGuidanceSnapshot snapshot,
-    String cue,
-    List<String> options,
-  ) {
-    if (options.length == 1) return options.first;
-    final seed =
-        _stableCueSeed(cue) +
-        snapshot.state.index +
-        snapshot.score.round() +
-        (snapshot.holdProgress * 100).round();
-    return options[seed % options.length];
-  }
-
-  int _stableCueSeed(String cue) {
-    var seed = 0;
-    for (final codeUnit in cue.toLowerCase().codeUnits) {
-      seed = (seed + codeUnit) % 9973;
+  String _ensureSentence(String cue) {
+    if (cue.endsWith('.') || cue.endsWith('!') || cue.endsWith('?')) {
+      return cue;
     }
-    return seed;
+    return '$cue.';
   }
 
   String _motivate(String instruction) {

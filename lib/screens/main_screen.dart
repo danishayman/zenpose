@@ -23,6 +23,7 @@ import '../services/limb_similarity_service.dart';
 import '../services/pose_correction_service.dart';
 import '../services/pose_detection_service.dart';
 import '../services/pose_form_gate_service.dart';
+import '../services/pose_hold_eligibility_service.dart';
 import '../services/pose_mirror_service.dart';
 import '../services/pose_session_service.dart';
 import '../services/pose_stability_service.dart';
@@ -84,6 +85,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final PoseDistanceSimilarityService _distanceSimilarityService =
       PoseDistanceSimilarityService();
   final PoseFormGateService _poseFormGateService = PoseFormGateService();
+  final PoseHoldEligibilityService _poseHoldEligibilityService =
+      const PoseHoldEligibilityService();
   final PoseStabilityService _poseStabilityService = PoseStabilityService(
     stabilityThreshold: 0.015,
   );
@@ -403,11 +406,17 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             stabilityResult.movementScore < _stabilityThresholdForPose();
         _poseStableNotifier.value = poseStable;
         _movementScoreNotifier.value = stabilityResult.movementScore;
+        final poseStableForHold = _poseHoldEligibilityService.poseStableForHold(
+          mode: _sessionConfig.mode,
+          poseStable: poseStable,
+          score: smoothedScore,
+          scoreThreshold: _poseSessionService.scoreThreshold,
+        );
 
         // ── Pose hold timer ───────────────────────────────────────────
         final poseResult = _poseSessionService.update(
           smoothedScore,
-          poseStable: poseStable,
+          poseStable: poseStableForHold,
         );
         if (poseResult != null) {
           if (_isTimedMode) {
@@ -453,7 +462,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         final guidance = _guidanceService.evaluate(
           cameraReady: _isCameraReady,
           hasPose: true,
-          poseStable: poseStable,
+          poseStable: poseStableForHold,
           poseCompleted: _poseSessionService.poseCompleted,
           score: smoothedScore,
           holdProgress: _isTimedMode
@@ -469,7 +478,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           score: guidance.score,
           progress: guidance.holdProgress,
         );
-        _speakPrimaryCue(guidance);
+        _speakPrimaryCue(guidance, poseStable: poseStableForHold);
 
         // Debug: print the normalized vector to console.
         if (normalized != null) {
@@ -590,7 +599,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     });
   }
 
-  void _speakPrimaryCue(WorkoutGuidanceSnapshot snapshot) {
+  void _speakPrimaryCue(
+    WorkoutGuidanceSnapshot snapshot, {
+    bool poseStable = true,
+  }) {
+    if (snapshot.state == WorkoutGuidanceState.aligning && !poseStable) {
+      return;
+    }
+
     final spokenCue = _voiceInstructionComposer.compose(
       snapshot: snapshot,
       baseCue: snapshot.primaryCue,

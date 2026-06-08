@@ -21,10 +21,7 @@ void main() {
         baseCue: snapshot.primaryCue,
       );
 
-      expect(
-        spoken,
-        'Raise your right arm higher. Keep your shoulders relaxed.',
-      );
+      expect(spoken, 'Raise your right arm.');
     });
 
     test('uses safety guidance when user is not detected', () {
@@ -75,7 +72,7 @@ void main() {
 
       final spoken = composer.compose(snapshot: snapshot, baseCue: null);
 
-      expect(spoken, "You're doing great. Hold still and keep breathing.");
+      expect(spoken, "You're doing great.");
     });
 
     test('expands elbow feedback into specific voice guidance', () {
@@ -93,7 +90,7 @@ void main() {
         baseCue: snapshot.primaryCue,
       );
 
-      expect(spoken, 'Bend your left elbow more. Keep your shoulder steady.');
+      expect(spoken, 'Bend your left elbow more.');
     });
 
     test('expands knee feedback into specific voice guidance', () {
@@ -111,10 +108,7 @@ void main() {
         baseCue: snapshot.primaryCue,
       );
 
-      expect(
-        spoken,
-        'Sink a little deeper into your right knee. Keep it tracking forward.',
-      );
+      expect(spoken, 'Bend your right knee more.');
     });
 
     test('expands hip and torso feedback into specific voice guidance', () {
@@ -144,11 +138,8 @@ void main() {
         baseCue: torsoSnapshot.primaryCue,
       );
 
-      expect(
-        hip,
-        'Rotate your left hip open a little more. Keep your pelvis steady.',
-      );
-      expect(torso, 'Adjust your torso alignment. Gently engage your core.');
+      expect(hip, 'Open your left hip.');
+      expect(torso, 'Adjust your torso.');
     });
 
     test('uses deterministic variants for repeated known cues', () {
@@ -171,10 +162,7 @@ void main() {
       );
 
       expect(first, second);
-      expect(
-        first,
-        'Extend your right arm a little more. Keep your shoulder relaxed.',
-      );
+      expect(first, 'Straighten your right arm.');
     });
 
     test('falls back for unknown cue text', () {
@@ -192,7 +180,7 @@ void main() {
         baseCue: snapshot.primaryCue,
       );
 
-      expect(spoken, 'Custom cue. Keep your breath steady.');
+      expect(spoken, 'Custom cue.');
     });
 
     test(

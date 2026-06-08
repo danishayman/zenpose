@@ -53,9 +53,13 @@ class PoseFormGateService {
     final points = _PosePoints(normalizedVector);
     final failures = switch (normalizedKey) {
       'chair' => _chairFailures(points, angles),
+      'downdog' => _downDogFailures(points, angles),
       'goddess' => _goddessFailures(points, angles),
       'halfmoon' => _halfMoonFailures(points, angles),
+      'highlunge' => _highLungeFailures(points, angles),
+      'plank' => _plankFailures(points, angles),
       'warrior2' => _warrior2Failures(points, angles),
+      'cobra' => _cobraFailures(points),
       'triangle' => _triangleFailures(points, angles),
       _ => const <String>[],
     };
@@ -66,9 +70,13 @@ class PoseFormGateService {
 
   static const Set<String> _gatedPoseKeys = <String>{
     'chair',
+    'downdog',
     'goddess',
     'halfmoon',
+    'highlunge',
+    'plank',
     'warrior2',
+    'cobra',
     'triangle',
   };
 
@@ -86,10 +94,11 @@ class PoseFormGateService {
     if (!_bothArmsOverhead(points)) {
       failures.add('Raise both arms overhead');
     }
-    if (!_bothKneesBent(angles, maxAngle: 168.0)) {
-      failures.add('Bend both knees more');
+    final hasKneeBend = _atLeastOneKneeBent(angles, maxAngle: 172.0);
+    if (!hasKneeBend && points.averageKneeY > 0.78) {
+      failures.add('Bend your knees more');
     }
-    if (points.averageKneeY > 0.85) {
+    if (points.averageKneeY > 0.95) {
       failures.add('Lower your hips like sitting');
     }
     return failures;
@@ -112,6 +121,27 @@ class PoseFormGateService {
     return failures;
   }
 
+  List<String> _downDogFailures(
+    _PosePoints points,
+    Map<String, double> angles,
+  ) {
+    final failures = <String>[];
+    if (points.averageHipY > points.averageWristY - 0.55 ||
+        points.averageHipY > points.averageAnkleY - 0.55) {
+      failures.add('Lift your hips higher');
+    }
+    if (points.torsoDeviationFromVertical < 50.0) {
+      failures.add('Fold into an inverted V shape');
+    }
+    if (!_bothElbowsStraight(angles, minAngle: 150.0)) {
+      failures.add('Straighten your arms');
+    }
+    if (!_bothKneesStraight(angles, minAngle: 150.0)) {
+      failures.add('Lengthen both legs');
+    }
+    return failures;
+  }
+
   List<String> _halfMoonFailures(
     _PosePoints points,
     Map<String, double> angles,
@@ -125,6 +155,38 @@ class PoseFormGateService {
     }
     if (!_bothKneesStraight(angles, minAngle: 155.0)) {
       failures.add('Keep both legs long');
+    }
+    return failures;
+  }
+
+  List<String> _highLungeFailures(
+    _PosePoints points,
+    Map<String, double> angles,
+  ) {
+    final failures = <String>[];
+    if (!_atLeastOneKneeBent(angles, maxAngle: 165.0)) {
+      failures.add('Bend your front knee forward');
+    }
+    if (points.minKneeY > 0.70) {
+      failures.add('Lower into your lunge');
+    }
+    return failures;
+  }
+
+  List<String> _plankFailures(_PosePoints points, Map<String, double> angles) {
+    final failures = <String>[];
+    if (points.torsoDeviationFromVertical > 25.0 ||
+        points.hipDistanceFromShoulderAnkleLine > 0.25) {
+      failures.add('Keep shoulders, hips, and heels in one line');
+    }
+    if ((points.averageWristY - points.averageShoulderY).abs() > 0.45) {
+      failures.add('Stack your shoulders over your hands');
+    }
+    if (!_bothElbowsStraight(angles, minAngle: 150.0)) {
+      failures.add('Press through straight arms');
+    }
+    if (!_bothKneesStraight(angles, minAngle: 155.0)) {
+      failures.add('Straighten both legs');
     }
     return failures;
   }
@@ -146,6 +208,20 @@ class PoseFormGateService {
     }
     if (points.averageKneeY > 0.55) {
       failures.add('Lower your body into the stance');
+    }
+    return failures;
+  }
+
+  List<String> _cobraFailures(_PosePoints points) {
+    final failures = <String>[];
+    if (points.averageShoulderY > points.averageHipY - 0.45) {
+      failures.add('Lift your chest higher');
+    }
+    if ((points.averageHipY - points.averageAnkleY).abs() > 0.35) {
+      failures.add('Keep your hips low on the mat');
+    }
+    if ((points.averageWristY - points.averageHipY).abs() > 0.45) {
+      failures.add('Place your hands under your shoulders');
     }
     return failures;
   }
@@ -250,12 +326,21 @@ class _PosePoints {
   _Point get leftAnkle => _point(10);
   _Point get rightAnkle => _point(11);
 
+  double get averageShoulderY => (leftShoulder.y + rightShoulder.y) / 2.0;
+  double get averageWristY => (leftWrist.y + rightWrist.y) / 2.0;
+  double get averageHipY => (leftHip.y + rightHip.y) / 2.0;
   double get averageKneeY => (leftKnee.y + rightKnee.y) / 2.0;
+  double get minKneeY => math.min(leftKnee.y, rightKnee.y);
+  double get averageAnkleY => (leftAnkle.y + rightAnkle.y) / 2.0;
   double get ankleSpreadX => (leftAnkle.x - rightAnkle.x).abs();
   double get kneeSpreadX => (leftKnee.x - rightKnee.x).abs();
   double get ankleYDiff => (leftAnkle.y - rightAnkle.y).abs();
   double get shoulderSpreadX => (leftShoulder.x - rightShoulder.x).abs();
   double get wristSpreadX => (leftWrist.x - rightWrist.x).abs();
+  double get hipDistanceFromShoulderAnkleLine {
+    final expectedHipY = (averageShoulderY + averageAnkleY) / 2.0;
+    return (averageHipY - expectedHipY).abs();
+  }
 
   double get torsoDeviationFromVertical {
     final shoulderCenter = _Point(
