@@ -451,6 +451,39 @@ void main() {
 
       expect(result.passes, isTrue);
     });
+
+    test('passes beginner Tree when the lifted foot height is noisy', () {
+      final result = service.evaluate(
+        poseKey: 'tree',
+        normalizedVector: _treeVector(
+          leftKneeX: 0.52,
+          rightKneeX: -0.30,
+          leftAnkleX: 0.12,
+          rightAnkleX: -0.42,
+          leftAnkleY: 0.36,
+          rightAnkleY: 1.02,
+        ),
+        angles: _angles(leftKnee: 142, rightKnee: 176),
+        scoreThreshold: 60,
+      );
+
+      expect(result.passes, isTrue);
+    });
+
+    test('caps Tree when the stance is too wide', () {
+      final result = service.evaluate(
+        poseKey: 'tree',
+        normalizedVector: _goddessVector(),
+        angles: _angles(leftKnee: 118, rightKnee: 120),
+        scoreThreshold: 60,
+      );
+
+      expect(result.passes, isFalse);
+      expect(
+        result.feedbackMessages,
+        contains('Lift one foot onto your inner leg'),
+      );
+    });
   });
 }
 
@@ -641,7 +674,14 @@ List<double> _triangleVector() {
   ]);
 }
 
-List<double> _treeVector() {
+List<double> _treeVector({
+  double leftKneeX = 0.60,
+  double rightKneeX = -0.49,
+  double leftAnkleX = 0.08,
+  double rightAnkleX = -0.05,
+  double leftAnkleY = 0.88,
+  double rightAnkleY = 1.01,
+}) {
   return _vector(<(double, double)>[
     (0.38, -0.99),
     (-0.37, -1.00),
@@ -651,10 +691,10 @@ List<double> _treeVector() {
     (-0.22, -1.45),
     (0.24, -0.00),
     (-0.24, 0.00),
-    (0.60, 0.55),
-    (-0.49, 0.59),
-    (0.08, 0.88),
-    (-0.05, 1.01),
+    (leftKneeX, 0.55),
+    (rightKneeX, 0.59),
+    (leftAnkleX, leftAnkleY),
+    (rightAnkleX, rightAnkleY),
   ]);
 }
 

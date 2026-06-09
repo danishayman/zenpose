@@ -63,13 +63,15 @@ class _FakeDailyChallengeService extends DailyChallengeService {
           );
         })
         .toList(growable: false);
-    final pending = updatedSteps
-        .where((s) => s.status == DailyChallengeStepStatus.pending)
-        .length;
+    final pending =
+        updatedSteps
+            .where((s) => s.status == DailyChallengeStepStatus.pending)
+            .length;
     final challenge = _bundle.challenge.copyWith(
-      status: pending == 0
-          ? DailyChallengeStatus.completed
-          : DailyChallengeStatus.inProgress,
+      status:
+          pending == 0
+              ? DailyChallengeStatus.completed
+              : DailyChallengeStatus.inProgress,
       completedAt: pending == 0 ? now : null,
       updatedAt: now,
     );
@@ -227,9 +229,10 @@ void main() {
             dateKey: '2026-03-27',
             challengeService: service,
             punishmentService: _NoOpPunishmentService(),
-            evaluatorBuilder: (_) => const _EvaluatorStub(
-              action: ChallengeStepNavigationAction.completed,
-            ),
+            evaluatorBuilder:
+                (_) => const _EvaluatorStub(
+                  action: ChallengeStepNavigationAction.completed,
+                ),
           ),
         ),
       );
@@ -261,7 +264,9 @@ void main() {
     },
   );
 
-  testWidgets('ready copy uses challenge target hold seconds', (tester) async {
+  testWidgets('ready copy uses current step target hold seconds', (
+    tester,
+  ) async {
     final now = DateTime(2026, 3, 27, 10, 0, 0);
     final challenge = DailyChallenge(
       dateKey: '2026-03-27',
@@ -282,6 +287,7 @@ void main() {
         status: DailyChallengeStepStatus.pending,
         bestScore: null,
         holdDuration: null,
+        targetHoldSeconds: 35,
         updatedAt: now,
       ),
     ];
@@ -296,9 +302,10 @@ void main() {
           dateKey: '2026-03-27',
           challengeService: service,
           punishmentService: _NoOpPunishmentService(),
-          evaluatorBuilder: (_) => const _EvaluatorStub(
-            action: ChallengeStepNavigationAction.completed,
-          ),
+          evaluatorBuilder:
+              (_) => const _EvaluatorStub(
+                action: ChallengeStepNavigationAction.completed,
+              ),
         ),
       ),
     );
@@ -306,7 +313,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(
-      find.text('Get ready, then start your 20-second timed set.'),
+      find.text('Get ready, then start your 35-second timed set.'),
       findsOneWidget,
     );
   });
@@ -354,9 +361,10 @@ void main() {
           dateKey: '2026-03-27',
           challengeService: service,
           punishmentService: _NoOpPunishmentService(),
-          evaluatorBuilder: (_) => const _EvaluatorStub(
-            action: ChallengeStepNavigationAction.completed,
-          ),
+          evaluatorBuilder:
+              (_) => const _EvaluatorStub(
+                action: ChallengeStepNavigationAction.completed,
+              ),
         ),
       ),
     );
@@ -419,9 +427,10 @@ void main() {
           dateKey: '2026-03-27',
           challengeService: service,
           punishmentService: _NoOpPunishmentService(),
-          evaluatorBuilder: (_) => const _EvaluatorStub(
-            action: ChallengeStepNavigationAction.completed,
-          ),
+          evaluatorBuilder:
+              (_) => const _EvaluatorStub(
+                action: ChallengeStepNavigationAction.completed,
+              ),
         ),
       ),
     );
@@ -497,9 +506,10 @@ void main() {
             dateKey: '2026-03-27',
             challengeService: service,
             punishmentService: _NoOpPunishmentService(),
-            evaluatorBuilder: (_) => const _EvaluatorStub(
-              action: ChallengeStepNavigationAction.next,
-            ),
+            evaluatorBuilder:
+                (_) => const _EvaluatorStub(
+                  action: ChallengeStepNavigationAction.next,
+                ),
           ),
         ),
       );
@@ -580,8 +590,10 @@ void main() {
           dateKey: '2026-03-27',
           challengeService: service,
           punishmentService: _NoOpPunishmentService(),
-          evaluatorBuilder: (_) =>
-              const _EvaluatorStub(action: ChallengeStepNavigationAction.next),
+          evaluatorBuilder:
+              (_) => const _EvaluatorStub(
+                action: ChallengeStepNavigationAction.next,
+              ),
         ),
       ),
     );
@@ -656,9 +668,10 @@ void main() {
             challengeService: service,
             punishmentService: _NoOpPunishmentService(),
             evaluatorBuilder: (_) {
-              final action = launchCount == 0
-                  ? ChallengeStepNavigationAction.previous
-                  : ChallengeStepNavigationAction.completed;
+              final action =
+                  launchCount == 0
+                      ? ChallengeStepNavigationAction.previous
+                      : ChallengeStepNavigationAction.completed;
               launchCount += 1;
               return _EvaluatorStub(action: action);
             },
@@ -725,9 +738,10 @@ void main() {
             dateKey: '2026-03-27',
             challengeService: service,
             punishmentService: _NoOpPunishmentService(),
-            evaluatorBuilder: (_) => const _EvaluatorStub(
-              action: ChallengeStepNavigationAction.completed,
-            ),
+            evaluatorBuilder:
+                (_) => const _EvaluatorStub(
+                  action: ChallengeStepNavigationAction.completed,
+                ),
           ),
         ),
       );
@@ -793,9 +807,10 @@ void main() {
             dateKey: '2026-03-27',
             challengeService: service,
             punishmentService: _NoOpPunishmentService(),
-            evaluatorBuilder: (_) => const _EvaluatorStub(
-              action: ChallengeStepNavigationAction.next,
-            ),
+            evaluatorBuilder:
+                (_) => const _EvaluatorStub(
+                  action: ChallengeStepNavigationAction.next,
+                ),
           ),
         ),
       );
@@ -844,9 +859,10 @@ void main() {
           dateKey: '2026-03-27',
           challengeService: service,
           punishmentService: _NoOpPunishmentService(),
-          evaluatorBuilder: (_) => const _EvaluatorStub(
-            action: ChallengeStepNavigationAction.completed,
-          ),
+          evaluatorBuilder:
+              (_) => const _EvaluatorStub(
+                action: ChallengeStepNavigationAction.completed,
+              ),
         ),
       ),
     );

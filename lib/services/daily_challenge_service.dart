@@ -40,6 +40,16 @@ class DailyChallengeStepProcessResult {
   });
 }
 
+class _DailyChallengeStepTarget {
+  final String poseName;
+  final int targetHoldSeconds;
+
+  const _DailyChallengeStepTarget({
+    required this.poseName,
+    required this.targetHoldSeconds,
+  });
+}
+
 /// Local offline daily challenge orchestration.
 class DailyChallengeService {
   final DatabaseService _databaseService;
@@ -119,6 +129,20 @@ class DailyChallengeService {
     return challenge.targetHoldSeconds ?? challengeHoldDuration.inSeconds;
   }
 
+  static int targetHoldSecondsForStep(
+    DailyChallengeStep step,
+    DailyChallenge challenge,
+  ) {
+    return step.targetHoldSeconds ?? targetHoldSecondsForChallenge(challenge);
+  }
+
+  static Duration targetHoldDurationForStep(
+    DailyChallengeStep step,
+    DailyChallenge challenge,
+  ) {
+    return Duration(seconds: targetHoldSecondsForStep(step, challenge));
+  }
+
   static Duration targetHoldDurationForChallenge(DailyChallenge challenge) {
     return Duration(seconds: targetHoldSecondsForChallenge(challenge));
   }
@@ -152,53 +176,74 @@ class DailyChallengeService {
   }) async {
     final existing = await _databaseService.getDailyChallengeByDateKey(dateKey);
     if (existing != null) {
-      final steps = await _databaseService.getDailyChallengeSteps(dateKey);
-      final pendingCount = steps
-          .where((step) => step.status == DailyChallengeStepStatus.pending)
-          .length;
-      if (pendingCount == 0 &&
-          existing.status != DailyChallengeStatus.completed) {
+      final userStats = await _databaseService.getUserStats();
+      final rankTargetHoldSeconds = holdSecondsForXp(userStats.totalXp);
+      var challenge = existing;
+      if (targetHoldSecondsForChallenge(challenge) != rankTargetHoldSeconds) {
         final now = DateTime.now();
-        final repaired = existing.copyWith(
+        challenge = challenge.copyWith(
+          targetHoldSeconds: rankTargetHoldSeconds,
+          updatedAt: now,
+        );
+        await _databaseService.updateDailyChallenge(challenge);
+      }
+      final loadedSteps = await _databaseService.getDailyChallengeSteps(
+        dateKey,
+      );
+      final steps = await _syncStepTargetsToRank(
+        rankTargetHoldSeconds: rankTargetHoldSeconds,
+        steps: loadedSteps,
+      );
+      final pendingCount =
+          steps
+              .where((step) => step.status == DailyChallengeStepStatus.pending)
+              .length;
+      if (pendingCount == 0 &&
+          challenge.status != DailyChallengeStatus.completed) {
+        final now = DateTime.now();
+        final repaired = challenge.copyWith(
           status: DailyChallengeStatus.completed,
-          completedAt: existing.completedAt ?? now,
+          completedAt: challenge.completedAt ?? now,
           updatedAt: now,
         );
         await _databaseService.updateDailyChallenge(repaired);
         return DailyChallengeBundle(challenge: repaired, steps: steps);
       }
-      return DailyChallengeBundle(challenge: existing, steps: steps);
+      return DailyChallengeBundle(challenge: challenge, steps: steps);
     }
 
     final templates = await _templateService.loadTemplates();
-    final sequence = await _buildChallengeSequence(
+    final userStats = await _databaseService.getUserStats();
+    final rankTargetHoldSeconds = holdSecondsForXp(userStats.totalXp);
+    final targets = await _buildChallengeStepTargets(
       dateKey: dateKey,
       templates: templates,
+      rankTargetHoldSeconds: rankTargetHoldSeconds,
     );
+    final sequence = targets.map((target) => target.poseName).toList();
 
     final createdAt = DateTime.now();
-    final userStats = await _databaseService.getUserStats();
-    final targetHoldSeconds = holdSecondsForXp(userStats.totalXp);
     final challenge = DailyChallenge(
       dateKey: dateKey,
       status: DailyChallengeStatus.inProgress,
       skipCount: 0,
       totalSteps: sequence.length,
-      targetHoldSeconds: targetHoldSeconds,
+      targetHoldSeconds: rankTargetHoldSeconds,
       startedAt: createdAt,
       completedAt: null,
       updatedAt: createdAt,
       sequence: sequence,
     );
     final steps = <DailyChallengeStep>[
-      for (var i = 0; i < sequence.length; i++)
+      for (var i = 0; i < targets.length; i++)
         DailyChallengeStep(
           dateKey: dateKey,
           stepIndex: i,
-          poseName: sequence[i],
+          poseName: targets[i].poseName,
           status: DailyChallengeStepStatus.pending,
           bestScore: null,
           holdDuration: null,
+          targetHoldSeconds: targets[i].targetHoldSeconds,
           updatedAt: createdAt,
         ),
     ];
@@ -241,6 +286,7 @@ class DailyChallengeService {
           status: orderedSteps[i].status,
           bestScore: orderedSteps[i].bestScore,
           holdDuration: orderedSteps[i].holdDuration,
+          targetHoldSeconds: orderedSteps[i].targetHoldSeconds,
           updatedAt: now,
         ),
     ];
@@ -322,7 +368,8 @@ class DailyChallengeService {
     bool allowOverwrite = false,
   }) async {
     final bundle = await getOrCreateChallenge(dateKey: dateKey);
-    final requiredHold = targetHoldDurationForChallenge(bundle.challenge);
+    final step = bundle.steps.firstWhere((s) => s.stepIndex == stepIndex);
+    final requiredHold = targetHoldDurationForStep(step, bundle.challenge);
     if (!stepResult.passed ||
         !isStepPassing(
           bestScore: stepResult.bestScore,
@@ -342,7 +389,6 @@ class DailyChallengeService {
       );
     }
 
-    final step = bundle.steps.firstWhere((s) => s.stepIndex == stepIndex);
     final isPending = step.status == DailyChallengeStepStatus.pending;
     if (!isPending && !allowOverwrite) {
       return DailyChallengeStepProcessResult(
@@ -497,10 +543,9 @@ class DailyChallengeService {
   }) async {
     final bundle = await _refreshBundle(dateKey);
     final avgScore = _computeAverageScore(bundle.steps);
-    final fallbackHoldSeconds = targetHoldSecondsForChallenge(bundle.challenge);
     final activeSeconds = _computeActiveExerciseSeconds(
       bundle.steps,
-      fallbackHoldSeconds: fallbackHoldSeconds,
+      challenge: bundle.challenge,
     );
     final calories = double.parse(
       (activeSeconds * caloriesPerActiveSecond).toStringAsFixed(1),
@@ -511,9 +556,10 @@ class DailyChallengeService {
         bundle.steps.length;
     await _databaseService.updateDailyChallenge(
       bundle.challenge.copyWith(
-        status: resolvedAll
-            ? DailyChallengeStatus.completed
-            : bundle.challenge.status,
+        status:
+            resolvedAll
+                ? DailyChallengeStatus.completed
+                : bundle.challenge.status,
         completedAt: resolvedAll ? now : bundle.challenge.completedAt,
         sessionAvgScore: avgScore,
         sessionCalories: calories,
@@ -534,9 +580,10 @@ class DailyChallengeService {
       pendingStepsAfterUpdate: refreshed.pendingStepsCount,
       skipCount: refreshed.challenge.skipCount,
     );
-    final nextStatus = shouldComplete
-        ? DailyChallengeStatus.completed
-        : DailyChallengeStatus.inProgress;
+    final nextStatus =
+        shouldComplete
+            ? DailyChallengeStatus.completed
+            : DailyChallengeStatus.inProgress;
     final isAlreadySynced =
         refreshed.challenge.status == nextStatus &&
         ((shouldComplete && refreshed.challenge.completedAt != null) ||
@@ -583,7 +630,7 @@ class DailyChallengeService {
 
   static int _computeActiveExerciseSeconds(
     List<DailyChallengeStep> steps, {
-    required int fallbackHoldSeconds,
+    required DailyChallenge challenge,
   }) {
     final completed = steps
         .where((s) => s.status == DailyChallengeStepStatus.completed)
@@ -591,7 +638,9 @@ class DailyChallengeService {
     if (completed.isEmpty) return 0;
     var seconds = 0.0;
     for (final step in completed) {
-      seconds += step.holdDuration ?? fallbackHoldSeconds.toDouble();
+      seconds +=
+          step.holdDuration ??
+          targetHoldSecondsForStep(step, challenge).toDouble();
     }
     return seconds.round();
   }
@@ -612,16 +661,24 @@ class DailyChallengeService {
     return counts.values.every((count) => count == 0);
   }
 
-  Future<List<String>> _buildChallengeSequence({
+  Future<List<_DailyChallengeStepTarget>> _buildChallengeStepTargets({
     required String dateKey,
     required List<PoseTemplate> templates,
+    required int rankTargetHoldSeconds,
   }) async {
     final poseNames = templates.map((t) => t.name).toList(growable: false);
     final fallback = buildDeterministicSequence(
-      poseNames: poseNames,
-      dateKey: dateKey,
-      take: totalSteps,
-    );
+          poseNames: poseNames,
+          dateKey: dateKey,
+          take: totalSteps,
+        )
+        .map(
+          (poseName) => _DailyChallengeStepTarget(
+            poseName: poseName,
+            targetHoldSeconds: rankTargetHoldSeconds,
+          ),
+        )
+        .toList(growable: false);
     try {
       final activeExercises = await _adminManagementService.listExercises(
         activeOnly: true,
@@ -637,12 +694,23 @@ class DailyChallengeService {
         for (final template in templates) _normalizePoseName(template.name),
       };
       final steps = selected.steps
-          .where((step) => normalizedTemplateNames.contains(_normalizePoseName(step.poseName)))
+          .where(
+            (step) => normalizedTemplateNames.contains(
+              _normalizePoseName(step.poseName),
+            ),
+          )
           .toList(growable: false);
       if (steps.isEmpty) {
         return fallback;
       }
-      return steps.map((step) => step.poseName).toList(growable: false);
+      return steps
+          .map(
+            (step) => _DailyChallengeStepTarget(
+              poseName: step.poseName,
+              targetHoldSeconds: rankTargetHoldSeconds,
+            ),
+          )
+          .toList(growable: false);
     } catch (_) {
       return fallback;
     }
@@ -661,5 +729,25 @@ class DailyChallengeService {
 
   String _normalizePoseName(String value) {
     return value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
+  Future<List<DailyChallengeStep>> _syncStepTargetsToRank({
+    required int rankTargetHoldSeconds,
+    required List<DailyChallengeStep> steps,
+  }) async {
+    if (steps.isEmpty) return steps;
+    var changed = false;
+    final repaired = <DailyChallengeStep>[];
+    for (final step in steps) {
+      if (step.targetHoldSeconds == rankTargetHoldSeconds) {
+        repaired.add(step);
+        continue;
+      }
+      final updated = step.copyWith(targetHoldSeconds: rankTargetHoldSeconds);
+      await _databaseService.updateDailyChallengeStep(updated);
+      repaired.add(updated);
+      changed = true;
+    }
+    return changed ? repaired : steps;
   }
 }

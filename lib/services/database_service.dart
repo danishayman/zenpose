@@ -33,7 +33,7 @@ class DatabaseService {
     _databaseNameOverrideForTesting = fileName;
   }
 
-  static const int databaseVersion = 10;
+  static const int databaseVersion = 11;
 
   static const String tablePoseResults = 'pose_results';
   static const String columnId = 'id';
@@ -187,12 +187,16 @@ class DatabaseService {
     if (oldVersion < 10) {
       await _migrateToV10(db);
     }
+    if (oldVersion < 11) {
+      await _migrateToV11(db);
+    }
     await _createGamificationTables(db);
     await _createDailyChallengeTables(db);
     await _createProgressTrackingTables(db);
     await _createPenaltyTables(db);
     await _ensureDailyChallengeSummaryColumns(db);
     await _ensureDailyChallengeTargetHoldSecondsColumn(db);
+    await _ensureDailyChallengeStepTargetHoldSecondsColumn(db);
     await _ensureUserStatsRow(db);
     await _ensureWeeklyGoalRow(db);
     await _seedBadges(db);
@@ -229,6 +233,10 @@ class DatabaseService {
 
   Future<void> _migrateToV10(Database db) async {
     await _createPenaltyTables(db);
+  }
+
+  Future<void> _migrateToV11(Database db) async {
+    await _ensureDailyChallengeStepTargetHoldSecondsColumn(db);
   }
 
   Future<void> _migrateToV4(Database db) async {
@@ -284,14 +292,15 @@ class DatabaseService {
       await db.update(
         tablePoseResults,
         <String, Object?>{
-          columnRecordId: (row[columnRecordId]?.toString().isNotEmpty ?? false)
-              ? row[columnRecordId]
-              : _generateRecordId(),
+          columnRecordId:
+              (row[columnRecordId]?.toString().isNotEmpty ?? false)
+                  ? row[columnRecordId]
+                  : _generateRecordId(),
           columnUserId: AuthContext.localUserId,
           columnUpdatedAt:
               (row[columnUpdatedAt]?.toString().isNotEmpty ?? false)
-              ? row[columnUpdatedAt]
-              : (row[columnTimestamp] ?? nowIso),
+                  ? row[columnUpdatedAt]
+                  : (row[columnTimestamp] ?? nowIso),
           columnIsSynced: 0,
         },
         where: '$columnId = ?',
@@ -375,6 +384,7 @@ class DatabaseService {
         $columnStatus TEXT NOT NULL DEFAULT 'pending',
         $columnBestScore REAL,
         $columnHoldDuration REAL,
+        $columnTargetHoldSeconds INTEGER,
         $columnUpdatedAt TEXT,
         $columnIsSynced INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY($columnUserId, $columnDateKey, $columnStepIndex)
@@ -485,6 +495,33 @@ class DatabaseService {
       await db.execute(
         'ALTER TABLE $tableDailyChallenges ADD COLUMN $columnTargetHoldSeconds INTEGER',
       );
+    }
+  }
+
+  Future<void> _ensureDailyChallengeStepTargetHoldSecondsColumn(
+    DatabaseExecutor db,
+  ) async {
+    if (!await _columnExists(
+      db: db,
+      tableName: tableDailyChallengeSteps,
+      columnName: columnTargetHoldSeconds,
+    )) {
+      await db.execute(
+        'ALTER TABLE $tableDailyChallengeSteps ADD COLUMN $columnTargetHoldSeconds INTEGER',
+      );
+      await db.rawUpdate('''
+        UPDATE $tableDailyChallengeSteps
+        SET $columnTargetHoldSeconds = COALESCE(
+          (
+            SELECT c.$columnTargetHoldSeconds
+            FROM $tableDailyChallenges c
+            WHERE c.$columnUserId = $tableDailyChallengeSteps.$columnUserId
+              AND c.$columnDateKey = $tableDailyChallengeSteps.$columnDateKey
+          ),
+          45
+        ),
+        $columnIsSynced = 0
+      ''');
     }
   }
 
@@ -881,9 +918,10 @@ class DatabaseService {
           poses: <SessionHistoryPoseEntry>[
             SessionHistoryPoseEntry(
               poseName: result.poseName,
-              status: result.completed
-                  ? SessionHistoryPoseStatus.completed
-                  : SessionHistoryPoseStatus.pending,
+              status:
+                  result.completed
+                      ? SessionHistoryPoseStatus.completed
+                      : SessionHistoryPoseStatus.pending,
               bestScore: result.bestScore,
               holdDurationSeconds: result.holdDuration,
             ),
@@ -1013,9 +1051,8 @@ class DatabaseService {
       whereArgs: <Object?>[_activeUserId],
       limit: 1,
     );
-    final currentXp = rows.isEmpty
-        ? 0
-        : (rows.first[columnTotalXp] as num?)?.toInt() ?? 0;
+    final currentXp =
+        rows.isEmpty ? 0 : (rows.first[columnTotalXp] as num?)?.toInt() ?? 0;
     final nextXp = math.max(0, currentXp + delta);
     if (nextXp == currentXp) {
       return XpAdjustmentSnapshot(xpBefore: currentXp, xpAfter: currentXp);
@@ -1276,6 +1313,7 @@ class DatabaseService {
             columnStatus: step.status.dbValue,
             columnBestScore: step.bestScore,
             columnHoldDuration: step.holdDuration,
+            columnTargetHoldSeconds: step.targetHoldSeconds,
             columnUpdatedAt: nowIso,
             columnIsSynced: 0,
           },
@@ -1493,10 +1531,11 @@ class DatabaseService {
 
   String _generateRecordId() {
     final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
-    final rand = List<int>.generate(
-      8,
-      (_) => _rng.nextInt(256),
-    ).map((e) => e.toRadixString(16).padLeft(2, '0')).join();
+    final rand =
+        List<int>.generate(
+          8,
+          (_) => _rng.nextInt(256),
+        ).map((e) => e.toRadixString(16).padLeft(2, '0')).join();
     return '$ts$rand';
   }
 

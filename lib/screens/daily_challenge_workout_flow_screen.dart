@@ -88,9 +88,10 @@ class _DailyChallengeWorkoutFlowScreenState
     _templateLookup = _buildTemplateLookup(templates);
     _bundle = bundle;
     _currentStepIndex = _firstPendingStepIndex(bundle);
-    _phase = _currentStepIndex == null
-        ? _WorkoutPhase.completed
-        : _WorkoutPhase.ready;
+    _phase =
+        _currentStepIndex == null
+            ? _WorkoutPhase.completed
+            : _WorkoutPhase.ready;
     _readyCycle = 0;
     if (!mounted) return;
     setState(() => _loading = false);
@@ -269,14 +270,15 @@ class _DailyChallengeWorkoutFlowScreenState
         stepResult: result,
         allowOverwrite: shouldOverwrite,
       );
-      _bundle = process.applied
-          ? _mergeAppliedStepResult(
-              previousBundle: previousBundle,
-              serviceBundle: process.bundle,
-              stepIndex: step.stepIndex,
-              stepResult: result,
-            )
-          : process.bundle;
+      _bundle =
+          process.applied
+              ? _mergeAppliedStepResult(
+                previousBundle: previousBundle,
+                serviceBundle: process.bundle,
+                stepIndex: step.stepIndex,
+                stepResult: result,
+              )
+              : process.bundle;
       if (process.applied) {
         _sessionXpEarned += process.xpGained;
         _sessionBadges.addAll(process.unlockedBadges);
@@ -374,16 +376,18 @@ class _DailyChallengeWorkoutFlowScreenState
           return serviceStep;
         })
         .toList(growable: false);
-    final pending = mergedSteps
-        .where((step) => step.status == DailyChallengeStepStatus.pending)
-        .length;
-    final challenge = pending == 0
-        ? serviceBundle.challenge.copyWith(
-            status: DailyChallengeStatus.completed,
-            completedAt: serviceBundle.challenge.completedAt ?? now,
-            updatedAt: now,
-          )
-        : serviceBundle.challenge;
+    final pending =
+        mergedSteps
+            .where((step) => step.status == DailyChallengeStepStatus.pending)
+            .length;
+    final challenge =
+        pending == 0
+            ? serviceBundle.challenge.copyWith(
+              status: DailyChallengeStatus.completed,
+              completedAt: serviceBundle.challenge.completedAt ?? now,
+              updatedAt: now,
+            )
+            : serviceBundle.challenge;
     return DailyChallengeBundle(challenge: challenge, steps: mergedSteps);
   }
 
@@ -475,23 +479,25 @@ class _DailyChallengeWorkoutFlowScreenState
     );
     final goHome = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => DailyChallengeSummaryScreen(
-          dayLabel: 'Day 1 • Daily Workout',
-          completedSteps: summarized.completedStepsCount,
-          skippedSteps: summarized.skippedStepsCount,
-          totalSteps: summarized.steps.length,
-          xpEarned: _sessionXpEarned,
-          elapsed: elapsed,
-          unlockedBadges: _sessionBadges,
-          averageScore: summarized.challenge.sessionAvgScore,
-          calories: summarized.challenge.sessionCalories,
-          initialFeedback: summarized.challenge.sessionFeedback,
-          onComplete: (feedback) => _challengeService.saveSessionSummary(
-            dateKey: widget.dateKey,
-            elapsed: elapsed,
-            feedback: feedback,
-          ),
-        ),
+        builder:
+            (_) => DailyChallengeSummaryScreen(
+              dayLabel: 'Day 1 • Daily Workout',
+              completedSteps: summarized.completedStepsCount,
+              skippedSteps: summarized.skippedStepsCount,
+              totalSteps: summarized.steps.length,
+              xpEarned: _sessionXpEarned,
+              elapsed: elapsed,
+              unlockedBadges: _sessionBadges,
+              averageScore: summarized.challenge.sessionAvgScore,
+              calories: summarized.challenge.sessionCalories,
+              initialFeedback: summarized.challenge.sessionFeedback,
+              onComplete:
+                  (feedback) => _challengeService.saveSessionSummary(
+                    dateKey: widget.dateKey,
+                    elapsed: elapsed,
+                    feedback: feedback,
+                  ),
+            ),
       ),
     );
     if (!mounted) return;
@@ -519,10 +525,13 @@ class _DailyChallengeWorkoutFlowScreenState
         .toList(growable: false);
     if (completed.isEmpty) return null;
     var activeSeconds = 0.0;
-    final fallbackHoldSeconds =
-        DailyChallengeService.targetHoldSecondsForChallenge(bundle.challenge);
     for (final step in completed) {
-      activeSeconds += step.holdDuration ?? fallbackHoldSeconds.toDouble();
+      activeSeconds +=
+          step.holdDuration ??
+          DailyChallengeService.targetHoldSecondsForStep(
+            step,
+            bundle.challenge,
+          ).toDouble();
     }
     return double.parse(
       (activeSeconds * DailyChallengeService.caloriesPerActiveSecond)
@@ -546,9 +555,10 @@ class _DailyChallengeWorkoutFlowScreenState
       ),
       body: Container(
         decoration: ZenDecor.gradientBackdrop(),
-        child: _loading || bundle == null
-            ? const Center(child: CircularProgressIndicator())
-            : SafeArea(top: false, child: _buildPhaseBody(bundle)),
+        child:
+            _loading || bundle == null
+                ? const Center(child: CircularProgressIndicator())
+                : SafeArea(top: false, child: _buildPhaseBody(bundle)),
       ),
     );
   }
@@ -591,7 +601,7 @@ class _DailyChallengeWorkoutFlowScreenState
         Text(step.poseName, style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 4),
         Text(
-          'Get ready, then start your ${_resolvedChallengeHoldSeconds()}-second timed set.',
+          'Get ready, then start your ${_resolvedStepHoldSeconds(step)}-second timed set.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 14),
@@ -609,9 +619,8 @@ class _DailyChallengeWorkoutFlowScreenState
 
   Widget _buildRest(DailyChallengeBundle bundle) {
     final nextStep = _upcomingPendingStep;
-    final nextTemplate = nextStep == null
-        ? null
-        : _templateForPose(nextStep.poseName);
+    final nextTemplate =
+        nextStep == null ? null : _templateForPose(nextStep.poseName);
     final showPreview =
         nextTemplate != null && MediaQuery.of(context).size.height >= 760;
     return Column(
@@ -752,17 +761,22 @@ class _DailyChallengeWorkoutFlowScreenState
     return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
-  int _resolvedChallengeHoldSeconds() {
+  int _resolvedStepHoldSeconds(DailyChallengeStep step) {
     final bundle = _bundle;
     if (bundle == null) {
       return DailyChallengeService.challengeHoldDuration.inSeconds;
     }
-    return DailyChallengeService.targetHoldSecondsForChallenge(
+    return DailyChallengeService.targetHoldSecondsForStep(
+      step,
       bundle.challenge,
     );
   }
 
   Duration _resolvedChallengeHoldDuration() {
-    return Duration(seconds: _resolvedChallengeHoldSeconds());
+    final step = _currentStep;
+    if (step == null) {
+      return DailyChallengeService.challengeHoldDuration;
+    }
+    return Duration(seconds: _resolvedStepHoldSeconds(step));
   }
 }

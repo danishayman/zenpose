@@ -32,6 +32,7 @@ class DailyChallengeStep {
   final DailyChallengeStepStatus status;
   final double? bestScore;
   final double? holdDuration;
+  final int? targetHoldSeconds;
   final DateTime? updatedAt;
 
   const DailyChallengeStep({
@@ -41,6 +42,7 @@ class DailyChallengeStep {
     required this.status,
     required this.bestScore,
     required this.holdDuration,
+    this.targetHoldSeconds,
     required this.updatedAt,
   });
 
@@ -56,6 +58,7 @@ class DailyChallengeStep {
       ),
       bestScore: _toDoubleOrNull(map['best_score']),
       holdDuration: _toDoubleOrNull(map['hold_duration']),
+      targetHoldSeconds: _toIntOrNull(map['target_hold_seconds']),
       updatedAt: _toDateTime(map['updated_at']),
     );
   }
@@ -68,6 +71,7 @@ class DailyChallengeStep {
       'status': status.dbValue,
       'best_score': bestScore,
       'hold_duration': holdDuration,
+      'target_hold_seconds': targetHoldSeconds,
       'updated_at': updatedAt?.toIso8601String(),
     };
   }
@@ -76,6 +80,7 @@ class DailyChallengeStep {
     DailyChallengeStepStatus? status,
     double? bestScore,
     double? holdDuration,
+    int? targetHoldSeconds,
     DateTime? updatedAt,
   }) {
     return DailyChallengeStep(
@@ -85,6 +90,7 @@ class DailyChallengeStep {
       status: status ?? this.status,
       bestScore: bestScore ?? this.bestScore,
       holdDuration: holdDuration ?? this.holdDuration,
+      targetHoldSeconds: targetHoldSeconds ?? this.targetHoldSeconds,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -100,6 +106,13 @@ class DailyChallengeStep {
     if (value is double) return value;
     if (value is num) return value.toDouble();
     return double.tryParse(value.toString());
+  }
+
+  static int? _toIntOrNull(Object? value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 
   static DateTime? _toDateTime(Object? value) {

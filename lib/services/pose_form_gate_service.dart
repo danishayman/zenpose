@@ -274,13 +274,13 @@ class PoseFormGateService {
 
   List<String> _treeFailures(_PosePoints points, Map<String, double> angles) {
     final failures = <String>[];
-    final hasLiftedFootShape =
-        points.ankleSpreadX <= 0.45 && points.ankleYDiff <= 0.40;
-    final hasOpenKnee = points.kneeSpreadX >= 0.75;
-    if (!hasLiftedFootShape) {
+    final hasNarrowFootBase = points.ankleSpreadX <= 0.65;
+    final hasBentTreeLeg = _atLeastOneKneeBent(angles, maxAngle: 145.0);
+    final hasOpenKnee = points.kneeSpreadX >= 0.60;
+    if (!hasNarrowFootBase || !hasBentTreeLeg) {
       failures.add('Lift one foot onto your inner leg');
     }
-    if (!_atLeastOneKneeBent(angles, maxAngle: 130.0) || !hasOpenKnee) {
+    if (!hasBentTreeLeg || !hasOpenKnee) {
       failures.add('Open one knee out to the side');
     }
     return failures;

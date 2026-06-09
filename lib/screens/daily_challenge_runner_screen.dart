@@ -75,11 +75,12 @@ class _DailyChallengeRunnerScreenState
     if (bundle == null || bundle.pendingStepsCount == 0) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => DailyChallengeWorkoutFlowScreen(
-          dateKey: widget.dateKey,
-          challengeService: _challengeService,
-          evaluatorBuilder: widget.evaluatorBuilder,
-        ),
+        builder:
+            (_) => DailyChallengeWorkoutFlowScreen(
+              dateKey: widget.dateKey,
+              challengeService: _challengeService,
+              evaluatorBuilder: widget.evaluatorBuilder,
+            ),
       ),
     );
     if (mounted) {
@@ -106,6 +107,7 @@ class _DailyChallengeRunnerScreenState
           status: orderedSteps[i].status,
           bestScore: orderedSteps[i].bestScore,
           holdDuration: orderedSteps[i].holdDuration,
+          targetHoldSeconds: orderedSteps[i].targetHoldSeconds,
           updatedAt: orderedSteps[i].updatedAt,
         ),
     ];
@@ -157,19 +159,27 @@ class _DailyChallengeRunnerScreenState
       ),
       body: Container(
         decoration: ZenDecor.gradientBackdrop(),
-        child: _loading || bundle == null
-            ? const Center(child: CircularProgressIndicator())
-            : _buildOverview(bundle),
+        child:
+            _loading || bundle == null
+                ? const Center(child: CircularProgressIndicator())
+                : _buildOverview(bundle),
       ),
     );
   }
 
   Widget _buildOverview(DailyChallengeBundle bundle) {
     final exerciseCount = bundle.steps.length;
-    final challengeHoldSeconds =
-        DailyChallengeService.targetHoldSecondsForChallenge(bundle.challenge);
+    final totalHoldSeconds = bundle.steps.fold<int>(
+      0,
+      (sum, step) =>
+          sum +
+          DailyChallengeService.targetHoldSecondsForStep(
+            step,
+            bundle.challenge,
+          ),
+    );
     final durationSecs =
-        (exerciseCount * challengeHoldSeconds) +
+        totalHoldSeconds +
         ((exerciseCount - 1).clamp(0, 999) *
             DailyChallengeService.challengeRestDuration.inSeconds);
     final durationMins = (durationSecs / 60).ceil();
@@ -218,7 +228,11 @@ class _DailyChallengeRunnerScreenState
                       key: ValueKey(
                         'challenge-step-${step.poseName}-${step.stepIndex}',
                       ),
-                      targetHoldSeconds: challengeHoldSeconds,
+                      targetHoldSeconds:
+                          DailyChallengeService.targetHoldSecondsForStep(
+                            step,
+                            bundle.challenge,
+                          ),
                       reorderHandle: ReorderableDelayedDragStartListener(
                         index: index,
                         child: const Icon(
@@ -233,7 +247,11 @@ class _DailyChallengeRunnerScreenState
                 ...bundle.steps.map(
                   (step) => _exerciseTile(
                     step,
-                    targetHoldSeconds: challengeHoldSeconds,
+                    targetHoldSeconds:
+                        DailyChallengeService.targetHoldSecondsForStep(
+                          step,
+                          bundle.challenge,
+                        ),
                   ),
                 ),
             ],

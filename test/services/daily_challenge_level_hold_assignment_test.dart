@@ -2,7 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:zenpose/models/exercise_definition.dart';
+import 'package:zenpose/models/exercise_step_definition.dart';
 import 'package:zenpose/models/pose_template.dart';
+import 'package:zenpose/services/admin_management_service.dart';
 import 'package:zenpose/services/daily_challenge_service.dart';
 import 'package:zenpose/services/database_service.dart';
 import 'package:zenpose/services/pose_template_service.dart';
@@ -14,6 +17,20 @@ class _FakePoseTemplateService extends PoseTemplateService {
 
   @override
   Future<List<PoseTemplate>> loadTemplates() async => templates;
+}
+
+class _FakeAdminManagementService extends AdminManagementService {
+  final List<ExerciseDefinition> exercises;
+
+  _FakeAdminManagementService(this.exercises);
+
+  @override
+  Future<List<ExerciseDefinition>> listExercises({
+    bool activeOnly = false,
+  }) async {
+    if (!activeOnly) return exercises;
+    return exercises.where((exercise) => exercise.isActive).toList();
+  }
 }
 
 PoseTemplate _template(String key, String name) {
@@ -65,11 +82,18 @@ void main() {
 
     final bronze = await service.getOrCreateChallenge(dateKey: '2026-04-10');
     expect(bronze.challenge.targetHoldSeconds, equals(20));
+    expect({
+      for (final step in bronze.steps) step.poseName: step.targetHoldSeconds,
+    }, containsPair('Tree', 20));
+    expect({
+      for (final step in bronze.steps) step.poseName: step.targetHoldSeconds,
+    }, containsPair('Plank', 20));
+    expect({
+      for (final step in bronze.steps) step.poseName: step.targetHoldSeconds,
+    }, containsPair('Downdog', 20));
 
     await db.incrementTotalXp(1000);
-    final silver = await service.getOrCreateChallenge(
-      dateKey: '2026-04-11',
-    );
+    final silver = await service.getOrCreateChallenge(dateKey: '2026-04-11');
     expect(silver.challenge.targetHoldSeconds, equals(30));
 
     await db.incrementTotalXp(2000);
@@ -86,7 +110,7 @@ void main() {
   });
 
   test(
-    'existing challenge keeps snapshotted hold seconds after XP changes',
+    'existing challenge syncs challenge and step hold seconds to current rank',
     () async {
       final db = DatabaseService.instance;
       await db.database;
@@ -100,12 +124,62 @@ void main() {
 
       final first = await service.getOrCreateChallenge(dateKey: '2026-04-13');
       expect(first.challenge.targetHoldSeconds, equals(20));
+      expect(first.steps.first.targetHoldSeconds, isNotNull);
 
-      await db.incrementTotalXp(5000);
+      await db.incrementTotalXp(12000);
       final reloaded = await service.getOrCreateChallenge(
         dateKey: '2026-04-13',
       );
-      expect(reloaded.challenge.targetHoldSeconds, equals(20));
+      expect(reloaded.challenge.targetHoldSeconds, equals(45));
+      expect(reloaded.steps.first.targetHoldSeconds, equals(45));
     },
   );
+
+  test('admin exercise step hold seconds use exact rank target', () async {
+    final db = DatabaseService.instance;
+    await db.database;
+    await db.incrementTotalXp(12000);
+    final service = DailyChallengeService(
+      databaseService: db,
+      templateService: _FakePoseTemplateService(<PoseTemplate>[
+        _template('tree', 'Tree'),
+        _template('plank', 'Plank'),
+      ]),
+      adminManagementService: _FakeAdminManagementService(<ExerciseDefinition>[
+        ExerciseDefinition(
+          id: 'flow-1',
+          name: 'Custom Flow',
+          description: '',
+          isActive: true,
+          createdBy: null,
+          createdAt: null,
+          updatedAt: null,
+          steps: const <ExerciseStepDefinition>[
+            ExerciseStepDefinition(
+              stepIndex: 0,
+              poseName: 'Tree',
+              holdSeconds: 12,
+              restSeconds: 30,
+              updatedAt: null,
+            ),
+            ExerciseStepDefinition(
+              stepIndex: 1,
+              poseName: 'Plank',
+              holdSeconds: 50,
+              restSeconds: 30,
+              updatedAt: null,
+            ),
+          ],
+        ),
+      ]),
+    );
+
+    final bundle = await service.getOrCreateChallenge(dateKey: '2026-04-15');
+
+    expect(bundle.challenge.sequence, equals(<String>['Tree', 'Plank']));
+    expect(
+      bundle.steps.map((step) => step.targetHoldSeconds).toList(),
+      equals(<int>[45, 45]),
+    );
+  });
 }

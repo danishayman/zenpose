@@ -546,13 +546,12 @@ select
   )
 from measure_plan m;
 
--- Today's daily challenge. Higher ranks complete cleaner, longer sessions.
+-- Today's daily challenge. Keep every account's daily challenge untouched so
+-- the Home screen starts from 0 completed poses.
 with today_values as (
   select
     u.user_id,
     u.rank_name,
-    u.rank_order,
-    c.score_base,
     case u.rank_name
       when 'bronze' then 20
       when 'silver' then 30
@@ -563,8 +562,6 @@ with today_values as (
     to_char(current_date, 'YYYY-MM-DD') as date_key,
     jsonb_build_array('Downdog', 'Tree', 'Plank', 'Warrior II', 'Goddess') as sequence_json
   from _all_account_users u
-  join _rank_config c
-    on c.rank_name = u.rank_name
 )
 insert into public.daily_challenges (
   user_id,
@@ -585,43 +582,25 @@ insert into public.daily_challenges (
 select
   t.user_id,
   t.date_key,
-  case when t.rank_name = 'bronze' then 'in_progress' else 'completed' end,
-  case when t.rank_name = 'bronze' then 1 else 0 end,
+  'in_progress',
+  0,
   5,
   t.target_hold_seconds,
   timezone('utc', current_date + time '06:10'),
-  case when t.rank_name = 'bronze' then null else timezone('utc', current_date + time '06:48') end,
+  null,
   timezone('utc', current_date + time '06:52'),
   t.sequence_json,
-  case when t.rank_name = 'bronze' then null else least(99.0, t.score_base + 8.0) end,
-  case when t.rank_name = 'bronze' then null else round((t.target_hold_seconds * 5 * 0.08)::numeric, 1)::double precision end,
-  case
-    when t.rank_name = 'bronze' then null
-    when t.rank_name = 'silver' then 'Good control with room to hold transitions longer.'
-    when t.rank_name = 'gold' then 'Strong consistency across the flow.'
-    when t.rank_name = 'emerald' then 'Excellent alignment and stable pacing.'
-    else 'Elite control, smooth transitions, and long stable holds.'
-  end,
-  case when t.rank_name = 'bronze' then null else 2280 end
+  null,
+  null,
+  null,
+  null
 from today_values t;
 
 with today_values as (
   select
     u.user_id,
-    u.rank_name,
-    u.rank_order,
-    c.score_base,
-    case u.rank_name
-      when 'bronze' then 20
-      when 'silver' then 30
-      when 'gold' then 35
-      when 'emerald' then 40
-      else 45
-    end as target_hold_seconds,
     to_char(current_date, 'YYYY-MM-DD') as date_key
   from _all_account_users u
-  join _rank_config c
-    on c.rank_name = u.rank_name
 ),
 steps as (
   select *
@@ -649,20 +628,9 @@ select
   t.date_key,
   s.step_index,
   s.pose_name,
-  case
-    when t.rank_name = 'bronze' and s.step_index <= 2 then 'completed'
-    when t.rank_name = 'bronze' and s.step_index = 3 then 'skipped'
-    when t.rank_name = 'bronze' then 'pending'
-    else 'completed'
-  end,
-  case
-    when t.rank_name = 'bronze' and s.step_index = 4 then null
-    else round(least(99.0, t.score_base + 3 + (s.step_index * 1.4))::numeric, 1)::double precision
-  end,
-  case
-    when t.rank_name = 'bronze' and s.step_index = 4 then null
-    else round((t.target_hold_seconds + (s.step_index * 2.5) + (t.rank_order * 1.5))::numeric, 1)::double precision
-  end,
+  'pending',
+  null,
+  null,
   timezone('utc', (current_date + time '06:15') + (s.step_index * interval '6 minutes'))
 from today_values t
 cross join steps s;
