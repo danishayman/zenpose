@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth_context.dart';
 import 'auth_service.dart';
+import 'daily_challenge_service.dart';
 import 'database_service.dart';
 
 class SyncRunResult {
@@ -110,16 +111,18 @@ class SyncService {
     final userId = AuthContext.activeUserId;
 
     try {
+      await _normalizeDailyChallengeTargets();
       for (final table in _tables) {
         final unsynced = await _db.getUnsyncedRows(tableName: table);
         for (final localRow in unsynced) {
           try {
             final keys = _keysForRow(table, localRow);
-            final remote = await client
-                .from(table)
-                .select()
-                .match(_stringifyMap(keys))
-                .maybeSingle();
+            final remote =
+                await client
+                    .from(table)
+                    .select()
+                    .match(_stringifyMap(keys))
+                    .maybeSingle();
             final localUpdated = _parseDate(
               localRow[DatabaseService.columnUpdatedAt],
             );
@@ -185,6 +188,7 @@ class SyncService {
           errors.add('$table pull: $e');
         }
       }
+      await _normalizeDailyChallengeTargets();
     } finally {
       _syncing = false;
     }
@@ -222,5 +226,12 @@ class SyncService {
   DateTime _parseDate(Object? value) {
     final parsed = DateTime.tryParse(value?.toString() ?? '');
     return parsed ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+  }
+
+  Future<void> _normalizeDailyChallengeTargets() async {
+    final stats = await _db.getUserStats();
+    await _db.normalizeDailyChallengeTargetsForActiveUser(
+      targetHoldSeconds: DailyChallengeService.holdSecondsForXp(stats.totalXp),
+    );
   }
 }

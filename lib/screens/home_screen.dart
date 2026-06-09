@@ -168,9 +168,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openChallenge(_HomeData data) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => DailyChallengeRunnerScreen(
-          dateKey: data.challenge.challenge.dateKey,
-        ),
+        builder:
+            (_) => DailyChallengeRunnerScreen(
+              dateKey: data.challenge.challenge.dateKey,
+            ),
       ),
     );
     await _refresh();
@@ -350,15 +351,26 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildChallengeHero(_HomeData data) {
     final challenge = data.challenge;
     final isCompleted = challenge.challenge.isCompleted;
-    final progress = challenge.steps.isEmpty
-        ? 0.0
-        : challenge.completedStepsCount / challenge.steps.length;
+    final progress =
+        challenge.steps.isEmpty
+            ? 0.0
+            : challenge.completedStepsCount / challenge.steps.length;
+    final holdSeconds =
+        challenge.steps.isEmpty
+            ? DailyChallengeService.targetHoldSecondsForChallenge(
+              challenge.challenge,
+            )
+            : DailyChallengeService.targetHoldSecondsForStep(
+              challenge.steps.first,
+              challenge.challenge,
+            );
 
-    final statusLabel = isCompleted
-        ? 'Completed ✓'
-        : challenge.hasStarted
-        ? 'Resume Challenge'
-        : 'Start Challenge';
+    final statusLabel =
+        isCompleted
+            ? 'Completed ✓'
+            : challenge.hasStarted
+            ? 'Resume Challenge'
+            : 'Start Challenge';
 
     return Container(
       decoration: ZenDecor.heroGradient(),
@@ -404,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             isCompleted
                 ? 'Challenge complete!'
-                : '${challenge.steps.length} poses • 45s each',
+                : '${challenge.steps.length} poses • ${holdSeconds}s each',
             style: const TextStyle(
               fontFamily: 'Manrope',
               fontSize: 22,
@@ -505,9 +517,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final weeklyGoal = data.weeklyGoalTarget;
     final weeklyCompleted = data.weeklyCompleted;
     final remaining = math.max(0, weeklyGoal - weeklyCompleted);
-    final progress = weeklyGoal == 0
-        ? 0.0
-        : (weeklyCompleted / weeklyGoal).clamp(0.0, 1.0);
+    final progress =
+        weeklyGoal == 0 ? 0.0 : (weeklyCompleted / weeklyGoal).clamp(0.0, 1.0);
     final isGoalMet = remaining == 0;
 
     return Container(
@@ -609,21 +620,22 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSessionCard(_HomeData data, SessionHistoryEntry session) {
     final isChallenge = session.kind == SessionHistoryKind.challenge;
     final title = isChallenge ? 'Daily Yoga Flow' : 'Practice Session';
-    final subtitle = isChallenge
-        ? session.completed
-              ? '${session.completedPoseCount}/${session.poseCount} poses completed'
-              : '${session.completedPoseCount}/${session.poseCount} poses done'
-        : (session.isLegacyPractice
-              ? 'Legacy practice record'
-              : 'Focused single-pose practice');
+    final subtitle =
+        isChallenge
+            ? session.completed
+                ? '${session.completedPoseCount}/${session.poseCount} poses completed'
+                : '${session.completedPoseCount}/${session.poseCount} poses done'
+            : (session.isLegacyPractice
+                ? 'Legacy practice record'
+                : 'Focused single-pose practice');
     final statusLabel = session.completed ? 'Completed' : 'In Progress';
-    final statusBg = session.completed
-        ? ZenColors.successLight
-        : ZenColors.warningLight;
+    final statusBg =
+        session.completed ? ZenColors.successLight : ZenColors.warningLight;
     final statusFg = session.completed ? ZenColors.success : ZenColors.warning;
-    final avatarInitial = data.actorName.isEmpty
-        ? 'Z'
-        : data.actorName.substring(0, 1).toUpperCase();
+    final avatarInitial =
+        data.actorName.isEmpty
+            ? 'Z'
+            : data.actorName.substring(0, 1).toUpperCase();
 
     return Container(
       decoration: ZenDecor.elevatedCard(),
@@ -706,9 +718,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               _buildMetric(
                 label: 'Avg Score',
-                value: session.averageScore == null
-                    ? '-'
-                    : '${session.averageScore!.toStringAsFixed(0)}%',
+                value:
+                    session.averageScore == null
+                        ? '-'
+                        : '${session.averageScore!.toStringAsFixed(0)}%',
               ),
               _buildMetric(label: 'Poses', value: '${session.poseCount}'),
             ],
@@ -919,64 +932,68 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: ZenDecor.elevatedCard(),
           padding: const EdgeInsets.all(16),
           child: Column(
-            children: bundle.challenge.sequence.asMap().entries.map((entry) {
-              final index = entry.key;
-              final poseName = entry.value;
-              final isDone = index < bundle.completedStepsCount;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDone ? ZenColors.teal : ZenColors.sage100,
-                      ),
-                      child: Center(
-                        child: isDone
-                            ? const Icon(
-                                Icons.check_rounded,
-                                size: 15,
-                                color: Colors.white,
-                              )
-                            : Text(
-                                '${index + 1}',
-                                style: const TextStyle(
-                                  fontFamily: 'Manrope',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: ZenColors.forest,
-                                ),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        poseName,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          decoration: isDone
-                              ? TextDecoration.lineThrough
-                              : null,
-                          color: isDone
-                              ? ZenColors.textMuted
-                              : ZenColors.textPrimary,
+            children:
+                bundle.challenge.sequence.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final poseName = entry.value;
+                  final isDone = index < bundle.completedStepsCount;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDone ? ZenColors.teal : ZenColors.sage100,
+                          ),
+                          child: Center(
+                            child:
+                                isDone
+                                    ? const Icon(
+                                      Icons.check_rounded,
+                                      size: 15,
+                                      color: Colors.white,
+                                    )
+                                    : Text(
+                                      '${index + 1}',
+                                      style: const TextStyle(
+                                        fontFamily: 'Manrope',
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: ZenColors.forest,
+                                      ),
+                                    ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            poseName,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyLarge?.copyWith(
+                              decoration:
+                                  isDone ? TextDecoration.lineThrough : null,
+                              color:
+                                  isDone
+                                      ? ZenColors.textMuted
+                                      : ZenColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (isDone)
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            size: 16,
+                            color: ZenColors.teal,
+                          ),
+                      ],
                     ),
-                    if (isDone)
-                      const Icon(
-                        Icons.check_circle_rounded,
-                        size: 16,
-                        color: ZenColors.teal,
-                      ),
-                  ],
-                ),
-              );
-            }).toList(),
+                  );
+                }).toList(),
           ),
         ),
       ],

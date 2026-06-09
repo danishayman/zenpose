@@ -133,7 +133,7 @@ class DailyChallengeService {
     DailyChallengeStep step,
     DailyChallenge challenge,
   ) {
-    return step.targetHoldSeconds ?? targetHoldSecondsForChallenge(challenge);
+    return targetHoldSecondsForChallenge(challenge);
   }
 
   static Duration targetHoldDurationForStep(
@@ -178,22 +178,13 @@ class DailyChallengeService {
     if (existing != null) {
       final userStats = await _databaseService.getUserStats();
       final rankTargetHoldSeconds = holdSecondsForXp(userStats.totalXp);
-      var challenge = existing;
-      if (targetHoldSecondsForChallenge(challenge) != rankTargetHoldSeconds) {
-        final now = DateTime.now();
-        challenge = challenge.copyWith(
-          targetHoldSeconds: rankTargetHoldSeconds,
-          updatedAt: now,
-        );
-        await _databaseService.updateDailyChallenge(challenge);
-      }
-      final loadedSteps = await _databaseService.getDailyChallengeSteps(
-        dateKey,
+      await _databaseService.normalizeDailyChallengeTargetsForActiveUser(
+        targetHoldSeconds: rankTargetHoldSeconds,
       );
-      final steps = await _syncStepTargetsToRank(
-        rankTargetHoldSeconds: rankTargetHoldSeconds,
-        steps: loadedSteps,
-      );
+      final challenge =
+          await _databaseService.getDailyChallengeByDateKey(dateKey) ??
+          existing.copyWith(targetHoldSeconds: rankTargetHoldSeconds);
+      final steps = await _databaseService.getDailyChallengeSteps(dateKey);
       final pendingCount =
           steps
               .where((step) => step.status == DailyChallengeStepStatus.pending)
@@ -729,25 +720,5 @@ class DailyChallengeService {
 
   String _normalizePoseName(String value) {
     return value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-  }
-
-  Future<List<DailyChallengeStep>> _syncStepTargetsToRank({
-    required int rankTargetHoldSeconds,
-    required List<DailyChallengeStep> steps,
-  }) async {
-    if (steps.isEmpty) return steps;
-    var changed = false;
-    final repaired = <DailyChallengeStep>[];
-    for (final step in steps) {
-      if (step.targetHoldSeconds == rankTargetHoldSeconds) {
-        repaired.add(step);
-        continue;
-      }
-      final updated = step.copyWith(targetHoldSeconds: rankTargetHoldSeconds);
-      await _databaseService.updateDailyChallengeStep(updated);
-      repaired.add(updated);
-      changed = true;
-    }
-    return changed ? repaired : steps;
   }
 }

@@ -456,14 +456,14 @@ void main() {
       final result = service.evaluate(
         poseKey: 'tree',
         normalizedVector: _treeVector(
-          leftKneeX: 0.52,
-          rightKneeX: -0.30,
+          leftKneeX: 0.36,
+          rightKneeX: -0.26,
           leftAnkleX: 0.12,
-          rightAnkleX: -0.42,
+          rightAnkleX: -0.58,
           leftAnkleY: 0.36,
           rightAnkleY: 1.02,
         ),
-        angles: _angles(leftKnee: 142, rightKnee: 176),
+        angles: _angles(leftKnee: 152, rightKnee: 176),
         scoreThreshold: 60,
       );
 

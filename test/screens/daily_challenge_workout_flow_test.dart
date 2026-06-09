@@ -264,7 +264,7 @@ void main() {
     },
   );
 
-  testWidgets('ready copy uses current step target hold seconds', (
+  testWidgets('ready copy uses challenge rank target hold seconds', (
     tester,
   ) async {
     final now = DateTime(2026, 3, 27, 10, 0, 0);
@@ -313,7 +313,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(
-      find.text('Get ready, then start your 35-second timed set.'),
+      find.text('Get ready, then start your 20-second timed set.'),
       findsOneWidget,
     );
   });

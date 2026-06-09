@@ -82,35 +82,46 @@ void main() {
 
     final bronze = await service.getOrCreateChallenge(dateKey: '2026-04-10');
     expect(bronze.challenge.targetHoldSeconds, equals(20));
-    expect({
-      for (final step in bronze.steps) step.poseName: step.targetHoldSeconds,
-    }, containsPair('Tree', 20));
-    expect({
-      for (final step in bronze.steps) step.poseName: step.targetHoldSeconds,
-    }, containsPair('Plank', 20));
-    expect({
-      for (final step in bronze.steps) step.poseName: step.targetHoldSeconds,
-    }, containsPair('Downdog', 20));
+    expect(
+      bronze.steps.map((step) => step.targetHoldSeconds).toList(),
+      everyElement(20),
+    );
 
     await db.incrementTotalXp(1000);
     final silver = await service.getOrCreateChallenge(dateKey: '2026-04-11');
     expect(silver.challenge.targetHoldSeconds, equals(30));
+    expect(
+      silver.steps.map((step) => step.targetHoldSeconds).toList(),
+      everyElement(30),
+    );
 
     await db.incrementTotalXp(2000);
     final gold = await service.getOrCreateChallenge(dateKey: '2026-04-12');
     expect(gold.challenge.targetHoldSeconds, equals(35));
+    expect(
+      gold.steps.map((step) => step.targetHoldSeconds).toList(),
+      everyElement(35),
+    );
 
     await db.incrementTotalXp(4000);
     final emerald = await service.getOrCreateChallenge(dateKey: '2026-04-13');
     expect(emerald.challenge.targetHoldSeconds, equals(40));
+    expect(
+      emerald.steps.map((step) => step.targetHoldSeconds).toList(),
+      everyElement(40),
+    );
 
     await db.incrementTotalXp(5000);
     final diamond = await service.getOrCreateChallenge(dateKey: '2026-04-14');
     expect(diamond.challenge.targetHoldSeconds, equals(45));
+    expect(
+      diamond.steps.map((step) => step.targetHoldSeconds).toList(),
+      everyElement(45),
+    );
   });
 
   test(
-    'existing challenge syncs challenge and step hold seconds to current rank',
+    'existing bronze challenge repairs stale challenge and step hold seconds',
     () async {
       final db = DatabaseService.instance;
       await db.database;
@@ -126,12 +137,93 @@ void main() {
       expect(first.challenge.targetHoldSeconds, equals(20));
       expect(first.steps.first.targetHoldSeconds, isNotNull);
 
+      await db.updateDailyChallenge(
+        first.challenge.copyWith(targetHoldSeconds: 45),
+      );
+      final staleTargets = <int>[25, 30, 45];
+      for (var i = 0; i < first.steps.length; i++) {
+        await db.updateDailyChallengeStep(
+          first.steps[i].copyWith(
+            targetHoldSeconds: staleTargets[i % staleTargets.length],
+          ),
+        );
+      }
+
+      final repaired = await service.getOrCreateChallenge(
+        dateKey: '2026-04-13',
+      );
+      expect(repaired.challenge.targetHoldSeconds, equals(20));
+      expect(
+        repaired.steps.map((step) => step.targetHoldSeconds).toList(),
+        everyElement(20),
+      );
+    },
+  );
+
+  test(
+    'existing diamond challenge repairs stale low step hold seconds',
+    () async {
+      final db = DatabaseService.instance;
+      await db.database;
+      final service = DailyChallengeService(
+        databaseService: db,
+        templateService: _FakePoseTemplateService(<PoseTemplate>[
+          _template('downdog', 'Downdog'),
+          _template('tree', 'Tree'),
+        ]),
+      );
+
+      final first = await service.getOrCreateChallenge(dateKey: '2026-04-13');
       await db.incrementTotalXp(12000);
       final reloaded = await service.getOrCreateChallenge(
         dateKey: '2026-04-13',
       );
+      expect(first.challenge.targetHoldSeconds, equals(20));
       expect(reloaded.challenge.targetHoldSeconds, equals(45));
-      expect(reloaded.steps.first.targetHoldSeconds, equals(45));
+      expect(
+        reloaded.steps.map((step) => step.targetHoldSeconds).toList(),
+        everyElement(45),
+      );
+    },
+  );
+
+  test(
+    'local repair normalizes stale pulled challenge and step targets',
+    () async {
+      final db = DatabaseService.instance;
+      await db.database;
+      final service = DailyChallengeService(
+        databaseService: db,
+        templateService: _FakePoseTemplateService(<PoseTemplate>[
+          _template('chair', 'Chair'),
+          _template('tree', 'Tree'),
+        ]),
+      );
+
+      final first = await service.getOrCreateChallenge(dateKey: '2026-04-16');
+      await db.updateDailyChallenge(
+        first.challenge.copyWith(targetHoldSeconds: 45),
+      );
+      for (var i = 0; i < first.steps.length; i++) {
+        await db.updateDailyChallengeStep(
+          first.steps[i].copyWith(targetHoldSeconds: i.isEven ? 25 : 30),
+        );
+      }
+
+      final changed = await db.normalizeDailyChallengeTargetsForActiveUser(
+        targetHoldSeconds: 20,
+      );
+      final repairedChallenge = await db.getDailyChallengeByDateKey(
+        '2026-04-16',
+      );
+      final repairedSteps = await db.getDailyChallengeSteps('2026-04-16');
+
+      expect(changed, greaterThan(0));
+      expect(repairedChallenge?.targetHoldSeconds, equals(20));
+      expect(
+        repairedSteps.map((step) => step.targetHoldSeconds).toList(),
+        everyElement(20),
+      );
     },
   );
 

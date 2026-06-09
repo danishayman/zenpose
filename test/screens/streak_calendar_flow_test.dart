@@ -244,6 +244,39 @@ void main() {
     expect(find.text('84%'), findsWidgets);
   });
 
+  testWidgets('home challenge card shows rank-based hold seconds', (
+    tester,
+  ) async {
+    _setLargeSurface(tester);
+
+    await tester.pumpWidget(
+      _app(
+        HomeScreen(
+          loadTodayChallenge:
+              () async => _bundleFor('2026-03-29', targetHoldSeconds: 20),
+          loadUserStats: () async => baseStats,
+          loadBadgeCount: () async => 1,
+          loadSessionHistory: () async => homeHistory,
+          loadPoseTemplates: () async => const <PoseTemplate>[],
+          loadAllResults: () async => homeWeeklyResults,
+          loadWeeklyGoal:
+              () async => WeeklyWorkoutGoal(
+                userId: 'u1',
+                targetWorkouts: 3,
+                updatedAt: homeNow,
+                isSynced: true,
+              ),
+          nowBuilder: () => homeNow,
+          streakCalendarBuilder: testStreakBuilder(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 poses • 20s each'), findsOneWidget);
+    expect(find.text('1 poses • 45s each'), findsNothing);
+  });
+
   testWidgets('home screen session history empty state appears', (
     tester,
   ) async {
@@ -273,12 +306,13 @@ void main() {
       _app(
         ProgressDashboardScreen(
           loadAllResults: () async => completedResults,
-          loadWeeklyGoal: () async => WeeklyWorkoutGoal(
-            userId: 'u1',
-            targetWorkouts: 3,
-            updatedAt: DateTime(2026, 3, 29),
-            isSynced: true,
-          ),
+          loadWeeklyGoal:
+              () async => WeeklyWorkoutGoal(
+                userId: 'u1',
+                targetWorkouts: 3,
+                updatedAt: DateTime(2026, 3, 29),
+                isSynced: true,
+              ),
           loadMeasurementHistory: (_) async => const <BodyMeasurement>[],
           loadPoseTemplates: () async => const <PoseTemplate>[],
           nowBuilder: () => DateTime(2026, 3, 29),
@@ -394,9 +428,8 @@ void main() {
     expect(find.text('2 / 3 sessions completed'), findsOneWidget);
     expect(find.text('1 left'), findsOneWidget);
 
-    final goalY = tester
-        .getTopLeft(find.byKey(const Key('home-goal-progress-card')))
-        .dy;
+    final goalY =
+        tester.getTopLeft(find.byKey(const Key('home-goal-progress-card'))).dy;
     final statsY = tester.getTopLeft(find.text('Your Stats')).dy;
     expect(goalY, lessThan(statsY));
   });
@@ -410,12 +443,13 @@ void main() {
       _app(
         buildHome(
           loadSessionHistory: () async => weeklyGoalHistory,
-          loadWeeklyGoal: () async => WeeklyWorkoutGoal(
-            userId: 'u1',
-            targetWorkouts: 2,
-            updatedAt: homeNow,
-            isSynced: true,
-          ),
+          loadWeeklyGoal:
+              () async => WeeklyWorkoutGoal(
+                userId: 'u1',
+                targetWorkouts: 2,
+                updatedAt: homeNow,
+                isSynced: true,
+              ),
         ),
       ),
     );
@@ -435,12 +469,13 @@ void main() {
       _app(
         buildHome(
           loadSessionHistory: () async => weeklyGoalHistory,
-          loadWeeklyGoal: () async => WeeklyWorkoutGoal(
-            userId: 'u1',
-            targetWorkouts: goal,
-            updatedAt: homeNow,
-            isSynced: true,
-          ),
+          loadWeeklyGoal:
+              () async => WeeklyWorkoutGoal(
+                userId: 'u1',
+                targetWorkouts: goal,
+                updatedAt: homeNow,
+                isSynced: true,
+              ),
           saveWeeklyGoal: (targetWorkouts) async {
             goal = targetWorkouts;
           },
@@ -464,10 +499,7 @@ void main() {
 }
 
 Widget _app(Widget child) {
-  return MaterialApp(
-    theme: ZenTheme.build(),
-    home: Scaffold(body: child),
-  );
+  return MaterialApp(theme: ZenTheme.build(), home: Scaffold(body: child));
 }
 
 void _setLargeSurface(WidgetTester tester) {
@@ -479,13 +511,14 @@ void _setLargeSurface(WidgetTester tester) {
   });
 }
 
-DailyChallengeBundle _bundleFor(String dateKey) {
+DailyChallengeBundle _bundleFor(String dateKey, {int? targetHoldSeconds}) {
   final startedAt = DateTime(2026, 3, 29, 10, 0);
   final challenge = DailyChallenge(
     dateKey: dateKey,
     status: DailyChallengeStatus.inProgress,
     skipCount: 0,
     totalSteps: 1,
+    targetHoldSeconds: targetHoldSeconds,
     startedAt: startedAt,
     completedAt: null,
     updatedAt: startedAt,
@@ -499,6 +532,7 @@ DailyChallengeBundle _bundleFor(String dateKey) {
       status: DailyChallengeStepStatus.pending,
       bestScore: null,
       holdDuration: null,
+      targetHoldSeconds: targetHoldSeconds,
       updatedAt: startedAt,
     ),
   ];

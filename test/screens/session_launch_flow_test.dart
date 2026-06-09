@@ -45,6 +45,7 @@ class _FakeDailyChallengeService extends DailyChallengeService {
           status: orderedSteps[i].status,
           bestScore: orderedSteps[i].bestScore,
           holdDuration: orderedSteps[i].holdDuration,
+          targetHoldSeconds: orderedSteps[i].targetHoldSeconds,
           updatedAt: now,
         ),
     ];
@@ -105,8 +106,9 @@ void main() {
         home: DailyChallengeRunnerScreen(
           dateKey: '2026-03-24',
           challengeService: service,
-          evaluatorBuilder: (_) =>
-              const Scaffold(body: Center(child: Text('EVALUATOR_STUB'))),
+          evaluatorBuilder:
+              (_) =>
+                  const Scaffold(body: Center(child: Text('EVALUATOR_STUB'))),
         ),
       ),
     );
@@ -166,8 +168,9 @@ void main() {
           home: DailyChallengeRunnerScreen(
             dateKey: '2026-03-24',
             challengeService: service,
-            evaluatorBuilder: (_) =>
-                const Scaffold(body: Center(child: Text('EVALUATOR_STUB'))),
+            evaluatorBuilder:
+                (_) =>
+                    const Scaffold(body: Center(child: Text('EVALUATOR_STUB'))),
           ),
         ),
       );
@@ -228,8 +231,9 @@ void main() {
           home: DailyChallengeRunnerScreen(
             dateKey: '2026-03-24',
             challengeService: service,
-            evaluatorBuilder: (_) =>
-                const Scaffold(body: Center(child: Text('EVALUATOR_STUB'))),
+            evaluatorBuilder:
+                (_) =>
+                    const Scaffold(body: Center(child: Text('EVALUATOR_STUB'))),
           ),
         ),
       );
@@ -269,8 +273,8 @@ void main() {
       MaterialApp(
         home: PoseDetailScreen(
           template: _template(),
-          sessionScreenBuilder: (_) =>
-              const Scaffold(body: Center(child: Text('PRACTICE_STUB'))),
+          sessionScreenBuilder:
+              (_) => const Scaffold(body: Center(child: Text('PRACTICE_STUB'))),
         ),
       ),
     );

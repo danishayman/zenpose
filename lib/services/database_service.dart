@@ -1266,6 +1266,42 @@ class DatabaseService {
     return rows.map(DailyChallengeStep.fromMap).toList();
   }
 
+  Future<int> normalizeDailyChallengeTargetsForActiveUser({
+    required int targetHoldSeconds,
+  }) async {
+    final db = await database;
+    final nowIso = _nowIso();
+    var changed = 0;
+    await db.transaction((tx) async {
+      changed += await tx.update(
+        tableDailyChallenges,
+        <String, Object?>{
+          columnTargetHoldSeconds: targetHoldSeconds,
+          columnUpdatedAt: nowIso,
+          columnIsSynced: 0,
+        },
+        where:
+            '$columnUserId = ? AND ($columnTargetHoldSeconds IS NULL OR $columnTargetHoldSeconds != ?)',
+        whereArgs: <Object?>[_activeUserId, targetHoldSeconds],
+      );
+      changed += await tx.update(
+        tableDailyChallengeSteps,
+        <String, Object?>{
+          columnTargetHoldSeconds: targetHoldSeconds,
+          columnUpdatedAt: nowIso,
+          columnIsSynced: 0,
+        },
+        where:
+            '$columnUserId = ? AND ($columnTargetHoldSeconds IS NULL OR $columnTargetHoldSeconds != ?)',
+        whereArgs: <Object?>[_activeUserId, targetHoldSeconds],
+      );
+    });
+    if (changed > 0) {
+      notifyLocalMutation();
+    }
+    return changed;
+  }
+
   Future<void> updateDailyChallenge(DailyChallenge challenge) async {
     final db = await database;
     final map = challenge.toMap();
