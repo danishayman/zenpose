@@ -95,18 +95,29 @@ void main() {
 
     expect(find.byKey(const Key('profile-activity-card')), findsOneWidget);
     expect(headline(), '1.0 min');
+    expect(find.byKey(const Key('profile-activity-x-axis')), findsOneWidget);
+    expect(find.byKey(const Key('profile-activity-y-axis')), findsOneWidget);
+    expect(find.text('3.0'), findsOneWidget);
+    expect(find.text('01/04'), findsOneWidget);
+    expect(find.text('03/04'), findsOneWidget);
+    expect(find.text('06/04'), findsOneWidget);
+    expect(find.text('08/04'), findsOneWidget);
+    expect(find.text('10/04'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('profile-activity-tab-sessions')));
     await tester.pumpAndSettle();
     expect(headline(), '1');
+    expect(find.text('10/04'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('profile-activity-tab-score')));
     await tester.pumpAndSettle();
     expect(headline(), '88.0%');
+    expect(find.text('100'), findsOneWidget);
+    expect(find.text('75'), findsOneWidget);
   });
 
   testWidgets(
-    'profile activity headline uses latest active day when trailing days are empty',
+    'profile activity headline uses latest plotted day when trailing days are empty',
     (tester) async {
       _setLargeSurface(tester);
       await tester.pumpWidget(
@@ -128,15 +139,15 @@ void main() {
           .widget<Text>(find.byKey(const Key('profile-activity-headline')))
           .data!;
 
-      expect(headline(), '1.0 min');
+      expect(headline(), '0.0 min');
 
       await tester.tap(find.byKey(const Key('profile-activity-tab-sessions')));
       await tester.pumpAndSettle();
-      expect(headline(), '1');
+      expect(headline(), '0');
 
       await tester.tap(find.byKey(const Key('profile-activity-tab-score')));
       await tester.pumpAndSettle();
-      expect(headline(), '88.0%');
+      expect(headline(), '0.0%');
     },
   );
 

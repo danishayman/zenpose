@@ -71,6 +71,7 @@ class PoseFormGateService {
       'plank' => <String>[...floorFailures, ..._plankFailures(points, angles)],
       'warrior2' => _warrior2Failures(points, angles),
       'cobra' => <String>[...floorFailures, ..._cobraFailures(points)],
+      'tree' => _treeFailures(points, angles),
       'triangle' => _triangleFailures(points, angles),
       _ => const <String>[],
     };
@@ -88,6 +89,7 @@ class PoseFormGateService {
     'plank',
     'warrior2',
     'cobra',
+    'tree',
     'triangle',
   };
 
@@ -266,6 +268,20 @@ class PoseFormGateService {
     }
     if ((points.averageWristY - points.averageHipY).abs() > 0.45) {
       failures.add('Place your hands under your shoulders');
+    }
+    return failures;
+  }
+
+  List<String> _treeFailures(_PosePoints points, Map<String, double> angles) {
+    final failures = <String>[];
+    final hasLiftedFootShape =
+        points.ankleSpreadX <= 0.45 && points.ankleYDiff <= 0.40;
+    final hasOpenKnee = points.kneeSpreadX >= 0.75;
+    if (!hasLiftedFootShape) {
+      failures.add('Lift one foot onto your inner leg');
+    }
+    if (!_atLeastOneKneeBent(angles, maxAngle: 130.0) || !hasOpenKnee) {
+      failures.add('Open one knee out to the side');
     }
     return failures;
   }

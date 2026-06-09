@@ -398,6 +398,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final series = data.activitySeries[_selectedMetric]!;
     final values = series.points.map((p) => p.value).toList(growable: false);
     final headline = _headlineForMetric(series);
+    final chartScale = _ProfileChartScale.fromSeries(series);
+    const chartAxisGap = 8.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,25 +432,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 14),
-              SizedBox(
-                height: 144,
-                child: _ProfileTrendChart(
-                  values: values,
-                  lineColor: ZenColors.teal,
-                  fillColor: ZenColors.teal.withValues(alpha: 0.16),
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: _ProfileActivityYAxis.width,
+                    height: 144,
+                    child: _ProfileActivityYAxis(
+                      labels: chartScale.yAxisLabels,
+                    ),
+                  ),
+                  const SizedBox(width: chartAxisGap),
+                  Expanded(
+                    child: SizedBox(
+                      height: 144,
+                      child: _ProfileTrendChart(
+                        values: values,
+                        minValue: chartScale.minValue,
+                        maxValue: chartScale.maxValue,
+                        lineColor: ZenColors.teal,
+                        fillColor: ZenColors.teal.withValues(alpha: 0.16),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Row(
                 children: [
-                  Text(
-                    _dayLabel(series.points.first.day),
-                    style: Theme.of(context).textTheme.bodySmall,
+                  const SizedBox(
+                    width: _ProfileActivityYAxis.width + chartAxisGap,
                   ),
-                  const Spacer(),
-                  Text(
-                    _dayLabel(series.points.last.day),
-                    style: Theme.of(context).textTheme.bodySmall,
+                  Expanded(
+                    child: _ProfileActivityXAxis(
+                      points: series.points,
+                      labelBuilder: _dayLabel,
+                    ),
                   ),
                 ],
               ),
@@ -540,22 +559,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _headlineForMetric(ProfileActivitySeries series) {
     if (series.points.isEmpty) return '0';
-    final latest = _latestNonZeroValue(series.points);
+    final latest = series.points.last.value;
     return switch (series.metric) {
       ProfileActivityMetric.duration => '${latest.toStringAsFixed(1)} min',
       ProfileActivityMetric.score => '${latest.toStringAsFixed(1)}%',
       ProfileActivityMetric.sessions => latest.toStringAsFixed(0),
     };
-  }
-
-  double _latestNonZeroValue(List<ProfileActivityPoint> points) {
-    const epsilon = 0.0001;
-    for (var i = points.length - 1; i >= 0; i--) {
-      if (points[i].value.abs() > epsilon) {
-        return points[i].value;
-      }
-    }
-    return points.last.value;
   }
 
   String _metricSubtitle(ProfileActivityMetric metric) {
@@ -1038,13 +1047,170 @@ class _ProfileChallengePreviewCard extends StatelessWidget {
   }
 }
 
+class _ProfileActivityXAxis extends StatelessWidget {
+  final List<ProfileActivityPoint> points;
+  final String Function(DateTime day) labelBuilder;
+
+  const _ProfileActivityXAxis({
+    required this.points,
+    required this.labelBuilder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (points.isEmpty) return const SizedBox.shrink();
+
+    final ticks = _tickPoints(points);
+    final labelStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: ZenColors.textMuted,
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+    );
+
+    return Row(
+      key: const Key('profile-activity-x-axis'),
+      children: [
+        for (var i = 0; i < ticks.length; i++)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: _axisAlignmentFor(i, ticks.length),
+              children: [
+                Container(width: 1, height: 5, color: ZenColors.surface2),
+                const SizedBox(height: 3),
+                Text(
+                  labelBuilder(ticks[i].day),
+                  maxLines: 1,
+                  overflow: TextOverflow.visible,
+                  style: labelStyle,
+                  textAlign: _textAlignFor(i, ticks.length),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<ProfileActivityPoint> _tickPoints(List<ProfileActivityPoint> source) {
+    if (source.length <= 5) return source;
+
+    final lastIndex = source.length - 1;
+    final tickIndexes = <int>{
+      for (var i = 0; i < 5; i++) (lastIndex * i / 4).round(),
+    };
+    return tickIndexes
+        .map((index) {
+          return source[index];
+        })
+        .toList(growable: false);
+  }
+
+  CrossAxisAlignment _axisAlignmentFor(int index, int count) {
+    if (index == 0) return CrossAxisAlignment.start;
+    if (index == count - 1) return CrossAxisAlignment.end;
+    return CrossAxisAlignment.center;
+  }
+
+  TextAlign _textAlignFor(int index, int count) {
+    if (index == 0) return TextAlign.left;
+    if (index == count - 1) return TextAlign.right;
+    return TextAlign.center;
+  }
+}
+
+class _ProfileActivityYAxis extends StatelessWidget {
+  static const width = 34.0;
+
+  final List<String> labels;
+
+  const _ProfileActivityYAxis({required this.labels});
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: ZenColors.textMuted,
+      fontSize: 10,
+      fontWeight: FontWeight.w700,
+      height: 1,
+    );
+
+    return Column(
+      key: const Key('profile-activity-y-axis'),
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (final label in labels)
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.visible,
+            style: labelStyle,
+            textAlign: TextAlign.right,
+          ),
+      ],
+    );
+  }
+}
+
+class _ProfileChartScale {
+  final double minValue;
+  final double maxValue;
+  final List<String> yAxisLabels;
+
+  const _ProfileChartScale({
+    required this.minValue,
+    required this.maxValue,
+    required this.yAxisLabels,
+  });
+
+  factory _ProfileChartScale.fromSeries(ProfileActivitySeries series) {
+    final values = series.points.map((p) => p.value).toList(growable: false);
+    final rawMax = values.isEmpty ? 0.0 : values.reduce(math.max);
+    final maxValue = switch (series.metric) {
+      ProfileActivityMetric.score => 100.0,
+      ProfileActivityMetric.sessions => math.max(4, rawMax.ceil()).toDouble(),
+      ProfileActivityMetric.duration => _niceUpperBound(rawMax),
+    };
+
+    return _ProfileChartScale(
+      minValue: 0,
+      maxValue: maxValue,
+      yAxisLabels: List.generate(5, (index) {
+        final value = maxValue - ((maxValue / 4) * index);
+        return _formatAxisValue(series.metric, value);
+      }),
+    );
+  }
+
+  static double _niceUpperBound(double value) {
+    if (value <= 0) return 1;
+    if (value <= 1) return 1;
+    if (value <= 5) return value.ceilToDouble();
+    if (value <= 10) return (value / 2).ceil() * 2.0;
+    return (value / 5).ceil() * 5.0;
+  }
+
+  static String _formatAxisValue(ProfileActivityMetric metric, double value) {
+    return switch (metric) {
+      ProfileActivityMetric.score => value.round().toString(),
+      ProfileActivityMetric.sessions => value.round().toString(),
+      ProfileActivityMetric.duration =>
+        value == 0 ? '0' : value.toStringAsFixed(1),
+    };
+  }
+}
+
 class _ProfileTrendChart extends StatelessWidget {
   final List<double> values;
+  final double minValue;
+  final double maxValue;
   final Color lineColor;
   final Color fillColor;
 
   const _ProfileTrendChart({
     required this.values,
+    required this.minValue,
+    required this.maxValue,
     required this.lineColor,
     required this.fillColor,
   });
@@ -1054,6 +1220,8 @@ class _ProfileTrendChart extends StatelessWidget {
     return CustomPaint(
       painter: _ProfileTrendChartPainter(
         values: values,
+        minValue: minValue,
+        maxValue: maxValue,
         lineColor: lineColor,
         fillColor: fillColor,
       ),
@@ -1064,11 +1232,15 @@ class _ProfileTrendChart extends StatelessWidget {
 
 class _ProfileTrendChartPainter extends CustomPainter {
   final List<double> values;
+  final double minValue;
+  final double maxValue;
   final Color lineColor;
   final Color fillColor;
 
   _ProfileTrendChartPainter({
     required this.values,
+    required this.minValue,
+    required this.maxValue,
     required this.lineColor,
     required this.fillColor,
   });
@@ -1079,15 +1251,13 @@ class _ProfileTrendChartPainter extends CustomPainter {
       ..color = ZenColors.surface2
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
-    for (var i = 0; i < 4; i++) {
-      final y = (size.height - 10) * (i / 3) + 5;
+    for (var i = 0; i < 5; i++) {
+      final y = (size.height - 10) * (i / 4) + 5;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
     if (values.isEmpty) return;
 
-    final minValue = values.reduce(math.min);
-    final maxValue = values.reduce(math.max);
     final range = (maxValue - minValue).abs() < 0.0001
         ? 1.0
         : (maxValue - minValue);
@@ -1145,7 +1315,9 @@ class _ProfileTrendChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ProfileTrendChartPainter oldDelegate) {
     if (oldDelegate.lineColor != lineColor ||
-        oldDelegate.fillColor != fillColor) {
+        oldDelegate.fillColor != fillColor ||
+        oldDelegate.minValue != minValue ||
+        oldDelegate.maxValue != maxValue) {
       return true;
     }
     if (oldDelegate.values.length != values.length) return true;

@@ -421,16 +421,35 @@ void main() {
       expect(result.passes, isTrue);
     });
 
-    test('does not gate Tree', () {
-      final tree = service.evaluate(
+    test('caps Tree when both feet stay on the ground', () {
+      final result = service.evaluate(
         poseKey: 'tree',
-        normalizedVector: null,
-        angles: const <String, double>{},
+        normalizedVector: _standingVector(),
+        angles: _angles(leftKnee: 176, rightKnee: 177),
         scoreThreshold: 60,
       );
 
-      expect(tree.passes, isTrue);
-      expect(tree.scoreCap, isNull);
+      expect(result.passes, isFalse);
+      expect(
+        result.feedbackMessages,
+        contains('Lift one foot onto your inner leg'),
+      );
+      expect(
+        result.feedbackMessages,
+        contains('Open one knee out to the side'),
+      );
+      expect(result.applyToScore(92), 52);
+    });
+
+    test('passes Tree when one knee opens and feet are close', () {
+      final result = service.evaluate(
+        poseKey: 'tree',
+        normalizedVector: _treeVector(),
+        angles: _angles(leftKnee: 92, rightKnee: 176),
+        scoreThreshold: 60,
+      );
+
+      expect(result.passes, isTrue);
     });
   });
 }
@@ -619,6 +638,23 @@ List<double> _triangleVector() {
     (-0.49, 0.81),
     (0.67, 1.55),
     (-0.79, 1.62),
+  ]);
+}
+
+List<double> _treeVector() {
+  return _vector(<(double, double)>[
+    (0.38, -0.99),
+    (-0.37, -1.00),
+    (0.54, -1.12),
+    (-0.55, -1.12),
+    (0.20, -1.46),
+    (-0.22, -1.45),
+    (0.24, -0.00),
+    (-0.24, 0.00),
+    (0.60, 0.55),
+    (-0.49, 0.59),
+    (0.08, 0.88),
+    (-0.05, 1.01),
   ]);
 }
 
